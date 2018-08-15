@@ -1,0 +1,13 @@
+[package]
+name = "bdb"
+version = "0.1.0"
+authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
+
+[dependencies]
+assert_approx_eq = "1"
+lazy_static = "1"
+regex = "1"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+static_assertions = "0.2.5"
