@@ -29,12 +29,36 @@
  */
 pub trait Fasta: Sized {
     /**
-     *  \brief Export struct to FASTA.
+     *  \brief Export record to FASTA.
      */
-    fn to_fasta(&self) -> Option<String>;
+    fn to_fasta(&self) -> Result<String, &str>;
 
     /**
-     *  \brief Import struct from FASTA.
+     *  \brief Import record from FASTA.
      */
-    fn from_fasta(fasta: &str) -> Option<Self>;
+    fn from_fasta(fasta: &str) -> Result<Self, &str>;
+}
+
+pub trait FastaCollection: Sized {
+    /**
+     *  \brief Export collection of FASTA records to FASTA.
+     *
+     *  `to_fasta_strict` requires all records inside the collection
+     *  to be valid, or returns an `Err`, while `to_fasta_lenient` will
+     *  return as many formatted records as possible, returning an error
+     *  only if no records are valid.
+     */
+     fn to_fasta_strict(&self) -> Result<String, &str>;
+     fn to_fasta_lenient(&self) -> Result<String, &str>;
+
+    /**
+     *  \brief Import record collection from FASTA.
+     *
+     *  `from_fasta_strict` requires all records inside the FASTA text
+     *  to be valid, or returns an `Err`, while `to_fasta_lenient` will
+     *  return as many record structs as possible, returning an error
+     *  only if no records are valid.
+     */
+    fn from_fasta_strict(fasta: &str) -> Result<Self, &str>;
+    fn from_fasta_lenient(fasta: &str) -> Result<Self, &str>;
 }

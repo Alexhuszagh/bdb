@@ -10,9 +10,11 @@
 #[macro_use] extern crate serde_derive;
 #[cfg_attr(test, macro_use)] extern crate assert_approx_eq;
 
+extern crate hyper;
 extern crate regex;
 extern crate serde;
 extern crate serde_json;
+extern crate url;
 
 #[macro_use] pub mod macros;
 
@@ -26,5 +28,5 @@ pub mod xml;
 // General
 pub mod proteins;
 
-// Models
+// Models & Services
 pub mod uniprot;

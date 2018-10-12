@@ -36,22 +36,22 @@ pub trait Text: Sized {
 //    /**
 //     *  \brief Export struct to tab-delimited text document.
 //     */
-//    fn to_text(&self) -> Option<String>;
+//    fn to_text(&self) -> Result<String, &str>;
 //
 //    /**
 //     *  \brief Export struct to row(s) in document.
 //     */
-//    fn to_text_row(&self) -> Option<String>;
+//    fn to_text_row(&self) -> Result<String, &str>;
 
 // TODO(ahuszagh)
 //    /**
 //     *  \brief Import record from XML document.
 //     */
 //    // TODO(ahuszagh): implement in terms of `from_xml_node`.
-//    fn from_xml(fasta: &str) -> Option<Self>;
+//    fn from_xml(fasta: &str) -> Result<Self, &str>;
 //
 //    /**
 //     *  \brief Import record from XML node.
 //     */
-//    fn from_xml_node(fasta: &str) -> Option<Self>;
+//    fn from_xml_node(fasta: &str) -> Result<Self, &str>;
 }

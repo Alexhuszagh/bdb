@@ -10,9 +10,11 @@
 
 use regex::Regex;
 use std::fmt;
+
 use ::serde_json;
+
 use complete::Complete;
-use fasta::Fasta;
+use fasta::{Fasta, FastaCollection};
 use proteins::AverageMass;
 use proteins::ProteinMass;
 use valid::Valid;
@@ -201,9 +203,9 @@ impl Fasta for Record {
     /**
      *  \brief Export UniProt record to SwissProt FASTA record.
      */
-    fn to_fasta(&self) -> Option<String> {
+    fn to_fasta(&self) -> Result<String, &str> {
         if !self.is_valid() {
-            return None;
+            return Err("Invalid UniProt record, cannot serialize to FASTA.");
         }
 
         const SEQUENCE_LINE_LENGTH: usize = 60;
@@ -253,18 +255,22 @@ impl Fasta for Record {
             fasta.push(c);
         }
 
-        Some(fasta)
+        Ok(fasta)
     }
 
     /**
      *  \brief Import UniProt record from a SwissProt FASTA record.
      */
-    fn from_fasta(fasta: &str) -> Option<Record> {
+    fn from_fasta(fasta: &str) -> Result<Record, &str> {
         // split along lines
         // first line is the header, rest are the sequences
         // short-circuit if the header is None.
         let mut lines = fasta.lines();
-        let header = lines.next()?;
+        let header_option = lines.next();
+        if header_option.is_none() {
+            return Err("No input data provided to FASTA deserializer.");
+        }
+        let header = header_option.unwrap();
 
         // regular expression to extract data from the header
         // line of a SwissProt FASTA record.
@@ -290,7 +296,12 @@ impl Fasta for Record {
         }
 
         // process the header and match it to the FASTA record
-        let cap = SP_HEADER_REGEX.captures(&header)?;
+        let cap_option = SP_HEADER_REGEX.captures(&header);
+        if header_option.is_none() {
+            return Err("Unable to match data to SwissProt header format.");
+        }
+        let cap = cap_option.unwrap();
+
         let match_as_str    = | i | cap.name(i).unwrap().as_str();
         let match_as_string = | i | String::from(match_as_str(i));
 
@@ -322,7 +333,7 @@ impl Fasta for Record {
         let mass = AverageMass::protein_sequence_mass(result.sequence.as_bytes());
         result.mass = mass.round() as u64;
 
-        Some(result)
+        Ok(result)
     }
 }
 
@@ -349,51 +360,264 @@ impl Complete for RecordList {
     }
 }
 
+impl FastaCollection for RecordList {
+    /**
+     *  \brief Strict exporter of UniProt record list to SwissProt FASTA.
+     */
+    fn to_fasta_strict(&self) -> Result<String, &str> {
+        // exit early if empty list
+        if self.is_empty() {
+            return Ok(String::new());
+        }
+
+        // construct FASTA records from elements
+        let mut v: Vec<String> = vec![];
+        for record in self {
+            v.push(record.to_fasta()?);
+        }
+
+        Ok(v.join("\n\n"))
+    }
+
+    /**
+     *  \brief Lenient exporter of UniProt record list to SwissProt FASTA.
+     */
+    fn to_fasta_lenient(&self) -> Result<String, &str> {
+        // exit early if empty list
+        if self.is_empty() {
+            return Ok(String::new());
+        }
+
+        // construct FASTA records from elements
+        let mut v: Vec<String> = vec![];
+        let mut e: &str = "";
+        for record in self {
+            match record.to_fasta() {
+                Err(_e)     => e = _e,
+                Ok(_v)      => v.push(_v),
+            }
+        }
+
+        match v.is_empty() {
+            true  => Err(e),
+            false => Ok(v.join("\n\n"))
+        }
+    }
+
+    /**
+     *  \brief Strict importer UniProt of record list from SwissProt FASTA.
+     */
+    fn from_fasta_strict(fasta: &str) -> Result<RecordList, &str> {
+        // exit early if empty input data
+        if fasta.is_empty() {
+            return Ok(RecordList::new());
+        }
+
+        // import records from FASTA
+        let mut v: RecordList = vec![];
+        let records = fasta.split("\n\n");
+        for record in records {
+            v.push(Record::from_fasta(record)?);
+        }
+
+        Ok(v)
+    }
+
+    /**
+     *  \brief Lenient importer UniProt of record list from SwissProt FASTA.
+     */
+    fn from_fasta_lenient(fasta: &str) -> Result<RecordList, &str> {
+        // exit early if empty input data
+        if fasta.is_empty() {
+            return Ok(RecordList::new());
+        }
+
+        // import records from FASTA
+        let mut v: RecordList = vec![];
+        let mut e: &str= "";
+        let records = fasta.split("\n\n");
+        for record in records {
+            match Record::from_fasta(record) {
+                Err(_e)     => e = _e,
+                Ok(_v)      => v.push(_v),
+            }
+        }
+
+        match v.is_empty() {
+            true  => Err(e),
+            false => Ok(v)
+        }
+    }
+}
+
 impl Fasta for RecordList {
     /**
      *  \brief Export UniProt record list to SwissProt FASTA records.
      */
-    fn to_fasta(&self) -> Option<String> {
-        let mut fasta = String::new();
-
-        for record in self {
-            match record.to_fasta() {
-                None    => (),
-                Some(v) => {
-                    fasta.push_str(&v);
-                    fasta.push('\n');           // end line of record
-                    fasta.push('\n');           // add gap between records
-                },
-            }
-        }
-
-        // remove the last 2 newlines if present
-        fasta.pop();
-        fasta.pop();
-
-        match fasta.is_empty() {
-            true  => None,
-            false => Some(fasta)
-        }
+    fn to_fasta(&self) -> Result<String, &str> {
+        self.to_fasta_lenient()
     }
 
     /**
      *  \brief Import UniProt record list from SwissProt FASTA records.
      */
-    fn from_fasta(fasta: &str) -> Option<RecordList> {
-        let mut list: RecordList = vec![];
-        let records = fasta.split("\n\n");
-        for record in records {
-            match Record::from_fasta(record) {
-                None    => (),
-                Some(v) => list.push(v),
-            }
-        }
+    fn from_fasta(fasta: &str) -> Result<RecordList, &str> {
+        RecordList::from_fasta_lenient(fasta)
+    }
+}
 
-        match list.is_empty() {
-            true  => None,
-            false => Some(list)
-        }
+// CONNECTION
+// ----------
+
+/**
+ *  \brief Module to fetch records using the Uniprot KB service.
+ */
+pub mod fetch {
+
+    // CONSTANTS
+    // ---------
+
+    const HOST: &str = "http://www.uniprot.org/uniprot/";
+
+    // ALIAS
+    // -----
+
+    use hyper::Client;
+    use hyper::Uri;
+    use hyper::client::{ResponseFuture};
+    use hyper::rt::{Future, run};
+    use url::form_urlencoded;
+
+
+    /**
+     *  \brief Request UniProt records by accession number.
+     *
+     *  \param ids      Single accession number (eg. P46406)
+     */
+    pub fn by_id(id: &str) {
+        _by_id(id)
+    }
+
+    /**
+     *  \brief Request UniProt records by accession numbers.
+     *
+     *  \param ids      Slice of accession numbers (eg. [P46406])
+     */
+    pub fn by_id_list(ids: &[&str]) {
+        _by_id(&ids.join(" OR "))
+    }
+
+    /**
+     *  \brief Request UniProt records by mnemonic.
+     *
+     *  \param ids      Single mnemonic (eg. G3P_RABBIT)
+     */
+    pub fn by_mnemonic(mnemonic: &str) {
+        _by_mnemonic(mnemonic)
+    }
+
+    /**
+     *  \brief Request UniProt records by mnemonics.
+     *
+     *  \param ids      Slice of mnemonics (eg. [G3P_RABBIT])
+     */
+    pub fn by_mnemonic_list(ids: &[&str]) {
+        _by_mnemonic(&ids.join(" OR "))
+    }
+
+    // Helper function for calling the UniProt KB service.
+    #[allow(unused_variables)]
+    fn _call(query: &str) /* -> Option<RecordList> */ {
+        // create our url with form-encoded parameters
+        let params = form_urlencoded::Serializer::new(String::new())
+            .append_pair("sort", "score")
+            .append_pair("desc", "")
+            .append_pair("fil", "")
+            .append_pair("force", "no")
+            .append_pair("format", "tab")
+            .append_pair("reviewed", "yes")
+            .append_pair("query", query)
+            .append_pair("columns", "id,entry name,genes(PREFERRED),sequence")
+            .finish();
+        let url = format!("{}?{}", HOST, params);
+        println!("{}", url);        // TODO: remove
+        let url = url.parse::<Uri>().unwrap();
+
+        // we can block until we get the request
+        //run(_fetch_url(url));
+
+        // TODO: here....
+
+        //let result = client.get(url)
+            //.wait();
+//        //  rt::spawn(fut);
+//        match result {
+//            Err(e) => {
+//                // TODO: implement...
+//                println!("Error: {}", e);   // TODO: remove
+//            },
+//            Ok(t) => {
+//                // TODO: implement...
+//                println!("Response!");      // TODO: remove
+//            },
+//        }
+//            .and_then(|res| {
+////                println!("Response: {}", res.status());
+////                println!("Headers: {:#?}", res.headers());
+////
+////                // The body is a stream, and for_each returns a new Future
+////                // when the stream is finished, and calls the closure on
+////                // each chunk of the body...
+////                res.into_body().for_each(|chunk| {
+////                    //io::stdout().write_all(&chunk)
+////                        //.map_err(|e| panic!("example expects stdout is open, error={}", e))
+////                //})
+//            })
+//            // If all good, just tell the user...
+//            .map(|_| {
+//                println!("\n\nDone.");
+//            })
+//            // If there was an error, let the user know...
+//            .map_err(|err| {
+//                eprintln!("Error {}", err);
+//            });
+    }
+
+    // TODO: probably need to change this into a future...
+    fn _fetch_url(url: Uri) /*-> ResponseFuture*/ {
+        let client = Client::new();
+        client.get(url);
+//            .and_then(|res| {
+//                println!("Response: {}", res.status());
+//                println!("Headers: {:#?}", res.headers());
+//
+//                // The body is a stream, and for_each returns a new Future
+//                // when the stream is finished, and calls the closure on
+//                // each chunk of the body...
+//                res
+////                res.into_body().for_each(|chunk| {
+////                    io::stdout().write_all(&chunk)
+////                        .map_err(|e| panic!("example expects stdout is open, error={}", e))
+////                })
+//            })
+//            // If all good, just tell the user...
+//            .map(|_| {
+//                println!("\n\nDone.");
+//            })
+//            // If there was an error, let the user know...
+//            .map_err(|err| {
+//                eprintln!("Error {}", err);
+//            })
+    }
+
+    // Helper function for requesting by accession number.
+    fn _by_id(id: &str){
+        _call(&format!("id:{}", id))
+    }
+
+    // Helper function for requesting by mnemonic.
+    fn _by_mnemonic(mnemonic: &str){
+        _call(&format!("mnemonic:{}", mnemonic))
     }
 }
 
@@ -407,7 +631,7 @@ mod tests {
     use super::RecordList;
     use super::ProteinEvidence;
     use complete::Complete;
-    use fasta::Fasta;
+    use fasta::{Fasta, FastaCollection};
     use valid::Valid;
 
     fn gapdh() -> Record {
@@ -720,12 +944,16 @@ mod tests {
 
     #[test]
     fn fasta_list() {
-        let v = vec![gapdh(), bsa()];
-        // to_fasta
+        let v: RecordList = vec![gapdh(), bsa()];
+        // to_fasta (valid, 2 items)
         let x = v.to_fasta().unwrap();
         assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\n\n>sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\nMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPF\nDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEP\nERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYY\nANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVA\nRLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKE\nCCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRR\nHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEK\nLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLIL\nNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLP\nDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVV\nSTQTALA");
+        assert_eq!(x, v.to_fasta_strict().unwrap());
+        assert_eq!(x, v.to_fasta_lenient().unwrap());
 
         let y = RecordList::from_fasta(&x).unwrap();
+        assert_eq!(y, RecordList::from_fasta_strict(&x).unwrap());
+        assert_eq!(y, RecordList::from_fasta_lenient(&x).unwrap());
         assert_eq!(y[0].id, "P46406");
         assert_eq!(y[1].id, "P02769");
 
@@ -740,5 +968,47 @@ mod tests {
 
         assert!(y[1].is_valid());
         assert!(!y[1].is_complete());
+
+        // to_fasta (empty)
+        let v: RecordList = vec![];
+        let x = v.to_fasta().unwrap();
+        assert_eq!(x, "");
+        assert_eq!(x, v.to_fasta_strict().unwrap());
+        assert_eq!(x, v.to_fasta_lenient().unwrap());
+
+        let y = RecordList::from_fasta(&x).unwrap();
+        assert_eq!(y, RecordList::from_fasta_strict(&x).unwrap());
+        assert_eq!(y, RecordList::from_fasta_lenient(&x).unwrap());
+        assert_eq!(y.len(), 0);
+
+        // to_fasta (1 invalid)
+        let v: RecordList = vec![Record::new()];
+        let x = v.to_fasta();
+        assert_eq!(x, Err("Invalid UniProt record, cannot serialize to FASTA."));
+        assert_eq!(x, v.to_fasta_strict());
+        assert_eq!(x, v.to_fasta_lenient());
+
+        // to_fasta (1 valid, 1 invalid)
+        let v: RecordList = vec![gapdh(), Record::new()];
+        let x = v.to_fasta().unwrap();
+        assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
+        assert_eq!(v.to_fasta_strict(), Err("Invalid UniProt record, cannot serialize to FASTA."));
+        assert_eq!(x, v.to_fasta_lenient().unwrap());
     }
+
+    // FETCH
+    // TODO(ahuzagh)
+    //      Need to implement the fetch tests here.
+
+    use super::fetch;
+
+    #[test]
+    fn by_id() {
+        fetch::by_id("P46406");
+        // TODO(ahuszagh) implement
+    }
+
+    // by_id_list
+    // by_mnemonic
+    // by_mnemonic_list
 }
