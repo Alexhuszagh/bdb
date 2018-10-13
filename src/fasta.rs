@@ -39,9 +39,12 @@ pub trait Fasta: Sized {
     fn from_fasta(fasta: &str) -> Result<Self, &str>;
 }
 
+/**
+ *  \brief Specialized version of the Fasta trait for collections.
+ */
 pub trait FastaCollection: Sized {
     /**
-     *  \brief Export collection of FASTA records to FASTA.
+     *  \brief Export collection of UniProt records to FASTA.
      *
      *  `to_fasta_strict` requires all records inside the collection
      *  to be valid, or returns an `Err`, while `to_fasta_lenient` will

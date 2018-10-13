@@ -2,56 +2,65 @@
  *  Text
  *  ----
  *
- *  Trait for tab-delimited text serializers and deserializers.
+ *  Trait for serializers and deserializers for custom `.txt` formats.
  *
  *  :copyright: (c) 2018 Alex Huszagh.
  *  :license: MIT, see LICENSE.md for more details.
  */
 
-// ALIAS
-// -----
-
-// TODO(ahuszagh)
-//  Define the `Column` and `ColumnList` aliases.
-//pub type Column = &str;
-//pub type Vec<&str>
-
 // TRAITS
 // ------
 
+// TODO(ahuszagh)
+//      Restore this module off the following format:
+//          https://www.uniprot.org/uniprot/A6VR00.txt
+
 /**
- *  \brief Trait that defines text serializers and deserializers.
+ *  \brief Trait that defines custom text serializers and deserializers.
  *
- *  The `to_text` method should return a `String` of the following format,
- *  while the `from_text` method should create a struct instance from a
- *  string of the following format.
- *
- *  \format
- *      // TODO: define
+ *  The `to_text` method should return a `String` in the custom text format,
+ *  while the `from_text` method should create a struct instance from that
+ *  custom text format.
  */
 pub trait Text: Sized {
-// TODO: I need columns to be passed....
-// It really shouldn't support a single order....
+    /**
+     *  \brief Export record to custom text format.
+     */
+    fn to_text(&self) -> Result<String, &str>;
 
-//    /**
-//     *  \brief Export struct to tab-delimited text document.
-//     */
-//    fn to_text(&self) -> Result<String, &str>;
-//
-//    /**
-//     *  \brief Export struct to row(s) in document.
-//     */
-//    fn to_text_row(&self) -> Result<String, &str>;
+    /**
+     *  \brief Import record from custom text format
+     */
+    fn from_text(text: &str) -> Result<Self, &str>;
+}
 
-// TODO(ahuszagh)
-//    /**
-//     *  \brief Import record from XML document.
-//     */
-//    // TODO(ahuszagh): implement in terms of `from_xml_node`.
-//    fn from_xml(fasta: &str) -> Result<Self, &str>;
-//
-//    /**
-//     *  \brief Import record from XML node.
-//     */
-//    fn from_xml_node(fasta: &str) -> Result<Self, &str>;
+
+/**
+ *  \brief Specialized version of the Text trait for collections.
+ *
+ *  \warning This trait may not be relevant for all collections, since
+ *  some `.txt` formats do not support multiple records in a single document.
+ */
+pub trait TextCollection: Sized {
+    /**
+     *  \brief Export collection of UniProt records to text.
+     *
+     *  `to_text_strict` requires all records inside the collection
+     *  to be valid, or returns an `Err`, while `to_text_lenient` will
+     *  return as many formatted records as possible, returning an error
+     *  only if no records are valid.
+     */
+     fn to_text_strict(&self) -> Result<String, &str>;
+     fn to_text_lenient(&self) -> Result<String, &str>;
+
+     /**
+     *  \brief Import record collection from text.
+     *
+     *  `from_text_strict` requires all records inside the text
+     *  to be valid, or returns an `Err`, while `to_text_lenient` will
+     *  return as many record structs as possible, returning an error
+     *  only if no records are valid.
+     */
+    fn from_text_strict(text: &str) -> Result<Self, &str>;
+    fn from_text_lenient(text: &str) -> Result<Self, &str>;
 }

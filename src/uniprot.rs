@@ -9,18 +9,133 @@
  */
 
 use regex::Regex;
+use std::error::Error;
 use std::fmt;
 
+use ::csv;
+use ::ref_slice::ref_slice;
 use ::serde_json;
 
 use complete::Complete;
 use fasta::{Fasta, FastaCollection};
 use proteins::AverageMass;
 use proteins::ProteinMass;
+use tbt::{Tbt};       // TbtCollection
+//use text::{Text, TextCollection};
 use valid::Valid;
 
 // UNIPROT
 // -------
+
+//  The following is a mapping of the UniProt form-encoded keys, struct
+//  field names, and UniProt displayed column names.
+//  Despite the name correspondence, the information may not be a
+//  identical in one format or another, for example, `protein_evidence`
+//  is an enumeration, while in a displayed column it's a string, and
+//  in FASTA it's a numerical identifier. `ProteinEvidence` is the same
+//  as `"Evidence at protein level"` which is the same as `1`.
+//
+//  Entry:
+//      Field Name:         "sequence_version"
+//      Form-Encoded Key:   "version(sequence)"
+//      Displayed Column:   "Sequence version"
+//      Notes:
+//          Simple integer in all variants.
+//
+//  Entry:
+//      Field Name:         "protein_evidence"
+//      Form-Encoded Key:   "existence"
+//      Displayed Column:   "Protein existence"
+//      Notes:
+//          Enumerated value, which appears as a string or integer, with
+//          the mapping defined in `ProteinEvidence` and
+//          `protein_evidence_verbose`.
+//
+//  Entry:
+//      Field Name:         "mass"
+//      Form-Encoded Key:   "mass"
+//      Displayed Column:   "Mass"
+//      Notes:
+//          Simple integer in all variants.
+//
+//  Entry:
+//      Field Name:         "length"
+//      Form-Encoded Key:   "length"
+//      Displayed Column:   "Length"
+//      Notes:
+//          Simple integer in all variants.
+//
+//  Entry:
+//      Field Name:         "gene"
+//      Form-Encoded Key:   "genes(PREFERRED)"
+//      Displayed Column:   "Gene names  (primary )"
+//      Notes:
+//          TODO(ahuszagh) [I believe this frequently gives more than
+//          one gene name, confirm with the unannotated human proteome.
+//          If so, designate a regex for filtering from external queries.]
+//
+//  Entry:
+//      Field Name:         "id"
+//      Form-Encoded Key:   "id"
+//      Displayed Column:   "Entry"
+//      Notes:
+//          Accession number as a string.
+//
+//  Entry:
+//      Field Name:         "mnemonic"
+//      Form-Encoded Key:   "entry name"
+//      Displayed Column:   "Entry name"
+//      Notes:
+//          Mnemonic identifier as a string.
+//
+//  Entry:
+//      Field Name:         "name"
+//      Form-Encoded Key:   "protein names"
+//      Displayed Column:   "Protein names"
+//      Notes:
+//          Name for the protein (ex. Glyceraldehyde-3-phosphate
+//          dehydrogenase). However, UniProt frequently spits out
+//          more than one possible protein name, with each subsequent
+//          name enclosed in parentheses (ex. "Glyceraldehyde-3-phosphate
+//          dehydrogenase (GAPDH) (EC 1.2.1.12) (Peptidyl-cysteine
+//          S-nitrosylase GAPDH) (EC 2.6.99.-)").
+//
+//  Entry:
+//      Field Name:         "organism"
+//      Form-Encoded Key:   "organism"
+//      Displayed Column:   "Organism"
+//      Notes:
+//          Species name (with an optional common name in parentheses).
+//          BDB considers the common name superfluous, and therefore
+//          removes it from all records fetched from external queries.
+//          Strain information, which is also enclosed in parentheses,
+//          however, should not be removed.
+//
+//  Entry:
+//      Field Name:         "proteome"
+//      Form-Encoded Key:   "proteome"
+//      Displayed Column:   "Proteomes"
+//      Notes:
+//          Proteomes include a proteome identifier and an optional
+//          proteome location, for example, "UP000001811: Unplaced",
+//          "UP000001114: Chromosome", and "UP000001811" are all valid
+//          values. We discard the location, and solely store the proteome
+//          identifier.
+//
+//
+//  Entry:
+//      Field Name:         "sequence"
+//      Form-Encoded Key:   "sequence"
+//      Displayed Column:   "Sequence"
+//      Notes:
+//          Aminoacid sequence of the protein, as a string.
+//
+//  Entry:
+//      Field Name:         "taxonomy"
+//      Form-Encoded Key:   "organism-id"
+//      Displayed Column:   "Organism ID"
+//      Notes:
+//          Numerical identifier for the species, described by "name".
 
 
 /**
@@ -32,13 +147,33 @@ use valid::Valid;
  *  at the transcript (or mRNA) level. Weak evidence is inferred from
  *  homology from similar species. Curated protein databases frequently
  *  only include proteins identified at the protein level.
+ *
+ *  `Unknown` is a custom value for invalid entries, or those with yet-
+ *  to-be annotated protein evidence scores.
+ *
+ *  More documentation can be found at:
+ *      https://www.uniprot.org/help/protein_existence
  */
 enum_number!(ProteinEvidence {
     ProteinLevel = 1,
     TranscriptLevel = 2,
     Inferred = 3,
-    Unknown = 4,
+    Predicted = 4,
+    Unknown = 5,
 });
+
+/**
+ *  \brief Convert enumerated value for ProteinEvidence to verbose text.
+ */
+pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
+    match evidence {
+        ProteinEvidence::ProteinLevel       => "Evidence at protein level",
+        ProteinEvidence::TranscriptLevel    => "Evidence at transcript level",
+        ProteinEvidence::Inferred           => "Inferred from homology",
+        ProteinEvidence::Predicted          => "Predicted",
+        ProteinEvidence::Unknown            => "Unknown evidence (BDB-only designation)",
+    }
+}
 
 /**
  *  \brief Model for a single record from a UniProt KB query.
@@ -82,6 +217,81 @@ pub struct Record {
     sequence: String,
     taxonomy: String,
 }
+
+/**
+ *  \brief Process organism name from UniProt KB databases.
+ *
+ *  Remove the enclosed common names or synonym, when applicable.
+ *
+ *  \example
+ *      // process_organism("Oryctolagus cuniculus (Rabbit)")
+ *      //     -> "Oryctolagus cuniculus"
+ *
+ *      // process_organism("Homo sapiens (Human)")
+ *      //     -> "Homo sapiens"
+ *
+ *      // process_organism("Histophilus somni (strain 2336) (Haemophilus somnus)")
+ *      //     -> "Histophilus somni (strain 2336)"
+ *
+ *      // process_organism("Actinobacillus succinogenes (strain ATCC 55618 / 130Z)")
+ *      //     -> "Actinobacillus succinogenes (strain ATCC 55618 / 130Z)"
+ */
+// TODO(ahuszagh)
+//      Write unittests
+//      Need to ensure that the common name or synonym is removed,
+//      but any strain information is not.
+pub fn process_organism(organism: &str) -> &str {
+    // TODO: Implement...
+    let _organism = organism;
+    ""
+}
+
+/**
+ *  \brief Remove subsequent names from the protein name.
+ *
+ *  Remove the parentheses-enclosed names from the protein name.
+ *
+ *  \example
+ *      // process_protein_name("Glyceraldehyde-3-phosphate
+//          dehydrogenase (GAPDH) (EC 1.2.1.12) (Peptidyl-cysteine
+//          S-nitrosylase GAPDH) (EC 2.6.99.-)")
+ *      //    -> "Glyceraldehyde-3-phosphate
+//          dehydrogenase"
+ */
+// TODO(ahuszagh)
+//      Write unittests
+//      Need to ensure that there are no parentheses in any valid names.
+//          Use the entire human proteome to determine that.
+pub fn process_protein_name(name: &str) -> &str {
+    // TODO: Implement...
+    let _name = name;
+    ""
+}
+
+/**
+ *  \brief Remove the proteome location from the identifier.
+ *
+ *  Remove the colon-delineated location from the proteome identifier,
+ *  when applicable.
+ *
+ *  \example
+ *      // process_proteome("UP000001811: Unplaced")
+ *      //    -> "UP000001811"
+ *
+ *      // process_proteome("UP000001114: Chromosome")
+ *      //    -> "UP000001114"
+ */
+// TODO(ahuszagh)
+//      Write unittests
+//      Need to ensure that the code works when the location is not present.
+pub fn process_proteome(proteome: &str) -> &str {
+    // TODO: Implement...
+    let _proteome = proteome;
+    ""
+}
+
+// TODO: need more processing functions
+
 
 impl Record {
     /**
@@ -337,6 +547,29 @@ impl Fasta for Record {
     }
 }
 
+impl Tbt for Record {
+    /**
+     *  \brief Export UniProt record to TBT.
+     */
+    fn to_tbt(&self) -> Result<String, &str> {
+        _slice_to_tbt(ref_slice(&self))
+    }
+
+    /**
+     *  \brief Import UniProt record from a TBT row.
+     */
+    fn from_tbt(text: &str) -> Result<Record, &str> {
+        // TODO(ahuszagh) Implement...
+        // 1. Need to find only the first 2 lines.
+        // 2. Need to call the deserializer.
+        // 3. Need to yank just the first item.
+
+        //_text_to_list(text)[0];
+        let _text = text;
+        Err("")
+    }
+}
+
 /**
  *  \brief Collection of UniProt records.
  */
@@ -466,6 +699,106 @@ impl Fasta for RecordList {
     }
 }
 
+// TODO(ahuszagh)
+//      Change to Tbt trait
+//impl Text for RecordList {
+//    // TODO(ahuszagh)   implement the text serializer
+//
+//    fn to_text(&self) -> Result<String, &str> {
+//        _slice_to_tbt(&self[..])
+//    }
+//}
+
+// PRIVATE
+// -------
+
+/**
+ *  \brief Convert a record to vector of strings to serialize into TBT.
+ */
+fn _record_to_row(record: &Record) -> Vec<String> {
+    vec![
+        nonzero_to_string!(record.sequence_version),
+        String::from(match record.protein_evidence {
+            ProteinEvidence::Unknown    => "",
+            _                           => protein_evidence_verbose(record.protein_evidence),
+        }),
+        nonzero_to_string!(record.mass),
+        nonzero_to_string!(record.length),
+        record.gene.clone(),
+        record.id.clone(),
+        record.mnemonic.clone(),
+        record.name.clone(),
+        record.organism.clone(),
+        record.proteome.clone(),
+        record.sequence.clone(),
+        record.taxonomy.clone(),
+    ]
+}
+
+
+/**
+ *  \brief Convert a slice of records into TBT.
+ */
+#[allow(unused_variables)]
+#[allow(unused_mut)]
+fn _slice_to_tbt_impl(records: &[Record]) -> Result<String, Box<Error>> {
+    // Create our custom writer.
+    let mut writer = csv::WriterBuilder::new()
+        .delimiter(b'\t')
+        .quote_style(csv::QuoteStyle::Necessary)
+        .flexible(false)
+        .from_writer(vec![]);
+
+    // Serialize the header to TBT.
+    writer.write_record(&[
+        "Sequence version",         // sequence_version
+        "Protein existence",        // protein_evidence
+        "Mass",                     // mass
+        "Length",                   // length
+        "Gene names  (primary )",   // gene
+        "Entry",                    // id
+        "Entry name",               // mnemonic
+        "Protein names",            // name
+        "Organism",                 // organism
+        "Proteomes",                // proteome
+        "Sequence",                 // sequence
+        "Organism ID",              // taxonomy
+    ])?;
+
+    // Serialize each row to TBT.
+    for record in records {
+        writer.write_record(&_record_to_row(&record)[..])?;
+    }
+
+    // Return a string from the writer bytes.
+    Ok(String::from_utf8(writer.into_inner()?)?)
+}
+
+
+/**
+ *  \brief Wrap `_slice_to_tbt_impl` with a text-based error.
+ */
+fn _slice_to_tbt(records: &[Record]) -> Result<String, &str> {
+    // TODO: properly implement...
+    _slice_to_tbt_impl(records).map_err(|_e| {
+        ""
+    })
+}
+
+
+// TODO(ahuszagh)
+//      Likely remove
+///**
+// *  \brief Convert tab-delimited text records to a UniProt record list.
+// */
+//#[allow(unused_variables)]
+//fn _text_to_list<'a>(text: &str) -> Result<RecordList, &'a str> {
+//    // TODO(ahuszagh)
+//    //  Implement the slice to text code.
+//
+//    Err("Not yet implemented...")
+//}
+
 // CONNECTION
 // ----------
 
@@ -477,24 +810,25 @@ pub mod fetch {
     // CONSTANTS
     // ---------
 
-    const HOST: &str = "http://www.uniprot.org/uniprot/";
+    const HOST: &str = "https://www.uniprot.org:443/uniprot/";
 
     // ALIAS
     // -----
 
-    use hyper::Client;
-    use hyper::Uri;
-    use hyper::client::{ResponseFuture};
-    use hyper::rt::{Future, run};
+    use reqwest;
     use url::form_urlencoded;
 
+    use super::RecordList;
+
+    // API
+    // ---
 
     /**
      *  \brief Request UniProt records by accession number.
      *
      *  \param ids      Single accession number (eg. P46406)
      */
-    pub fn by_id(id: &str) {
+    pub fn by_id<'a>(id: &str) -> Result<RecordList, &'a str> {
         _by_id(id)
     }
 
@@ -503,7 +837,7 @@ pub mod fetch {
      *
      *  \param ids      Slice of accession numbers (eg. [P46406])
      */
-    pub fn by_id_list(ids: &[&str]) {
+    pub fn by_id_list<'a>(ids: &[&str]) -> Result<RecordList, &'a str> {
         _by_id(&ids.join(" OR "))
     }
 
@@ -512,7 +846,7 @@ pub mod fetch {
      *
      *  \param ids      Single mnemonic (eg. G3P_RABBIT)
      */
-    pub fn by_mnemonic(mnemonic: &str) {
+    pub fn by_mnemonic<'a>(mnemonic: &str) -> Result<RecordList, &'a str> {
         _by_mnemonic(mnemonic)
     }
 
@@ -521,13 +855,16 @@ pub mod fetch {
      *
      *  \param ids      Slice of mnemonics (eg. [G3P_RABBIT])
      */
-    pub fn by_mnemonic_list(ids: &[&str]) {
+    pub fn by_mnemonic_list<'a>(ids: &[&str]) -> Result<RecordList, &'a str> {
         _by_mnemonic(&ids.join(" OR "))
     }
 
+    // PRIVATE
+    // -------
+
     // Helper function for calling the UniProt KB service.
     #[allow(unused_variables)]
-    fn _call(query: &str) /* -> Option<RecordList> */ {
+    fn _call<'a>(query: &str) -> Result<RecordList, &'a str> {
         // create our url with form-encoded parameters
         let params = form_urlencoded::Serializer::new(String::new())
             .append_pair("sort", "score")
@@ -535,88 +872,45 @@ pub mod fetch {
             .append_pair("fil", "")
             .append_pair("force", "no")
             .append_pair("format", "tab")
-            .append_pair("reviewed", "yes")
             .append_pair("query", query)
-            .append_pair("columns", "id,entry name,genes(PREFERRED),sequence")
+            .append_pair("columns", "version(sequence),existence,mass,length,genes(PREFERRED),id,entry name,protein names,organism,proteome,sequence,organism-id")
             .finish();
         let url = format!("{}?{}", HOST, params);
-        println!("{}", url);        // TODO: remove
-        let url = url.parse::<Uri>().unwrap();
+        let body = _url_to_body(&url)?;
+        println!("url = {:?}", url);
+        println!("body = {:?}", body);
 
-        // we can block until we get the request
-        //run(_fetch_url(url));
+        // TODO(ahuszagh)
+        //      need a UniProt from text utility
 
-        // TODO: here....
-
-        //let result = client.get(url)
-            //.wait();
-//        //  rt::spawn(fut);
-//        match result {
-//            Err(e) => {
-//                // TODO: implement...
-//                println!("Error: {}", e);   // TODO: remove
-//            },
-//            Ok(t) => {
-//                // TODO: implement...
-//                println!("Response!");      // TODO: remove
-//            },
-//        }
-//            .and_then(|res| {
-////                println!("Response: {}", res.status());
-////                println!("Headers: {:#?}", res.headers());
-////
-////                // The body is a stream, and for_each returns a new Future
-////                // when the stream is finished, and calls the closure on
-////                // each chunk of the body...
-////                res.into_body().for_each(|chunk| {
-////                    //io::stdout().write_all(&chunk)
-////                        //.map_err(|e| panic!("example expects stdout is open, error={}", e))
-////                //})
-//            })
-//            // If all good, just tell the user...
-//            .map(|_| {
-//                println!("\n\nDone.");
-//            })
-//            // If there was an error, let the user know...
-//            .map_err(|err| {
-//                eprintln!("Error {}", err);
-//            });
+        // TODO: use reqwest here...
+        Ok(RecordList::new())
     }
 
-    // TODO: probably need to change this into a future...
-    fn _fetch_url(url: Uri) /*-> ResponseFuture*/ {
-        let client = Client::new();
-        client.get(url);
-//            .and_then(|res| {
-//                println!("Response: {}", res.status());
-//                println!("Headers: {:#?}", res.headers());
-//
-//                // The body is a stream, and for_each returns a new Future
-//                // when the stream is finished, and calls the closure on
-//                // each chunk of the body...
-//                res
-////                res.into_body().for_each(|chunk| {
-////                    io::stdout().write_all(&chunk)
-////                        .map_err(|e| panic!("example expects stdout is open, error={}", e))
-////                })
-//            })
-//            // If all good, just tell the user...
-//            .map(|_| {
-//                println!("\n\nDone.");
-//            })
-//            // If there was an error, let the user know...
-//            .map_err(|err| {
-//                eprintln!("Error {}", err);
-//            })
+    // Helper functions to convert URL to UniProt body.
+    fn _url_to_body_impl(url: &str) -> Result<String, reqwest::Error> {
+        reqwest::get(url)?.text()
+    }
+
+    fn _url_to_body<'a>(url: &str) -> Result<String, &'a str> {
+        _url_to_body_impl(url).map_err(|e| {
+            match e.status() {
+                None    => "Internal error, unable to get response.",
+                Some(v) => match v.canonical_reason() {
+                    None    => "Unknown response code for error code.",
+                    Some(r) => r,
+                }
+            }
+        })
     }
 
     // Helper function for requesting by accession number.
-    fn _by_id(id: &str){
+    fn _by_id<'a>(id: &str) -> Result<RecordList, &'a str> {
         _call(&format!("id:{}", id))
     }
 
     // Helper function for requesting by mnemonic.
-    fn _by_mnemonic(mnemonic: &str){
+    fn _by_mnemonic<'a>(mnemonic: &str)-> Result<RecordList, &'a str> {
         _call(&format!("mnemonic:{}", mnemonic))
     }
 }
@@ -630,8 +924,10 @@ mod tests {
     use super::Record;
     use super::RecordList;
     use super::ProteinEvidence;
+    use super::protein_evidence_verbose;
     use complete::Complete;
     use fasta::{Fasta, FastaCollection};
+    use tbt::{Tbt};     // TbtCollection
     use valid::Valid;
 
     fn gapdh() -> Record {
@@ -669,38 +965,56 @@ mod tests {
     }
 
     // PROTEIN EVIDENCE
+    // Note: Do not test Unknown, it is an implementation detail.
 
     #[test]
     fn debug_protein_evidence() {
         let formatted_protein_level = format!("{:?}", ProteinEvidence::ProteinLevel);
         let formatted_transcript_level = format!("{:?}", ProteinEvidence::TranscriptLevel);
         let formatted_inferred = format!("{:?}", ProteinEvidence::Inferred);
+        let formatted_predicted = format!("{:?}", ProteinEvidence::Predicted);
         assert_eq!(formatted_protein_level, "ProteinLevel");
         assert_eq!(formatted_transcript_level, "TranscriptLevel");
         assert_eq!(formatted_inferred, "Inferred");
+        assert_eq!(formatted_predicted, "Predicted");
     }
 
     #[test]
     fn serialize_protein_evidence() {
         // to_string
-        let x = serde_json::to_string(&ProteinEvidence::ProteinLevel).unwrap();
-        assert_eq!(x, "1");
+        let w = serde_json::to_string(&ProteinEvidence::ProteinLevel).unwrap();
+        assert_eq!(w, "1");
 
-        let y = serde_json::to_string(&ProteinEvidence::TranscriptLevel).unwrap();
-        assert_eq!(y, "2");
+        let x = serde_json::to_string(&ProteinEvidence::TranscriptLevel).unwrap();
+        assert_eq!(x, "2");
 
-        let z = serde_json::to_string(&ProteinEvidence::Inferred).unwrap();
-        assert_eq!(z, "3");
+        let y = serde_json::to_string(&ProteinEvidence::Inferred).unwrap();
+        assert_eq!(y, "3");
+
+        let z = serde_json::to_string(&ProteinEvidence::Predicted).unwrap();
+        assert_eq!(z, "4");
 
         // from_str
-        let a: ProteinEvidence = serde_json::from_str(&x).unwrap();
+        let a: ProteinEvidence = serde_json::from_str(&w).unwrap();
         assert_eq!(a, ProteinEvidence::ProteinLevel);
 
-        let b: ProteinEvidence = serde_json::from_str(&y).unwrap();
+        let b: ProteinEvidence = serde_json::from_str(&x).unwrap();
         assert_eq!(b, ProteinEvidence::TranscriptLevel);
 
-        let c: ProteinEvidence = serde_json::from_str(&z).unwrap();
+        let c: ProteinEvidence = serde_json::from_str(&y).unwrap();
         assert_eq!(c, ProteinEvidence::Inferred);
+
+        let d: ProteinEvidence = serde_json::from_str(&z).unwrap();
+        assert_eq!(d, ProteinEvidence::Predicted);
+    }
+
+    #[test]
+    fn protein_evidence_verbose_test() {
+        assert_eq!(protein_evidence_verbose(ProteinEvidence::ProteinLevel), "Evidence at protein level");
+        assert_eq!(protein_evidence_verbose(ProteinEvidence::TranscriptLevel), "Evidence at transcript level");
+        assert_eq!(protein_evidence_verbose(ProteinEvidence::Inferred), "Inferred from homology");
+        assert_eq!(protein_evidence_verbose(ProteinEvidence::Predicted), "Predicted");
+        assert_eq!(protein_evidence_verbose(ProteinEvidence::Unknown), "Unknown evidence (BDB-only designation)");
     }
 
     // RECORD
@@ -780,6 +1094,28 @@ mod tests {
         // from_fasta
         let y = Record::from_fasta(&x).unwrap();
         _incomplete_eq(&b, &y);
+    }
+
+    #[test]
+    fn tbt_gapdh() {
+        let g = gapdh();
+
+        // to_tbt
+        let x = g.to_tbt().unwrap();
+        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n3\tEvidence at protein level\t35780\t333\tGAPDH\tP46406\tG3P_RABIT\tGlyceraldehyde-3-phosphate dehydrogenase\tOryctolagus cuniculus\tUP000001811\tMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\t9986\n");
+
+        // TODO(ahuszagh) Implement deserializer
+    }
+
+    #[test]
+    fn tbt_bsa() {
+        let b = bsa();
+
+        // to_tbt
+        let x = b.to_tbt().unwrap();
+        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n4\tEvidence at protein level\t69293\t607\tALB\tP02769\tALBU_BOVIN\tSerum albumin\tBos taurus\tUP000009136\tMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\t9913\n");
+
+        // TODO(ahuszagh) Implement deserializer
     }
 
     #[test]
@@ -994,6 +1330,11 @@ mod tests {
         assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
         assert_eq!(v.to_fasta_strict(), Err("Invalid UniProt record, cannot serialize to FASTA."));
         assert_eq!(x, v.to_fasta_lenient().unwrap());
+    }
+
+    #[test]
+    fn tbt_list() {
+        // TODO(ahuszagh) Implement the TBT serializer test for lists.
     }
 
     // FETCH

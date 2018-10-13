@@ -10,8 +10,10 @@
 #[macro_use] extern crate serde_derive;
 #[cfg_attr(test, macro_use)] extern crate assert_approx_eq;
 
-extern crate hyper;
+extern crate csv;
+extern crate ref_slice;
 extern crate regex;
+extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 extern crate url;
@@ -21,6 +23,7 @@ extern crate url;
 // Traits
 pub mod complete;
 pub mod fasta;
+pub mod tbt;
 pub mod text;
 pub mod valid;
 pub mod xml;
