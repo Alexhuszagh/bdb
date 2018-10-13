@@ -36,7 +36,7 @@ pub trait Fasta: Sized {
     /**
      *  \brief Import record from FASTA.
      */
-    fn from_fasta(fasta: &str) -> Result<Self, &str>;
+    fn from_fasta<'a>(fasta: &str) -> Result<Self, &'a str>;
 }
 
 /**
@@ -62,6 +62,6 @@ pub trait FastaCollection: Sized {
      *  return as many record structs as possible, returning an error
      *  only if no records are valid.
      */
-    fn from_fasta_strict(fasta: &str) -> Result<Self, &str>;
-    fn from_fasta_lenient(fasta: &str) -> Result<Self, &str>;
+    fn from_fasta_strict<'a>(fasta: &str) -> Result<Self, &'a str>;
+    fn from_fasta_lenient<'a>(fasta: &str) -> Result<Self, &'a str>;
 }

@@ -30,7 +30,7 @@ pub trait Tbt: Sized {
      *  Works identically to a collection importer, only fetches at max
      *  1 record, since the headers are shared over all records.
      */
-    fn from_tbt(text: &str) -> Result<Self, &str>;
+    fn from_tbt<'a>(text: &str) -> Result<Self, &'a str>;
 }
 
 
@@ -57,6 +57,6 @@ pub trait TextCollection: Sized {
      *  return as many record structs as possible, returning an error
      *  only if no records are valid.
      */
-    fn from_tbt_strict(text: &str) -> Result<Self, &str>;
-    fn from_tbt_lenient(text: &str) -> Result<Self, &str>;
+    fn from_tbt_strict<'a>(text: &str) -> Result<Self, &'a str>;
+    fn from_tbt_lenient<'a>(text: &str) -> Result<Self, &'a str>;
 }

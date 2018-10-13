@@ -31,7 +31,7 @@ pub trait Text: Sized {
     /**
      *  \brief Import record from custom text format
      */
-    fn from_text(text: &str) -> Result<Self, &str>;
+    fn from_text<'a>(text: &str) -> Result<Self, &'a str>;
 }
 
 
@@ -61,6 +61,6 @@ pub trait TextCollection: Sized {
      *  return as many record structs as possible, returning an error
      *  only if no records are valid.
      */
-    fn from_text_strict(text: &str) -> Result<Self, &str>;
-    fn from_text_lenient(text: &str) -> Result<Self, &str>;
+    fn from_text_strict<'a>(text: &str) -> Result<Self, &'a str>;
+    fn from_text_lenient<'a>(text: &str) -> Result<Self, &'a str>;
 }

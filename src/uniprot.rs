@@ -471,7 +471,7 @@ impl Fasta for Record {
     /**
      *  \brief Import UniProt record from a SwissProt FASTA record.
      */
-    fn from_fasta(fasta: &str) -> Result<Record, &str> {
+    fn from_fasta<'a>(fasta: &str) -> Result<Record, &'a str> {
         // split along lines
         // first line is the header, rest are the sequences
         // short-circuit if the header is None.
@@ -558,7 +558,7 @@ impl Tbt for Record {
     /**
      *  \brief Import UniProt record from a TBT row.
      */
-    fn from_tbt(text: &str) -> Result<Record, &str> {
+    fn from_tbt<'a>(text: &str) -> Result<Record, &'a str> {
         // TODO(ahuszagh) Implement...
         // 1. Need to find only the first 2 lines.
         // 2. Need to call the deserializer.
@@ -640,7 +640,7 @@ impl FastaCollection for RecordList {
     /**
      *  \brief Strict importer UniProt of record list from SwissProt FASTA.
      */
-    fn from_fasta_strict(fasta: &str) -> Result<RecordList, &str> {
+    fn from_fasta_strict<'a>(fasta: &str) -> Result<RecordList, &'a str> {
         // exit early if empty input data
         if fasta.is_empty() {
             return Ok(RecordList::new());
@@ -659,7 +659,7 @@ impl FastaCollection for RecordList {
     /**
      *  \brief Lenient importer UniProt of record list from SwissProt FASTA.
      */
-    fn from_fasta_lenient(fasta: &str) -> Result<RecordList, &str> {
+    fn from_fasta_lenient<'a>(fasta: &str) -> Result<RecordList, &'a str> {
         // exit early if empty input data
         if fasta.is_empty() {
             return Ok(RecordList::new());
@@ -694,20 +694,34 @@ impl Fasta for RecordList {
     /**
      *  \brief Import UniProt record list from SwissProt FASTA records.
      */
-    fn from_fasta(fasta: &str) -> Result<RecordList, &str> {
+    fn from_fasta<'a>(fasta: &str) -> Result<RecordList, &'a str> {
         RecordList::from_fasta_lenient(fasta)
     }
 }
 
 // TODO(ahuszagh)
 //      Change to Tbt trait
-//impl Text for RecordList {
-//    // TODO(ahuszagh)   implement the text serializer
-//
-//    fn to_text(&self) -> Result<String, &str> {
-//        _slice_to_tbt(&self[..])
-//    }
-//}
+impl Tbt for RecordList {
+    /**
+     *  \brief Export UniProt records to TBT.
+     */
+    fn to_tbt(&self) -> Result<String, &str> {
+        _slice_to_tbt(&self[..])
+    }
+
+    /**
+     *  \brief Import UniProt records from TBT.
+     */
+    fn from_tbt<'a>(text: &str) -> Result<RecordList, &'a str> {
+        // TODO(ahuszagh) Implement...
+        // 1. Need to call the deserializer.
+        // 2. Return values.
+
+        //_text_to_list(text)[0];
+        let _text = text;
+        Err("")
+    }
+}
 
 // PRIVATE
 // -------
@@ -818,6 +832,8 @@ pub mod fetch {
     use reqwest;
     use url::form_urlencoded;
 
+    use tbt::{Tbt};
+
     use super::RecordList;
 
     // API
@@ -877,14 +893,11 @@ pub mod fetch {
             .finish();
         let url = format!("{}?{}", HOST, params);
         let body = _url_to_body(&url)?;
+        // TODO(ahuszagh)   Remove the following debug statements.
         println!("url = {:?}", url);
         println!("body = {:?}", body);
 
-        // TODO(ahuszagh)
-        //      need a UniProt from text utility
-
-        // TODO: use reqwest here...
-        Ok(RecordList::new())
+        RecordList::from_tbt(&body)
     }
 
     // Helper functions to convert URL to UniProt body.
