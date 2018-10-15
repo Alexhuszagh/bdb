@@ -2,7 +2,6 @@
 
 use regex::Regex;
 use std::fmt;
-//use serde_json;
 
 use traits;
 
@@ -289,7 +288,15 @@ impl FieldRegex for MnemonicRegex {
             \A
             # Group 1, Mnemonic Identifier
             (
-                [a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5}
+                # Group 2, Protein Name
+                (
+                    [a-zA-Z0-9]{1,5}
+                )
+                _
+                # Group 3, Species Name
+                (
+                    [a-zA-Z0-9]{1,5}
+                )
             )
             \z
         ");
@@ -339,7 +346,7 @@ impl FieldRegex for AminoacidRegex {
         lazy_regex!(r"(?x)
             \A
             (?:
-                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]*
+                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]+
             )
             \z
         ");
@@ -351,7 +358,7 @@ impl FieldRegex for AminoacidRegex {
             \A
             # Group 1, Aminoacid Sequence
             (
-                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]*
+                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]+
             )
             \z
         ");
@@ -488,14 +495,56 @@ mod tests {
 
     #[test]
     fn mnemonic_regex() {
-        // TODO(ahuszagh)
-        // Implement...
+        type T = MnemonicRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>("G3P_RABIT", true);
+        check_regex::<T>("1433B_HUMAN", true);
+        check_regex::<T>("ENO_ACTSZ", true);
+
+        // valid + 1 letter
+        check_regex::<T>("G3P_RABITX", false);
+        check_regex::<T>("1433B_HUMANX", false);
+
+        // valid - group
+        check_regex::<T>("_RABIT", false);
+        check_regex::<T>("G3P_", false);
+        check_regex::<T>("_HUMAN", false);
+        check_regex::<T>("1433B_", false);
+
+        // valid + space
+        check_regex::<T>(" G3P_RABIT", false);
+        check_regex::<T>("G3P_RABIT ", false);
+        check_regex::<T>(" ENO_ACTSZ", false);
+        check_regex::<T>("ENO_ACTSZ ", false);
+
+        // extract
+        extract_regex::<T>("G3P_RABIT", 1, "G3P_RABIT");
+        extract_regex::<T>("G3P_RABIT", 2, "G3P");
+        extract_regex::<T>("G3P_RABIT", 3, "RABIT");
     }
 
     #[test]
     fn aminoacid_regex() {
-        // TODO(ahuszagh)
-        // Implement...
+        type T = AminoacidRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>("SAMPLER", true);
+        check_regex::<T>("sampler", true);
+        check_regex::<T>("sAmpLer", true);
+
+        // invalid aminoacid
+        check_regex::<T>("ORANGE", false);
+        check_regex::<T>("oRANGE", false);
+
+        // extract
+        extract_regex::<T>("SAMPLER", 1, "SAMPLER");
     }
 
     // TODO(ahuszagh)
