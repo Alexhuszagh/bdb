@@ -1,0 +1,4 @@
+//! Model for UniProt protein definitions.
+
+use std::fm;
+use serde_json;

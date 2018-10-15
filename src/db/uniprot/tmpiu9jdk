@@ -1,0 +1,16 @@
+/**
+ *  UniProt
+ *  -------
+ *
+ *  UniProt integrations for the BDB library.
+ *
+ *  :copyright: (c) 2018 Alex Huszagh.
+ *  :license: MIT, see LICENSE.md for more details.
+ */
+
+mod erro
+
+// TODO(ahuszagh)
+//      Implement the UniProt integrations
+//      Remove the following code
+pub fn noop() {}

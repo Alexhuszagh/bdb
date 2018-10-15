@@ -1,0 +1,14 @@
+/**
+ *  Db
+ *  --
+ *
+ *  Database integrations and utilities for the BDB library.
+ *
+ *  :copyright: (c) 2018 Alex Huszagh.
+ *  :license: MIT, see LICENSE.md for more details.
+ */
+
+pub
+
+// TODO: remove....
+pub fn noop() {}

@@ -1,0 +1,84 @@
+//! Model for UniProt protein definitions.
+
+use std::fmt;
+//use serde_json;
+
+/// Identifier for the evidence type for protein existence.
+///
+/// An identifier used by biological databases for the level of evidence
+/// that supports a protein's existence. Strong evidence includes
+/// evidence at the protein level, while weaker evidence is evidence
+/// at the transcript (or mRNA) level. Weak evidence is inferred from
+/// homology from similar species. Curated protein databases frequently
+/// only include proteins identified at the protein level.
+///
+/// `Unknown` is a custom value for invalid entries, or those with yet-
+/// to-be annotated protein evidence scores.
+///
+/// More documentation can be found at:
+///     https://www.uniprot.org/help/protein_existence
+///
+enum_number!(ProteinEvidence {
+    ProteinLevel = 1,
+    TranscriptLevel = 2,
+    Inferred = 3,
+    Predicted = 4,
+    Unknown = 5,
+});
+
+
+/// Convert enumerated value for ProteinEvidence to verbose text.
+pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
+    match evidence {
+        ProteinEvidence::ProteinLevel       => "Evidence at protein level",
+        ProteinEvidence::TranscriptLevel    => "Evidence at transcript level",
+        ProteinEvidence::Inferred           => "Inferred from homology",
+        ProteinEvidence::Predicted          => "Predicted",
+        ProteinEvidence::Unknown            => "Unknown evidence (BDB-only designation)",
+    }
+}
+
+
+ //  \param protein_evidence Numerical identifier for protein evidence.
+ //  \param mass             Mass of the protein.
+ //  \param length           Protein sequence length.
+ //  \param gene             HGNC Gene name.
+ //  \param id               Accession number (randomly assigned identifier).
+ //  \param mnemonic         Entry name (readable identifier).
+ //  \param name             Protein name.
+ //  \param organism         Readable organism name.
+ //  \param proteome         UniProt proteome identifier.
+ //  \param sequence         Protein aminoacid sequence.
+ //  \param taxonomy         Taxonomic identifier.
+ //
+ //  The sequence version is a numerical identifier starting from 1 for
+ //  the revision of the protein ID.
+ //
+ //  The protein evidence is a numerical identifier, with 1 meaning
+ //  evidence at the protein level, 2 meaning evidence at the
+ //  transcript level, and 3 meaning the protein was inferred via
+ //  homology.
+
+/// Model for a single record from a UniProt KB query.
+///
+/// Record including core query fields for a given UniProt identifier.
+/// The query fields are defined [here](http://www.uniprot.org/help/query-fields).
+///
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct Record {
+    /// Numerical identifier for protein version.
+    ///
+    /// Value starts from 1, and is incremented for each revision of the protein.
+    sequence_version: u8,
+    protein_evidence: ProteinEvidence,
+    mass: u64,
+    length: u32,
+    gene: String,
+    id: String,
+    mnemonic: String,
+    name: String,
+    organism: String,
+    proteome: String,
+    sequence: String,
+    taxonomy: String,
+}

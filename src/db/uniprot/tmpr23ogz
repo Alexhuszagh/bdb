@@ -1,0 +1,121 @@
+//! UniProt integrations.
+//!
+//! # Fields
+//!     The following is a mapping of the UniProt form-encoded keys, struct
+//!     field names, and UniProt displayed column names.
+//!     Despite the name correspondence, the information may not be a
+//!     identical in one format or another, for example, "protein_evidence"
+//!     is an enumeration, while in a displayed column it's a string, and
+//!     in FASTA it's a numerical identifier. `ProteinEvidence` is the same
+//!     as `"Evidence at protein level"` which is the same as `1`.
+//!
+//!     **Entry**:
+//!         Field Name:         "sequence_version"
+//!         Form-Encoded Key:   "version(sequence)"
+//!         Displayed Column:   "Sequence version"
+//!         Notes:
+//!             Simple integer in all variants.
+//!
+//!  Entry:
+//!      Field Name:         "protein_evidence"
+//!      Form-Encoded Key:   "existence"
+//!      Displayed Column:   "Protein existence"
+//!      Notes:
+//!          Enumerated value, which appears as a string or integer, with
+//!          the mapping defined in `ProteinEvidence` and
+//!          `protein_evidence_verbose`.
+//!
+//!  Entry:
+//!      Field Name:         "mass"
+//!      Form-Encoded Key:   "mass"
+//!      Displayed Column:   "Mass"
+//!      Notes:
+//!          Simple integer in all variants.
+//!
+//!  Entry:
+//!      Field Name:         "length"
+//!      Form-Encoded Key:   "length"
+//!      Displayed Column:   "Length"
+//!      Notes:
+//!          Simple integer in all variants.
+//!
+//!  Entry:
+//!      Field Name:         "gene"
+//!      Form-Encoded Key:   "genes(PREFERRED)"
+//!      Displayed Column:   "Gene names  (primary )"
+//!      Notes:
+//!          TODO(ahuszagh) [I believe this frequently gives more than
+//!          one gene name, confirm with the unannotated human proteome.
+//!          If so, designate a regex for filtering from external queries.]
+//!
+//!  Entry:
+//!      Field Name:         "id"
+//!      Form-Encoded Key:   "id"
+//!      Displayed Column:   "Entry"
+//!      Notes:
+//!          Accession number as a string.
+//!
+//!  Entry:
+//!      Field Name:         "mnemonic"
+//!      Form-Encoded Key:   "entry name"
+//!      Displayed Column:   "Entry name"
+//!      Notes:
+//!          Mnemonic identifier as a string.
+//!
+//!  Entry:
+//!      Field Name:         "name"
+//!      Form-Encoded Key:   "protein names"
+//!      Displayed Column:   "Protein names"
+//!      Notes:
+//!          Name for the protein (ex. Glyceraldehyde-3-phosphate
+//!          dehydrogenase). However, UniProt frequently spits out
+//!          more than one possible protein name, with each subsequent
+//!          name enclosed in parentheses (ex. "Glyceraldehyde-3-phosphate
+//!          dehydrogenase (GAPDH) (EC 1.2.1.12) (Peptidyl-cysteine
+//!          S-nitrosylase GAPDH) (EC 2.6.99.-)").
+//!
+//!  Entry:
+//!      Field Name:         "organism"
+//!      Form-Encoded Key:   "organism"
+//!      Displayed Column:   "Organism"
+//!      Notes:
+//!          Species name (with an optional common name in parentheses).
+//!          BDB considers the common name superfluous, and therefore
+//!          removes it from all records fetched from external queries.
+//!          Strain information, which is also enclosed in parentheses,
+//!          however, should not be removed.
+//!
+//!  Entry:
+//!      Field Name:         "proteome"
+//!      Form-Encoded Key:   "proteome"
+//!      Displayed Column:   "Proteomes"
+//!      Notes:
+//!          Proteomes include a proteome identifier and an optional
+//!          proteome location, for example, "UP000001811: Unplaced",
+//!          "UP000001114: Chromosome", and "UP000001811" are all valid
+//!          values. We discard the location, and solely store the proteome
+//!          identifier.
+//!
+//!
+//!  Entry:
+//!      Field Name:         "sequence"
+//!      Form-Encoded Key:   "sequence"
+//!      Displayed Column:   "Sequence"
+//!      Notes:
+//!          Aminoacid sequence of the protein, as a string.
+//!
+//!  Entry:
+//!      Field Name:         "taxonomy"
+//!      Form-Encoded Key:   "organism-id"
+//!      Displayed Column:   "Organism ID"
+//!      Notes:
+//!          Numerical identifier for the species, described by "name".
+
+mod error;
+mod r;
+// TODO(ahuszagh)
+//      mod record;
+//      mod record_list;
+//      etc...
+
+pub use self::error::{UniProtError, UniProtErrorKind};

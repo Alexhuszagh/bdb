@@ -1,0 +1,13 @@
+/**
+ *  Traits
+ *  ------
+ *
+ *  Shared traits for the BDB library.
+ *
+ *  :copyright: (c) 2018 Alex Huszagh.
+ *  :license: MIT, see LICENSE.md for more details.
+ */
+
+ pub mod text;
+
+use self:text::{Text, TextCollection};

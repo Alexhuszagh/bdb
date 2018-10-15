@@ -1,7 +1,10 @@
 [package]
-name = "bdb"
-version = "0.1.0"
 authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
+keywords = ["biology", "scientific", "uniprot", "database"]
+license = "MIT"
+name = "bdb"
+readme = "README.md"
+version = "0.1.0"
 
 [dependencies]
 assert_approx_eq = "1"

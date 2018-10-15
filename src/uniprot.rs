@@ -8,7 +8,6 @@
  *  :license: MIT, see LICENSE.md for more details.
  */
 
-use regex::Regex;
 use std::error::Error;
 use std::fmt;
 
@@ -16,207 +15,17 @@ use ::csv;
 use ::ref_slice::ref_slice;
 use ::serde_json;
 
+use alias::ResultType;
 use complete::Complete;
 use fasta::{Fasta, FastaCollection};
 use proteins::AverageMass;
 use proteins::ProteinMass;
 use tbt::{Tbt};       // TbtCollection
 //use text::{Text, TextCollection};
-use valid::Valid;
 
 // UNIPROT
 // -------
 
-//  The following is a mapping of the UniProt form-encoded keys, struct
-//  field names, and UniProt displayed column names.
-//  Despite the name correspondence, the information may not be a
-//  identical in one format or another, for example, `protein_evidence`
-//  is an enumeration, while in a displayed column it's a string, and
-//  in FASTA it's a numerical identifier. `ProteinEvidence` is the same
-//  as `"Evidence at protein level"` which is the same as `1`.
-//
-//  Entry:
-//      Field Name:         "sequence_version"
-//      Form-Encoded Key:   "version(sequence)"
-//      Displayed Column:   "Sequence version"
-//      Notes:
-//          Simple integer in all variants.
-//
-//  Entry:
-//      Field Name:         "protein_evidence"
-//      Form-Encoded Key:   "existence"
-//      Displayed Column:   "Protein existence"
-//      Notes:
-//          Enumerated value, which appears as a string or integer, with
-//          the mapping defined in `ProteinEvidence` and
-//          `protein_evidence_verbose`.
-//
-//  Entry:
-//      Field Name:         "mass"
-//      Form-Encoded Key:   "mass"
-//      Displayed Column:   "Mass"
-//      Notes:
-//          Simple integer in all variants.
-//
-//  Entry:
-//      Field Name:         "length"
-//      Form-Encoded Key:   "length"
-//      Displayed Column:   "Length"
-//      Notes:
-//          Simple integer in all variants.
-//
-//  Entry:
-//      Field Name:         "gene"
-//      Form-Encoded Key:   "genes(PREFERRED)"
-//      Displayed Column:   "Gene names  (primary )"
-//      Notes:
-//          TODO(ahuszagh) [I believe this frequently gives more than
-//          one gene name, confirm with the unannotated human proteome.
-//          If so, designate a regex for filtering from external queries.]
-//
-//  Entry:
-//      Field Name:         "id"
-//      Form-Encoded Key:   "id"
-//      Displayed Column:   "Entry"
-//      Notes:
-//          Accession number as a string.
-//
-//  Entry:
-//      Field Name:         "mnemonic"
-//      Form-Encoded Key:   "entry name"
-//      Displayed Column:   "Entry name"
-//      Notes:
-//          Mnemonic identifier as a string.
-//
-//  Entry:
-//      Field Name:         "name"
-//      Form-Encoded Key:   "protein names"
-//      Displayed Column:   "Protein names"
-//      Notes:
-//          Name for the protein (ex. Glyceraldehyde-3-phosphate
-//          dehydrogenase). However, UniProt frequently spits out
-//          more than one possible protein name, with each subsequent
-//          name enclosed in parentheses (ex. "Glyceraldehyde-3-phosphate
-//          dehydrogenase (GAPDH) (EC 1.2.1.12) (Peptidyl-cysteine
-//          S-nitrosylase GAPDH) (EC 2.6.99.-)").
-//
-//  Entry:
-//      Field Name:         "organism"
-//      Form-Encoded Key:   "organism"
-//      Displayed Column:   "Organism"
-//      Notes:
-//          Species name (with an optional common name in parentheses).
-//          BDB considers the common name superfluous, and therefore
-//          removes it from all records fetched from external queries.
-//          Strain information, which is also enclosed in parentheses,
-//          however, should not be removed.
-//
-//  Entry:
-//      Field Name:         "proteome"
-//      Form-Encoded Key:   "proteome"
-//      Displayed Column:   "Proteomes"
-//      Notes:
-//          Proteomes include a proteome identifier and an optional
-//          proteome location, for example, "UP000001811: Unplaced",
-//          "UP000001114: Chromosome", and "UP000001811" are all valid
-//          values. We discard the location, and solely store the proteome
-//          identifier.
-//
-//
-//  Entry:
-//      Field Name:         "sequence"
-//      Form-Encoded Key:   "sequence"
-//      Displayed Column:   "Sequence"
-//      Notes:
-//          Aminoacid sequence of the protein, as a string.
-//
-//  Entry:
-//      Field Name:         "taxonomy"
-//      Form-Encoded Key:   "organism-id"
-//      Displayed Column:   "Organism ID"
-//      Notes:
-//          Numerical identifier for the species, described by "name".
-
-
-/**
- *  \brief Identifier for the evidence type for protein existence.
- *
- *  An identifier used by biological databases for the level of evidence
- *  that supports a protein's existence. Strong evidence includes
- *  evidence at the protein level, while weaker evidence is evidence
- *  at the transcript (or mRNA) level. Weak evidence is inferred from
- *  homology from similar species. Curated protein databases frequently
- *  only include proteins identified at the protein level.
- *
- *  `Unknown` is a custom value for invalid entries, or those with yet-
- *  to-be annotated protein evidence scores.
- *
- *  More documentation can be found at:
- *      https://www.uniprot.org/help/protein_existence
- */
-enum_number!(ProteinEvidence {
-    ProteinLevel = 1,
-    TranscriptLevel = 2,
-    Inferred = 3,
-    Predicted = 4,
-    Unknown = 5,
-});
-
-/**
- *  \brief Convert enumerated value for ProteinEvidence to verbose text.
- */
-pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
-    match evidence {
-        ProteinEvidence::ProteinLevel       => "Evidence at protein level",
-        ProteinEvidence::TranscriptLevel    => "Evidence at transcript level",
-        ProteinEvidence::Inferred           => "Inferred from homology",
-        ProteinEvidence::Predicted          => "Predicted",
-        ProteinEvidence::Unknown            => "Unknown evidence (BDB-only designation)",
-    }
-}
-
-/**
- *  \brief Model for a single record from a UniProt KB query.
- *
- *  Record including core query fields for a given UniProt identifier.
- *  The query fields are defined [here](http://www.uniprot.org/help/query-fields).
- *
- *  \param sequence_version Numerical identifier for protein version.
- *  \param protein_evidence Numerical identifier for protein evidence.
- *  \param mass             Mass of the protein.
- *  \param length           Protein sequence length.
- *  \param gene             HGNC Gene name.
- *  \param id               Accession number (randomly assigned identifier).
- *  \param mnemonic         Entry name (readable identifier).
- *  \param name             Protein name.
- *  \param organism         Readable organism name.
- *  \param proteome         UniProt proteome identifier.
- *  \param sequence         Protein aminoacid sequence.
- *  \param taxonomy         Taxonomic identifier.
- *
- *  The sequence version is a numerical identifier starting from 1 for
- *  the revision of the protein ID.
- *
- *  The protein evidence is a numerical identifier, with 1 meaning
- *  evidence at the protein level, 2 meaning evidence at the
- *  transcript level, and 3 meaning the protein was inferred via
- *  homology.
- */
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
-pub struct Record {
-    sequence_version: u8,
-    protein_evidence: ProteinEvidence,
-    mass: u64,
-    length: u32,
-    gene: String,
-    id: String,
-    mnemonic: String,
-    name: String,
-    organism: String,
-    proteome: String,
-    sequence: String,
-    taxonomy: String,
-}
 
 /**
  *  \brief Process organism name from UniProt KB databases.
@@ -240,7 +49,23 @@ pub struct Record {
 //      Write unittests
 //      Need to ensure that the common name or synonym is removed,
 //      but any strain information is not.
+#[allow(dead_code)]
 pub fn process_organism(organism: &str) -> &str {
+    // TODO(ahuszagh)
+    //      Move Regular expressions to utility.
+//    lazy_static! {
+//            static ref ORGANISM_REGEX: Regex = Regex::new(r"(?x)
+//                \A
+//                (?P<genus>[A-Z][a-z]+)      # Genus (generic) name for species
+//                \s                          # Word boundary
+//                (?P<species>[A-Z][a-z]+)    # Specific name for species
+//
+//                # TODO: implement here...
+//                #   Need the strain catcher
+//                \z
+//            ").unwrap();
+//        }
+
     // TODO: Implement...
     let _organism = organism;
     ""
@@ -293,58 +118,32 @@ pub fn process_proteome(proteome: &str) -> &str {
 // TODO: need more processing functions
 
 
-impl Record {
-    /**
-     *  \brief Create a blank UniProt record.
-     */
-    pub fn new() -> Record {
-        Record {
-            sequence_version: 0,
-            protein_evidence: ProteinEvidence::Unknown,
-            mass: 0,
-            length: 0,
-            gene: String::new(),
-            id: String::new(),
-            mnemonic: String::new(),
-            name: String::new(),
-            organism: String::new(),
-            proteome: String::new(),
-            sequence: String::new(),
-            taxonomy: String::new(),
-        }
-    }
-}
-
-
 impl Valid for Record {
-    /**
-     *  \brief Check if the UniProt record contains valid information.
-     */
     fn is_valid(&self) -> bool {
         // regular expression for the UniProt accession number provided by:
         //  https://www.uniprot.org/help/accession_numbers
-        lazy_static! {
-            static ref ACCESSION_REGEX: Regex = Regex::new(r"(?x)
-                \A
-                (?:
-                    [OPQ][0-9][A-Z0-9]{3}[0-9]|
-                    [A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
-                )
-                \z
-            ").unwrap();
-        }
-
-        lazy_static! {
-            static ref MNEMONIC_REGEX: Regex = Regex::new(r"(?x)
-                \A
-                (?:
-                    [a-zA-Z0-9]{1,5}
-                    _
-                    [a-zA-Z0-9]{1,5}
-                )
-                \z
-            ").unwrap();
-        }
+//        lazy_static! {
+//            static ref ACCESSION_REGEX: Regex = Regex::new(r"(?x)
+//                \A
+//                (?:
+//                    [OPQ][0-9][A-Z0-9]{3}[0-9]|
+//                    [A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+//                )
+//                \z
+//            ").unwrap();
+//        }
+//
+//        lazy_static! {
+//            static ref MNEMONIC_REGEX: Regex = Regex::new(r"(?x)
+//                \A
+//                (?:
+//                    [a-zA-Z0-9]{1,5}
+//                    _
+//                    [a-zA-Z0-9]{1,5}
+//                )
+//                \z
+//            ").unwrap();
+//        }
 
         lazy_static! {
             static ref ORGANISM_REGEX: Regex = Regex::new(r"(?x)
@@ -354,27 +153,27 @@ impl Valid for Record {
             ").unwrap();
         }
 
-        lazy_static! {
-            static ref AMINOACID_REGEX: Regex = Regex::new(r"(?x)
-                \A
-                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]*
-                \z
-            ").unwrap();
-        }
-
-        {
-            self.sequence_version >= 1 &&
-            self.protein_evidence < ProteinEvidence::Unknown &&
-            self.mass > 0 &&
-            self.length as usize == self.sequence.len() &&
-            self.sequence.len() > 0 &&
-            self.gene.len() > 0 &&
-            self.name.len() > 0 &&
-            ACCESSION_REGEX.is_match(&self.id) &&
-            MNEMONIC_REGEX.is_match(&self.mnemonic) &&
-            ORGANISM_REGEX.is_match(&self.organism) &&
-            AMINOACID_REGEX.is_match(&self.sequence)
-        }
+//        lazy_static! {
+//            static ref AMINOACID_REGEX: Regex = Regex::new(r"(?x)
+//                \A
+//                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]*
+//                \z
+//            ").unwrap();
+//        }
+//
+//        {
+//            self.sequence_version >= 1 &&
+//            self.protein_evidence < ProteinEvidence::Unknown &&
+//            self.mass > 0 &&
+//            self.length as usize == self.sequence.len() &&
+//            self.sequence.len() > 0 &&
+//            self.gene.len() > 0 &&
+//            self.name.len() > 0 &&
+//            ACCESSION_REGEX.is_match(&self.id) &&
+//            MNEMONIC_REGEX.is_match(&self.mnemonic) &&
+//            ORGANISM_REGEX.is_match(&self.organism) &&
+//            AMINOACID_REGEX.is_match(&self.sequence)
+//        }
     }
 }
 
@@ -413,9 +212,10 @@ impl Fasta for Record {
     /**
      *  \brief Export UniProt record to SwissProt FASTA record.
      */
-    fn to_fasta(&self) -> Result<String, &str> {
+    fn to_fasta(&self) -> ResultType<String> {
         if !self.is_valid() {
-            return Err("Invalid UniProt record, cannot serialize to FASTA.");
+            let e = UniProtError(UniProtErrorKind::InvalidRecord);
+            return Err(Box::new(e));
         }
 
         const SEQUENCE_LINE_LENGTH: usize = 60;
@@ -471,14 +271,15 @@ impl Fasta for Record {
     /**
      *  \brief Import UniProt record from a SwissProt FASTA record.
      */
-    fn from_fasta<'a>(fasta: &str) -> Result<Record, &'a str> {
+    fn from_fasta(fasta: &str) -> ResultType<Record> {
         // split along lines
         // first line is the header, rest are the sequences
         // short-circuit if the header is None.
         let mut lines = fasta.lines();
         let header_option = lines.next();
         if header_option.is_none() {
-            return Err("No input data provided to FASTA deserializer.");
+            let e = UniProtError(UniProtErrorKind::InvalidInputData);
+            return Err(Box::new(e));
         }
         let header = header_option.unwrap();
 
@@ -508,7 +309,8 @@ impl Fasta for Record {
         // process the header and match it to the FASTA record
         let cap_option = SP_HEADER_REGEX.captures(&header);
         if header_option.is_none() {
-            return Err("Unable to match data to SwissProt header format.");
+            let e = UniProtError(UniProtErrorKind::InvalidInputData);
+            return Err(Box::new(e));
         }
         let cap = cap_option.unwrap();
 
@@ -551,14 +353,14 @@ impl Tbt for Record {
     /**
      *  \brief Export UniProt record to TBT.
      */
-    fn to_tbt(&self) -> Result<String, &str> {
+    fn to_tbt(&self) -> ResultType<String> {
         _slice_to_tbt(ref_slice(&self))
     }
 
     /**
      *  \brief Import UniProt record from a TBT row.
      */
-    fn from_tbt<'a>(text: &str) -> Result<Record, &'a str> {
+    fn from_tbt(text: &str) -> ResultType<Record> {
         // TODO(ahuszagh) Implement...
         // 1. Need to find only the first 2 lines.
         // 2. Need to call the deserializer.
@@ -566,7 +368,7 @@ impl Tbt for Record {
 
         //_text_to_list(text)[0];
         let _text = text;
-        Err("")
+        Err(From::from(""))
     }
 }
 
@@ -597,7 +399,7 @@ impl FastaCollection for RecordList {
     /**
      *  \brief Strict exporter of UniProt record list to SwissProt FASTA.
      */
-    fn to_fasta_strict(&self) -> Result<String, &str> {
+    fn to_fasta_strict(&self) -> ResultType<String> {
         // exit early if empty list
         if self.is_empty() {
             return Ok(String::new());
@@ -615,7 +417,7 @@ impl FastaCollection for RecordList {
     /**
      *  \brief Lenient exporter of UniProt record list to SwissProt FASTA.
      */
-    fn to_fasta_lenient(&self) -> Result<String, &str> {
+    fn to_fasta_lenient(&self) -> ResultType<String> {
         // exit early if empty list
         if self.is_empty() {
             return Ok(String::new());
@@ -623,7 +425,7 @@ impl FastaCollection for RecordList {
 
         // construct FASTA records from elements
         let mut v: Vec<String> = vec![];
-        let mut e: &str = "";
+        let mut e: Box<Error> = From::from("");
         for record in self {
             match record.to_fasta() {
                 Err(_e)     => e = _e,
@@ -640,7 +442,7 @@ impl FastaCollection for RecordList {
     /**
      *  \brief Strict importer UniProt of record list from SwissProt FASTA.
      */
-    fn from_fasta_strict<'a>(fasta: &str) -> Result<RecordList, &'a str> {
+    fn from_fasta_strict(fasta: &str) -> ResultType<RecordList> {
         // exit early if empty input data
         if fasta.is_empty() {
             return Ok(RecordList::new());
@@ -659,7 +461,7 @@ impl FastaCollection for RecordList {
     /**
      *  \brief Lenient importer UniProt of record list from SwissProt FASTA.
      */
-    fn from_fasta_lenient<'a>(fasta: &str) -> Result<RecordList, &'a str> {
+    fn from_fasta_lenient(fasta: &str) -> ResultType<RecordList> {
         // exit early if empty input data
         if fasta.is_empty() {
             return Ok(RecordList::new());
@@ -667,7 +469,7 @@ impl FastaCollection for RecordList {
 
         // import records from FASTA
         let mut v: RecordList = vec![];
-        let mut e: &str= "";
+        let mut e: Box<Error> = From::from("");
         let records = fasta.split("\n\n");
         for record in records {
             match Record::from_fasta(record) {
@@ -687,44 +489,64 @@ impl Fasta for RecordList {
     /**
      *  \brief Export UniProt record list to SwissProt FASTA records.
      */
-    fn to_fasta(&self) -> Result<String, &str> {
+    fn to_fasta(&self) -> ResultType<String> {
         self.to_fasta_lenient()
     }
 
     /**
      *  \brief Import UniProt record list from SwissProt FASTA records.
      */
-    fn from_fasta<'a>(fasta: &str) -> Result<RecordList, &'a str> {
+    fn from_fasta(fasta: &str) -> ResultType<RecordList> {
         RecordList::from_fasta_lenient(fasta)
     }
 }
 
-// TODO(ahuszagh)
-//      Change to Tbt trait
 impl Tbt for RecordList {
     /**
      *  \brief Export UniProt records to TBT.
      */
-    fn to_tbt(&self) -> Result<String, &str> {
+    fn to_tbt(&self) -> ResultType<String> {
         _slice_to_tbt(&self[..])
     }
 
     /**
      *  \brief Import UniProt records from TBT.
      */
-    fn from_tbt<'a>(text: &str) -> Result<RecordList, &'a str> {
+    fn from_tbt(text: &str) -> ResultType<RecordList> {
         // TODO(ahuszagh) Implement...
         // 1. Need to call the deserializer.
         // 2. Return values.
 
         //_text_to_list(text)[0];
         let _text = text;
-        Err("")
+        Err(From::from(""))
     }
 }
 
 // PRIVATE
 // -------
+
+// RECORD(S) TO TBT
+
+/**
+ *  \brief Export the header columns to TBT.
+ */
+fn _header_to_row() -> Vec<&'static str> {
+    vec![
+        "Sequence version",         // sequence_version
+        "Protein existence",        // protein_evidence
+        "Mass",                     // mass
+        "Length",                   // length
+        "Gene names  (primary )",   // gene
+        "Entry",                    // id
+        "Entry name",               // mnemonic
+        "Protein names",            // name
+        "Organism",                 // organism
+        "Proteomes",                // proteome
+        "Sequence",                 // sequence
+        "Organism ID",              // taxonomy
+    ]
+}
 
 /**
  *  \brief Convert a record to vector of strings to serialize into TBT.
@@ -753,9 +575,7 @@ fn _record_to_row(record: &Record) -> Vec<String> {
 /**
  *  \brief Convert a slice of records into TBT.
  */
-#[allow(unused_variables)]
-#[allow(unused_mut)]
-fn _slice_to_tbt_impl(records: &[Record]) -> Result<String, Box<Error>> {
+fn _slice_to_tbt(records: &[Record]) -> ResultType<String> {
     // Create our custom writer.
     let mut writer = csv::WriterBuilder::new()
         .delimiter(b'\t')
@@ -764,44 +584,23 @@ fn _slice_to_tbt_impl(records: &[Record]) -> Result<String, Box<Error>> {
         .from_writer(vec![]);
 
     // Serialize the header to TBT.
-    writer.write_record(&[
-        "Sequence version",         // sequence_version
-        "Protein existence",        // protein_evidence
-        "Mass",                     // mass
-        "Length",                   // length
-        "Gene names  (primary )",   // gene
-        "Entry",                    // id
-        "Entry name",               // mnemonic
-        "Protein names",            // name
-        "Organism",                 // organism
-        "Proteomes",                // proteome
-        "Sequence",                 // sequence
-        "Organism ID",              // taxonomy
-    ])?;
+    writer.write_record(&_header_to_row())?;
 
     // Serialize each row to TBT.
     for record in records {
-        writer.write_record(&_record_to_row(&record)[..])?;
+        writer.write_record(&_record_to_row(&record))?;
     }
 
     // Return a string from the writer bytes.
     Ok(String::from_utf8(writer.into_inner()?)?)
 }
 
-
-/**
- *  \brief Wrap `_slice_to_tbt_impl` with a text-based error.
- */
-fn _slice_to_tbt(records: &[Record]) -> Result<String, &str> {
-    // TODO: properly implement...
-    _slice_to_tbt_impl(records).map_err(|_e| {
-        ""
-    })
-}
+// RECORD(S) FROM TBT
 
 
 // TODO(ahuszagh)
 //      Likely remove
+//      Need to implement other logic for conversion from TBT.
 ///**
 // *  \brief Convert tab-delimited text records to a UniProt record list.
 // */
@@ -829,9 +628,11 @@ pub mod fetch {
     // ALIAS
     // -----
 
+    use std::error::Error;
     use reqwest;
     use url::form_urlencoded;
 
+    use alias::ResultType;
     use tbt::{Tbt};
 
     use super::RecordList;
@@ -844,7 +645,7 @@ pub mod fetch {
      *
      *  \param ids      Single accession number (eg. P46406)
      */
-    pub fn by_id<'a>(id: &str) -> Result<RecordList, &'a str> {
+    pub fn by_id(id: &str) -> ResultType<RecordList> {
         _by_id(id)
     }
 
@@ -853,7 +654,7 @@ pub mod fetch {
      *
      *  \param ids      Slice of accession numbers (eg. [P46406])
      */
-    pub fn by_id_list<'a>(ids: &[&str]) -> Result<RecordList, &'a str> {
+    pub fn by_id_list(ids: &[&str]) -> ResultType<RecordList> {
         _by_id(&ids.join(" OR "))
     }
 
@@ -862,7 +663,7 @@ pub mod fetch {
      *
      *  \param ids      Single mnemonic (eg. G3P_RABBIT)
      */
-    pub fn by_mnemonic<'a>(mnemonic: &str) -> Result<RecordList, &'a str> {
+    pub fn by_mnemonic(mnemonic: &str) -> ResultType<RecordList> {
         _by_mnemonic(mnemonic)
     }
 
@@ -871,7 +672,7 @@ pub mod fetch {
      *
      *  \param ids      Slice of mnemonics (eg. [G3P_RABBIT])
      */
-    pub fn by_mnemonic_list<'a>(ids: &[&str]) -> Result<RecordList, &'a str> {
+    pub fn by_mnemonic_list(ids: &[&str]) -> ResultType<RecordList> {
         _by_mnemonic(&ids.join(" OR "))
     }
 
@@ -880,7 +681,7 @@ pub mod fetch {
 
     // Helper function for calling the UniProt KB service.
     #[allow(unused_variables)]
-    fn _call<'a>(query: &str) -> Result<RecordList, &'a str> {
+    fn _call(query: &str) -> ResultType<RecordList> {
         // create our url with form-encoded parameters
         let params = form_urlencoded::Serializer::new(String::new())
             .append_pair("sort", "score")
@@ -905,25 +706,19 @@ pub mod fetch {
         reqwest::get(url)?.text()
     }
 
-    fn _url_to_body<'a>(url: &str) -> Result<String, &'a str> {
+    fn _url_to_body(url: &str) -> ResultType<String> {
         _url_to_body_impl(url).map_err(|e| {
-            match e.status() {
-                None    => "Internal error, unable to get response.",
-                Some(v) => match v.canonical_reason() {
-                    None    => "Unknown response code for error code.",
-                    Some(r) => r,
-                }
-            }
+            Box::new(e) as Box<Error>
         })
     }
 
     // Helper function for requesting by accession number.
-    fn _by_id<'a>(id: &str) -> Result<RecordList, &'a str> {
+    fn _by_id(id: &str) -> ResultType<RecordList> {
         _call(&format!("id:{}", id))
     }
 
     // Helper function for requesting by mnemonic.
-    fn _by_mnemonic<'a>(mnemonic: &str)-> Result<RecordList, &'a str> {
+    fn _by_mnemonic(mnemonic: &str)-> ResultType<RecordList> {
         _call(&format!("mnemonic:{}", mnemonic))
     }
 }
@@ -1332,17 +1127,19 @@ mod tests {
 
         // to_fasta (1 invalid)
         let v: RecordList = vec![Record::new()];
-        let x = v.to_fasta();
-        assert_eq!(x, Err("Invalid UniProt record, cannot serialize to FASTA."));
-        assert_eq!(x, v.to_fasta_strict());
-        assert_eq!(x, v.to_fasta_lenient());
+        let x = v.to_fasta().err().unwrap();
+        assert_eq!(format!("{}", x), "UniProt error: invalid record found, cannot serialize data");
+        assert_eq!(format!("{}", x), format!("{}", v.to_fasta_strict().err().unwrap()));
+        assert_eq!(format!("{}", x), format!("{}", v.to_fasta_lenient().err().unwrap()));
 
         // to_fasta (1 valid, 1 invalid)
         let v: RecordList = vec![gapdh(), Record::new()];
         let x = v.to_fasta().unwrap();
         assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
-        assert_eq!(v.to_fasta_strict(), Err("Invalid UniProt record, cannot serialize to FASTA."));
         assert_eq!(x, v.to_fasta_lenient().unwrap());
+
+        let y = v.to_fasta_strict().err().unwrap();
+        assert_eq!(format!("{}", y), "UniProt error: invalid record found, cannot serialize data");
     }
 
     #[test]

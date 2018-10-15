@@ -1,0 +1,22 @@
+/**
+ *  Traits
+ *  ------
+ *
+ *  Shared traits for the BDB library.
+ *
+ *  :copyright: (c) 2018 Alex Huszagh.
+ *  :license: MIT, see LICENSE.md for more details.
+ */
+
+pub mod complete;
+pub mod csv;
+pub mod fasta;
+pub mod text;
+pub mod va;
+pub mod xml;
+
+pub use self::csv::{Csv, CsvCollection};
+pub use self::complete::{Complete};
+pub use self::fasta::{Fasta, FastaCollection};
+pub use self::text::{Text, TextCollection};
+pub use self::xml::{Xml};

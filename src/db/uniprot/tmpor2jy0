@@ -1,0 +1,59 @@
+//! Error definitions for UniProt models and services.
+
+use s
+
+/// Error type.
+#[derive(Debug, Clone)]
+pub enum UniProtErrorType {
+    /// Serializer fails due to invalid record data.
+    InvalidRecord,
+    /// Deserializer fails due to invalid or empty input data.
+    InvalidInputData,
+}
+
+
+/// Custom error for UniProt-related tasks.
+///
+/// Errors may occur during serializing/deserializing data, as well
+/// as over network and file I/O.
+#[derive(Debug, Clone)]
+pub struct UniProtError(UniProtErrorType);
+
+impl UniProtError {
+    /// Get error type.
+    pub fn kind(&self) -> &UniProtErrorType {
+        &self.0
+    }
+}
+
+impl fmt::Display for UniProtError {
+    /**
+     *  \brief Format error for display.
+     */
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "UniProt error: {}", self.description())
+    }
+}
+
+impl Error for UniProtError {
+    /**
+     *  \brief Get short description of error.
+     */
+    fn description(&self) -> &str {
+        match &self.0 {
+            UniProtErrorKind::InvalidRecord     => {
+                "invalid record found, cannot serialize data"
+            },
+            UniProtErrorKind::InvalidInputData  => {
+                "invalid input data, cannot deserialize data"
+            },
+        }
+    }
+
+    /**
+     *  \brief Access underlying cause (untracked, always None).
+     */
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
+}

@@ -1,7 +1,11 @@
 # TODO List
 
-# CSV
-    - Need to find an efficient CSV reader with a custom delimiter.
+# Errors
+    - Convert all errors to use Box<Error> as the error type.
+        - Results should be Result<T, Box<Error>>
+        - Easy to percolate errors down, can convert from stack values.
+            - I think can convert from stack values...
+            - Need to derive from std::Error, in any case....
 
 # Text Reader
     - Need to_text and from_text (lenient and strict) implementations for collections

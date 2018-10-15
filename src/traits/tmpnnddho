@@ -1,0 +1,38 @@
+use utility::ResultType;
+
+/// Trait to serialize to and from CSV.
+pub trait Csv: Sized {
+    /// Export model to CSV (with headers).
+    fn to_csv(&self, delimiter: u8) -> ResultType<String>;
+
+    /// Import model from CSV (with headers).
+    ///
+    /// Works identically to a collection importer, only fetches at max
+    /// 1 record, since the headers are shared over all records.
+    fn from_csv(text: &str, delimiter: u8) -> ResultType<Self>;
+}
+
+/// Specialization of the `Csv` trait for collections.
+pub trait CsvCollection: Csv + Sized {
+    /**
+    /// Export collection to CSV (.
+     *
+     *  `to_csv_strict` requires all records inside the collection
+     *  to be valid, or returns an `Err`, while `to_csv_lenient` will
+     *  return as many formatted records as possible, returning an error
+     *  only if no records are valid.
+     */
+     fn to_csv_strict(&self, delimiter: u8) -> ResultType<String>;
+     fn to_csv_lenient(&self, delimiter: u8) -> ResultType<String>;
+
+     /**
+     *  \brief Import record collection from CSV or TBT.
+     *
+     *  `from_csv_strict` requires all records inside the text
+     *  to be valid, or returns an `Err`, while `to_csv_lenient` will
+     *  return as many record structs as possible, returning an error
+     *  only if no records are valid.
+     */
+    fn from_csv_strict(text: &str) -> ResultType<Self>;
+    fn from_csv_lenient(text: &str) -> ResultType<Self>;
+}

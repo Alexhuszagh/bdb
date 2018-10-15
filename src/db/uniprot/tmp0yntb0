@@ -1,0 +1,12 @@
+//! UniProt integrations.
+
+mod error;
+mod record;
+mod uti;
+// TODO(ahuszagh)
+//      mod record;
+//      mod record_list;
+//      etc...
+
+pub use self::error::{UniProtError, UniProtErrorKind};
+pub use self::record::{ProteinEvidence, protein_evidence_verbose, Record};
