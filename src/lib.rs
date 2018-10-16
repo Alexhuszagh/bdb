@@ -16,4 +16,5 @@ extern crate url;
 #[macro_use] pub mod util;
 pub mod bio;
 pub mod db;
+pub mod io;
 pub mod traits;

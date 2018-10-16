@@ -2,7 +2,7 @@
 
 use regex::{Captures, Regex};
 use serde_json;
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, Write};
 use std::fmt;
 
 use bio::proteins::{AverageMass, ProteinMass};
@@ -35,6 +35,7 @@ enum_number!(ProteinEvidence {
 
 
 /// Convert enumerated value for ProteinEvidence to verbose text.
+#[inline]
 pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
     match evidence {
         ProteinEvidence::ProteinLevel       => "Evidence at protein level",
@@ -236,20 +237,6 @@ impl Complete for Record {
     }
 }
 
-/// Estimate the size of the resulting FASTA record.
-///
-/// Use to minimize reallocations while serializing to FASTA.
-fn estimate_fasta_size(record: &Record) -> usize {
-    /// The approximate sum of all the control vocabulary in the FASTA record.
-    const FASTA_VOCABULARY_SIZE: usize = 20;
-    FASTA_VOCABULARY_SIZE +
-        record.gene.len() +
-        record.id.len() +
-        record.name.len() +
-        record.organism.len() +
-        record.sequence.len()
-}
-
 /// Convert capture group to `&str`.
 #[inline(always)]
 fn capture_as_str<'t>(captures: &'t Captures, index: usize) -> &'t str {
@@ -262,94 +249,103 @@ fn capture_as_string(captures: &Captures, index: usize) -> String {
     String::from(capture_as_str(captures, index))
 }
 
-// TODO(ahuszagh)
-//      Restore
 impl Fasta for Record {
-    fn to_fasta<T: Write>(&self, writer: &mut BufWriter<T>) -> ResultType<()> {
-//        // initialize string and avoid reallocations.
-//        let size = estimate_fasta_size(self);
-//        let mut fasta = String::with_capacity(size);
-//
-//        // write SwissProt header
-//        let evidence = self.protein_evidence as u32;
-//        push_strs!(
-//            fasta,
-//            ">sp|",     &self.id,
-//            "|",        &self.mnemonic,
-//            " ",        &self.name,
-//            " OS=",     &self.organism,
-//            " GN=",     &self.gene,
-//            " PE=",     &evidence.to_string(),
-//            " SV=",     &self.sequence_version.to_string()
-//        );
-//
-//        // write SwissProt sequence, formatted at 60 characters
-//        // Start from 1, so we go 1..60, rather than 0..59
-//        const SEQUENCE_LINE_LENGTH: usize = 60;
-//        let mut i: usize = 1;
-//        for c in self.sequence.chars() {
-//            match i {
-//                1                    => { fasta.push('\n'); i += 1; },
-//                SEQUENCE_LINE_LENGTH => { i = 1; },
-//                _                    => { i += 1; },
-//            }
-//            fasta.push(c);
-//        }
-//
-//        Ok(fasta)
+    #[inline]
+    fn estimate_fasta_size(&self) -> usize {
+        const FASTA_VOCABULARY_SIZE: usize = 20;
+        FASTA_VOCABULARY_SIZE +
+            self.gene.len() +
+            self.id.len() +
+            self.mnemonic.len() +
+            self.name.len() +
+            self.organism.len() +
+            self.sequence.len()
+    }
+
+    fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+        // Write SwissProt header
+        let evidence = self.protein_evidence as u32;
+        write_alls!(
+            writer,
+            b">sp|",     self.id.as_bytes(),
+            b"|",        self.mnemonic.as_bytes(),
+            b" ",        self.name.as_bytes(),
+            b" OS=",     self.organism.as_bytes(),
+            b" GN=",     self.gene.as_bytes(),
+            b" PE=",     evidence.to_string().as_bytes(),
+            b" SV=",     self.sequence_version.to_string().as_bytes()
+        )?;
+
+        // Write SwissProt sequence, formatted at 60 characters.
+        // Write the initial, 60 character lines
+        const SEQUENCE_LINE_LENGTH: usize = 60;
+        let mut bytes = self.sequence.as_bytes();
+        while bytes.len() > SEQUENCE_LINE_LENGTH {
+            let prefix = &bytes[0..SEQUENCE_LINE_LENGTH];
+            bytes = &bytes[SEQUENCE_LINE_LENGTH..];
+            writer.write_all(b"\n")?;
+            writer.write_all(prefix)?;
+        }
+
+        // Write the remaining sequence line, if any remainder exists.
+        if !bytes.is_empty() {
+            writer.write_all(b"\n")?;
+            writer.write_all(bytes)?;
+        }
+
         Ok(())
     }
 
-//    fn from_fasta(fasta: &str) -> ResultType<Record> {
-//        // split along lines
-//        // first line is the header, rest are the sequences
-//        // short-circuit if the header is None.
-//        let mut lines = fasta.lines();
-//        let header = lines.next();
-//        if header.is_none() {
-//            return Err(new_boxed_error(UniProtErrorKind::InvalidInputData));
-//        }
-//        let header = header.unwrap();
-//
-//        // process the header and match it to the FASTA record
-//        let captures = FastaHeaderRegex::extract().captures(&header);
-//        if captures.is_none() {
-//            return Err(new_boxed_error(UniProtErrorKind::InvalidInputData));
-//        }
-//        let captures = captures.unwrap();
-//
-//        // initialize the record with header data
-//        let pe = capture_as_str(&captures, PE_INDEX);
-//        let sv = capture_as_str(&captures, SV_INDEX);
-//        let mut record = Record {
-//            sequence_version: sv.parse().unwrap(),
-//            protein_evidence: serde_json::from_str(pe).unwrap(),
-//            mass: 0,
-//            length: 0,
-//            gene: capture_as_string(&captures, GENE_INDEX),
-//            id: capture_as_string(&captures, ACCESSION_INDEX),
-//            mnemonic: capture_as_string(&captures, MNEMONIC_INDEX),
-//            name: capture_as_string(&captures, NAME_INDEX),
-//            organism: capture_as_string(&captures, ORGANISM_INDEX),
-//
-//            // unused fields in header
-//            proteome: String::new(),
-//            sequence: String::new(),
-//            taxonomy: String::new(),
-//        };
-//
-//        // add sequence data to the FASTA sequence
-//        for line in lines {
-//            record.sequence.push_str(&line);
-//        }
-//
-//        // calculate the protein length and mass
-//        record.length = record.sequence.len() as u32;
-//        let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
-//        record.mass = mass.round() as u64;
-//
-//        Ok(record)
-//    }
+    fn from_fasta<T: BufRead>(reader: &mut T) -> ResultType<Record> {
+        // split along lines
+        // first line is the header, rest are the sequences
+        // short-circuit if the header is None.
+        let mut lines = reader.lines();
+        let header = lines.next();
+        if header.is_none() {
+            return Err(new_boxed_error(UniProtErrorKind::InvalidInputData));
+        }
+        let header = header.unwrap()?;
+
+        // process the header and match it to the FASTA record
+        let captures = FastaHeaderRegex::extract().captures(&header);
+        if captures.is_none() {
+            return Err(new_boxed_error(UniProtErrorKind::InvalidInputData));
+        }
+        let captures = captures.unwrap();
+
+        // initialize the record with header data
+        let pe = capture_as_str(&captures, PE_INDEX);
+        let sv = capture_as_str(&captures, SV_INDEX);
+        let mut record = Record {
+            sequence_version: sv.parse().unwrap(),
+            protein_evidence: serde_json::from_str(pe).unwrap(),
+            mass: 0,
+            length: 0,
+            gene: capture_as_string(&captures, GENE_INDEX),
+            id: capture_as_string(&captures, ACCESSION_INDEX),
+            mnemonic: capture_as_string(&captures, MNEMONIC_INDEX),
+            name: capture_as_string(&captures, NAME_INDEX),
+            organism: capture_as_string(&captures, ORGANISM_INDEX),
+
+            // unused fields in header
+            proteome: String::new(),
+            sequence: String::new(),
+            taxonomy: String::new(),
+        };
+
+        // add sequence data to the FASTA sequence
+        for line in lines {
+            record.sequence.push_str(&line?);
+        }
+
+        // calculate the protein length and mass
+        record.length = record.sequence.len() as u32;
+        let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
+        record.mass = mass.round() as u64;
+
+        Ok(record)
+    }
 }
 
 // PRIVATE
@@ -365,6 +361,7 @@ pub trait FieldRegex {
     fn extract() -> &'static Regex;
 }
 
+#[inline(always)]
 fn new_regex(pattern: &'static str) -> Regex {
     Regex::new(pattern).unwrap()
 }
@@ -642,6 +639,7 @@ impl FieldRegex for FastaHeaderRegex {
 mod tests {
     use serde_json;
     use super::*;
+    use super::super::test::{bsa, gapdh, incomplete_eq};
 
     // PROTEIN EVIDENCE
     // Note: Do not test Unknown, it is an implementation detail.
@@ -903,64 +901,6 @@ mod tests {
 
     // RECORDS
 
-    /// Create a record for the standard protein GAPDH.
-    fn gapdh() -> Record {
-        Record {
-            sequence_version: 3,
-            protein_evidence: ProteinEvidence::ProteinLevel,
-            mass: 35780,
-            length: 333,
-            gene: String::from("GAPDH"),
-            id: String::from("P46406"),
-            mnemonic: String::from("G3P_RABIT"),
-            name: String::from("Glyceraldehyde-3-phosphate dehydrogenase"),
-            organism: String::from("Oryctolagus cuniculus"),
-            proteome: String::from("UP000001811"),
-            sequence: String::from("MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE"),
-            taxonomy: String::from("9986")
-        }
-    }
-
-    /// Create a record for the standard protein BSA.
-    fn bsa() -> Record {
-        Record {
-            sequence_version: 4,
-            protein_evidence: ProteinEvidence::ProteinLevel,
-            mass: 69293,
-            length: 607,
-            gene: String::from("ALB"),
-            id: String::from("P02769"),
-            mnemonic: String::from("ALBU_BOVIN"),
-            name: String::from("Serum albumin"),
-            organism: String::from("Bos taurus"),
-            proteome: String::from("UP000009136"),
-            sequence: String::from("MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA"),
-            taxonomy: String::from("9913")
-        }
-    }
-
-    /// Check a record from FASTA with incomplete data is equal to the original.
-    fn incomplete_eq(x: &Record, y: &Record) {
-        assert_eq!(y.sequence_version, x.sequence_version);
-        assert_eq!(y.protein_evidence, x.protein_evidence);
-        assert_eq!(y.mass, x.mass);
-        assert_eq!(y.length, x.length);
-        assert_eq!(y.gene, x.gene);
-        assert_eq!(y.id, x.id);
-        assert_eq!(y.mnemonic, x.mnemonic);
-        assert_eq!(y.name, x.name);
-        assert_eq!(y.organism, x.organism);
-        assert_eq!(y.proteome, "");
-        assert_eq!(y.sequence, x.sequence);
-        assert_eq!(y.taxonomy, "");
-
-        assert!(x.is_valid());
-        assert!(x.is_complete());
-
-        assert!(y.is_valid());
-        assert!(!y.is_complete());
-    }
-
     #[test]
     fn debug_record() {
         let text = format!("{:?}", gapdh());
@@ -988,130 +928,156 @@ mod tests {
         let mut g2 = g1.clone();
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g1.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 434);
 
         // check keeping the protein valid but make it incomplete
         g2.proteome = String::new();
         assert!(g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.proteome = g1.proteome.clone();
 
         g2.taxonomy = String::new();
         assert!(g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.taxonomy = g1.taxonomy.clone();
 
         // check replacing items with valid, but different data
         g2.sequence_version = 1;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.sequence_version = g1.sequence_version;
 
         g2.protein_evidence = ProteinEvidence::Inferred;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.protein_evidence = g1.protein_evidence;
 
         g2.mass = 64234;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.mass = g1.mass;
 
         g2.sequence = String::from(&g2.sequence[0..200]);
         g2.length = 200;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 301);
         g2.sequence = g1.sequence.clone();
         g2.length = g1.length;
 
         g2.gene = String::from("HIST1H1A");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 437);
         g2.gene = g1.gene.clone();
 
         g2.id = String::from("A0A022YWF9");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 438);
         g2.id = g1.id.clone();
 
         g2.id = String::from("A2BC19");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.id = g1.id.clone();
 
         g2.mnemonic = String::from("H11_HUMAN");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.mnemonic = g1.mnemonic.clone();
 
         g2.name = String::from("Histone H1.1");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 406);
         g2.name = g1.name.clone();
 
         g2.organism = String::from("Homo sapiens");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 425);
         g2.organism = g1.organism.clone();
 
         g2.proteome = String::from("UP000005640");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.proteome = g1.proteome.clone();
 
         g2.taxonomy = String::from("9606");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.taxonomy = g1.taxonomy.clone();
 
         // check replacing items with invalid data
         g2.sequence_version = 0;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.sequence_version = g1.sequence_version;
 
         g2.protein_evidence = ProteinEvidence::Unknown;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.protein_evidence = g1.protein_evidence;
 
         g2.mass = 0;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.mass = g1.mass;
 
         g2.length = 334;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 434);
         g2.length = g1.length;
 
         g2.gene = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 429);
         g2.gene = g1.gene.clone();
 
         g2.id = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 428);
         g2.id = g1.id.clone();
 
         g2.mnemonic = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 425);
         g2.mnemonic = g1.mnemonic.clone();
 
         g2.name = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 394);
         g2.name = g1.name.clone();
 
         g2.organism = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 413);
         g2.organism = g1.organism.clone();
 
         g2.sequence = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
+        assert_eq!(g2.estimate_fasta_size(), 101);
         g2.sequence = g1.sequence.clone();
     }
 
@@ -1127,30 +1093,29 @@ mod tests {
         assert_eq!(x, "{\"sequence_version\":0,\"protein_evidence\":5,\"mass\":0,\"length\":0,\"gene\":\"\",\"id\":\"\",\"mnemonic\":\"\",\"name\":\"\",\"organism\":\"\",\"proteome\":\"\",\"sequence\":\"\",\"taxonomy\":\"\"}");
     }
 
-// TODO(ahuszagh)
-//      Restore
-//    #[test]
-//    fn fasta_record() {
-//        // gapdh
-//        let p = gapdh();
-//        let x = p.to_fasta().unwrap();
-//        assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
-//        //assert_eq!(x, p.to_fasta_string().unwrap());
-//        let y = Record::from_fasta(&x).unwrap();
-//        incomplete_eq(&p, &y);
-//
-//        // bsa
-//        let p = bsa();
-//        let x = p.to_fasta().unwrap();
-//        assert_eq!(x, ">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\nMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPF\nDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEP\nERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYY\nANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVA\nRLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKE\nCCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRR\nHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEK\nLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLIL\nNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLP\nDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVV\nSTQTALA");
-//        let y = Record::from_fasta(&x).unwrap();
-//        incomplete_eq(&p, &y);
-//
-//        // empty
-//        let p = Record::new();
-//        let x = p.to_fasta().unwrap();
-//        assert_eq!(x, ">sp||  OS= GN= PE=5 SV=0");
-//    }
+    #[test]
+    fn fasta_record() {
+        // gapdh
+        let p = gapdh();
+        let x = p.to_fasta_string().unwrap();
+        assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
+        let y = Record::from_fasta_string(&x).unwrap();
+        incomplete_eq(&p, &y);
+
+        // bsa
+        let p = bsa();
+        let x = p.to_fasta_string().unwrap();
+        assert_eq!(x, ">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\nMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPF\nDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEP\nERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYY\nANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVA\nRLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKE\nCCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRR\nHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEK\nLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLIL\nNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLP\nDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVV\nSTQTALA");
+        let y = Record::from_fasta_string(&x).unwrap();
+        incomplete_eq(&p, &y);
+
+        // empty
+        let p = Record::new();
+        let x = p.to_fasta_string().unwrap();
+        assert_eq!(x, ">sp||  OS= GN= PE=5 SV=0");
+        let err = Record::from_fasta_string(&x).err().unwrap();
+        assert_eq!(format!("{}", err), "UniProt error: invalid input data, cannot deserialize data");
+    }
 
     // TODO(ahuszagh)
     //  CSV

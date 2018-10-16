@@ -5,6 +5,7 @@ mod csv;
 mod error;
 mod record;
 mod record_list;
+mod test;
 
 pub use self::client::{by_id, by_id_list, by_mnemonic, by_mnemonic_list};
 pub use self::error::{UniProtError, UniProtErrorKind};

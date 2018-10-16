@@ -104,5 +104,6 @@ fn call(query: &str) -> ResultType<RecordList> {
 
 #[cfg(test)]
 mod tests {
-
+    // TODO(ahuszagh)
+    //      Implement these routines.
 }

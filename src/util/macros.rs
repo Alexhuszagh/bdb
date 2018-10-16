@@ -157,10 +157,12 @@ macro_rules! push_strs {
 #[macro_export]
 macro_rules! write_alls {
     // Base case, call `write_all`
-    ($s:ident, $x:expr) => ($s.write_all($x););
+    ($s:ident, $x:expr) => ($s.write_all($x));
     // `$x` followed by at least one `$y,`
     ($s:ident, $x:expr, $($y:expr),+) => ({
-        $s.write_all($x);
-        write_alls!($s, $($y),+)
+        match $s.write_all($x) {
+            Err(e) => Err(e),
+            _      => write_alls!($s, $($y),+)
+        }
     });
 }

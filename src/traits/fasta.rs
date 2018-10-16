@@ -1,5 +1,8 @@
-#[allow(unused_imports)]        // TODO(ahuszagh)       Remove
-use std::io::{BufReader, BufWriter, Cursor, Read, Write};
+use std::convert::AsRef;
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
+use std::path::Path;
+
 use util::ResultType;
 
 /// Serialize to and from FASTA.
@@ -14,44 +17,57 @@ use util::ResultType;
 /// VDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA
 /// LNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE
 pub trait Fasta: Sized {
+    /// Estimate the size of the resulting FASTA output to avoid reallocations.
+    #[inline(always)]
+    fn estimate_fasta_size(&self) -> usize {
+        0
+    }
+
     /// Export model to FASTA.
-    fn to_fasta<T: Write>(&self, writer: &mut BufWriter<T>) -> ResultType<()>;
-    //async fn to_fasta_async<T: Write>(&self, writer: &mut BufWriter<T>) -> ResultType<()>;
+    fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
-//    fn to_fasta_buf<T: Write>(&self, writer: &mut BufWriter<T>) -> ResultType<()> {
-//        match self.to_fasta() {
-//            Err(e) => Err(e),
-//            Ok(v)  => {
-//                match writer.write_all(v.as_bytes()) {
-//                    Err(e) => Err(Box::new(e)),
-//                    _      => Ok(()),
-//                }
-//            }
-//        }
-//    }
-//
-//    fn to_fasta_string(&self) -> ResultType<String> {
-//        let mut writer = BufWriter::new(Cursor::new(Vec::new()));
-//
-//        match self.to_fasta_buf(&mut writer) {
-//            Err(e)  => Err(e),
-//            _       => {
-//                match writer.into_inner() {
-//                    Err(e)  => Err(Box::new(e)),
-//                    Ok(c)   => match String::from_utf8(c.into_inner()) {
-//                        Err(e)  => Err(Box::new(e)),
-//                        Ok(v)   => Ok(v),
-//                    }
-//                }
-//            },
-//        }
-//    }
+    /// Export model to FASTA string.
+    fn to_fasta_string(&self) -> ResultType<String> {
+        let capacity = self.estimate_fasta_size();
+        let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
-    /// Export model from FASTA.
-    fn noop() {}
-    // TODO(ahuszagh)       Restore
-    //fn from_fasta(fasta: &str) -> ResultType<Self>;
-    //async fn from_fasta_async(fasta: &str) -> ResultType<Self>;
+        match self.to_fasta(&mut writer) {
+            Err(e)  => Err(e),
+            _       => match String::from_utf8(writer.into_inner()) {
+                Err(e)  => Err(Box::new(e)),
+                Ok(v)   => Ok(v),
+            },
+        }
+    }
+
+    /// Export model to FASTA output file.
+    #[inline]
+    fn to_fasta_file<P: AsRef<Path>>(&self, path: P) -> ResultType<()> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+        self.to_fasta(&mut writer)
+    }
+
+    /// Import model from FASTA.
+    fn from_fasta<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+
+    /// Import model from FASTA string.
+    #[inline]
+    fn from_fasta_string(text: &str) -> ResultType<Self> {
+        // Rust uses the contents of the immutable &str as the buffer
+        // Cursor is then immutable.
+        let mut reader = Cursor::new(text);
+        Self::from_fasta(&mut reader)
+    }
+
+    /// Import model from FASTA file.
+    #[inline]
+    fn from_fasta_file<P: AsRef<Path>>(path: P) -> ResultType<Self> {
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+        Self::from_fasta(&mut reader)
+    }
+
 }
 
 /// Specialization of the `Fasta` trait for collections.
@@ -60,27 +76,23 @@ pub trait FastaCollection: Fasta {
     ///
     /// Returns an error if any of the items within the collection
     /// are invalid.
-    fn to_fasta_strict(&self) -> ResultType<String>;
-    //async fn to_fasta_strict_async(&self) -> ResultType<String>;
+    fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Export collection to FASTA.
     ///
     /// Returns an error if none of the items are valid, otherwise,
     /// exports as many items as possible.
-    fn to_fasta_lenient(&self) -> ResultType<String>;
-    //async fn to_fasta_lenient_async(&self) -> ResultType<String>;
+    fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Import collection from FASTA.
     ///
     /// Returns an error if any of the items within the FASTA document
     /// are invalid.
-    fn from_fasta_strict(fasta: &str) -> ResultType<Self>;
-    //async fn from_fasta_strict_async(fasta: &str) -> ResultType<Self>;
+    fn from_fasta_strict<T: BufRead>(reader: &mut T) -> ResultType<Self>;
 
     /// Import collection from FASTA.
     ///
     /// Returns an error if none of the items within the FASTA document
     /// are valid, otherwise, imports as many items as possible.
-    fn from_fasta_lenient(fasta: &str) -> ResultType<Self>;
-    //async fn from_fasta_lenient_async(fasta: &str) -> ResultType<Self>;
+    fn from_fasta_lenient<T: BufRead>(reader: &mut T) -> ResultType<Self>;
 }
