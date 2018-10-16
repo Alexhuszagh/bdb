@@ -12,6 +12,11 @@ pub enum UniProtErrorKind {
     InvalidInputData,
 }
 
+// Private constructor for `Box<UniProtError>`.
+pub fn new_boxed_error(kind: UniProtErrorKind) -> Box<UniProtError> {
+    Box::new(UniProtError(kind))
+}
+
 
 /// Custom error for UniProt-related tasks.
 ///

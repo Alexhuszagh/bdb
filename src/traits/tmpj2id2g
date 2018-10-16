@@ -1,8 +1,0 @@
-//use utility::ResultType;
-
-/// Serialize to and from XML.
-pub trait Xml: Sized {
-    // TODO(ahuszagh) Implement
-    #[do]
-    fn noop(self);
-}

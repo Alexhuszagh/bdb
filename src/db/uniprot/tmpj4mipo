@@ -1,4 +1,0 @@
-//! Model for UniProt protein definitions.
-
-use s;
-use serde_json;

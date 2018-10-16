@@ -1,9 +1,14 @@
 //! Model for UniProt protein definitions.
 
-use regex::Regex;
+use regex::{Captures, Regex};
+use serde_json;
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::fmt;
 
-use traits;
+use bio::proteins::{AverageMass, ProteinMass};
+use traits::*;
+use util::ResultType;
+use super::error::{new_boxed_error, UniProtErrorKind};
 
 /// Identifier for the evidence type for protein existence.
 ///
@@ -172,6 +177,7 @@ pub struct Record {
 
 impl Record {
     /// Create new, empty UniProt record.
+    #[inline]
     pub fn new() -> Record {
         Record {
             sequence_version: 0,
@@ -191,22 +197,159 @@ impl Record {
 }
 
 
-impl traits::Valid for Record {
+impl Valid for Record {
     fn is_valid(&self) -> bool {
         {
-            self.sequence_version >= 1 &&
+            // Do not try to validate the Organism
+            // With virus names being non-standard, it is impossible
+            // with an NFA, and extremely time complex otherwise.
+            self.sequence_version > 0 &&
             self.protein_evidence < ProteinEvidence::Unknown &&
             self.mass > 0 &&
             self.length as usize == self.sequence.len() &&
-            self.sequence.len() > 0 &&
-            self.gene.len() > 0 &&
-            self.name.len() > 0 &&
+            !self.sequence.is_empty() &&
+            !self.gene.is_empty() &&
+            !self.name.is_empty() &&
+            !self.organism.is_empty() &&
             AccessionRegex::validate().is_match(&self.id) &&
             MnemonicRegex::validate().is_match(&self.mnemonic) &&
-            //ORGANISM_REGEX.is_match(&self.organism) &&
-            AminoacidRegex::validate().is_match(&self.sequence)
+            AminoacidRegex::validate().is_match(&self.sequence) &&
+            (
+                self.proteome.is_empty() ||
+                ProteomeRegex::validate().is_match(&self.proteome)
+            ) &&
+            (
+                self.taxonomy.is_empty() ||
+                TaxonomyRegex::validate().is_match(&self.taxonomy)
+            )
         }
     }
+}
+
+impl Complete for Record {
+    fn is_complete(&self) -> bool {
+        {
+            self.is_valid() &&
+            !self.proteome.is_empty() &&
+            !self.taxonomy.is_empty()
+        }
+    }
+}
+
+/// Estimate the size of the resulting FASTA record.
+///
+/// Use to minimize reallocations while serializing to FASTA.
+fn estimate_fasta_size(record: &Record) -> usize {
+    /// The approximate sum of all the control vocabulary in the FASTA record.
+    const FASTA_VOCABULARY_SIZE: usize = 20;
+    FASTA_VOCABULARY_SIZE +
+        record.gene.len() +
+        record.id.len() +
+        record.name.len() +
+        record.organism.len() +
+        record.sequence.len()
+}
+
+/// Convert capture group to `&str`.
+#[inline(always)]
+fn capture_as_str<'t>(captures: &'t Captures, index: usize) -> &'t str {
+    captures.get(index).unwrap().as_str()
+}
+
+/// Convert capture group to `String`.
+#[inline(always)]
+fn capture_as_string(captures: &Captures, index: usize) -> String {
+    String::from(capture_as_str(captures, index))
+}
+
+// TODO(ahuszagh)
+//      Restore
+impl Fasta for Record {
+    fn to_fasta<T: Write>(&self, writer: &mut BufWriter<T>) -> ResultType<()> {
+//        // initialize string and avoid reallocations.
+//        let size = estimate_fasta_size(self);
+//        let mut fasta = String::with_capacity(size);
+//
+//        // write SwissProt header
+//        let evidence = self.protein_evidence as u32;
+//        push_strs!(
+//            fasta,
+//            ">sp|",     &self.id,
+//            "|",        &self.mnemonic,
+//            " ",        &self.name,
+//            " OS=",     &self.organism,
+//            " GN=",     &self.gene,
+//            " PE=",     &evidence.to_string(),
+//            " SV=",     &self.sequence_version.to_string()
+//        );
+//
+//        // write SwissProt sequence, formatted at 60 characters
+//        // Start from 1, so we go 1..60, rather than 0..59
+//        const SEQUENCE_LINE_LENGTH: usize = 60;
+//        let mut i: usize = 1;
+//        for c in self.sequence.chars() {
+//            match i {
+//                1                    => { fasta.push('\n'); i += 1; },
+//                SEQUENCE_LINE_LENGTH => { i = 1; },
+//                _                    => { i += 1; },
+//            }
+//            fasta.push(c);
+//        }
+//
+//        Ok(fasta)
+        Ok(())
+    }
+
+//    fn from_fasta(fasta: &str) -> ResultType<Record> {
+//        // split along lines
+//        // first line is the header, rest are the sequences
+//        // short-circuit if the header is None.
+//        let mut lines = fasta.lines();
+//        let header = lines.next();
+//        if header.is_none() {
+//            return Err(new_boxed_error(UniProtErrorKind::InvalidInputData));
+//        }
+//        let header = header.unwrap();
+//
+//        // process the header and match it to the FASTA record
+//        let captures = FastaHeaderRegex::extract().captures(&header);
+//        if captures.is_none() {
+//            return Err(new_boxed_error(UniProtErrorKind::InvalidInputData));
+//        }
+//        let captures = captures.unwrap();
+//
+//        // initialize the record with header data
+//        let pe = capture_as_str(&captures, PE_INDEX);
+//        let sv = capture_as_str(&captures, SV_INDEX);
+//        let mut record = Record {
+//            sequence_version: sv.parse().unwrap(),
+//            protein_evidence: serde_json::from_str(pe).unwrap(),
+//            mass: 0,
+//            length: 0,
+//            gene: capture_as_string(&captures, GENE_INDEX),
+//            id: capture_as_string(&captures, ACCESSION_INDEX),
+//            mnemonic: capture_as_string(&captures, MNEMONIC_INDEX),
+//            name: capture_as_string(&captures, NAME_INDEX),
+//            organism: capture_as_string(&captures, ORGANISM_INDEX),
+//
+//            // unused fields in header
+//            proteome: String::new(),
+//            sequence: String::new(),
+//            taxonomy: String::new(),
+//        };
+//
+//        // add sequence data to the FASTA sequence
+//        for line in lines {
+//            record.sequence.push_str(&line);
+//        }
+//
+//        // calculate the protein length and mass
+//        record.length = record.sequence.len() as u32;
+//        let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
+//        record.mass = mass.round() as u64;
+//
+//        Ok(record)
+//    }
 }
 
 // PRIVATE
@@ -215,7 +358,7 @@ impl traits::Valid for Record {
 // REGULAR EXPRESSIONS
 
 /// Regular expressions for UniProt record fields.
-trait FieldRegex {
+pub trait FieldRegex {
     /// Validate a field.
     fn validate() -> &'static Regex;
     /// Extract a field from external data.
@@ -304,38 +447,6 @@ impl FieldRegex for MnemonicRegex {
     }
 }
 
-// ORGANISM
-
-// TODO(ahuszagh)
-//      Restore
-//macro_rules! organism_pattern {
-//    () => (r"(?x)
-//        \A
-//        (?P<genus>[A-Z][a-z]+)      # Genus (generic) name for species
-//        \s                          # Word boundary
-//        (?P<species>[A-Z][a-z]+)    # Specific name for species
-//
-//        # TODO: implement here...
-//        #   Need the strain catcher
-//    ")
-//}
-//
-//struct OrganismRegex;
-//
-//impl FieldRegex for OrganismRegex {
-//    fn validate() -> &'static Regex {
-//        // TODO(ahuszagh)
-//        //  Concat to a \z
-//        lazy_regex!(organism_pattern!());
-//        &REGEX
-//    }
-//
-//    fn extract() -> &'static Regex {
-//        lazy_regex!(organism_pattern!());
-//        &REGEX
-//    }
-//}
-
 // AMINOACID
 
 /// Regular expression to validate aminoacid sequences.
@@ -361,6 +472,164 @@ impl FieldRegex for AminoacidRegex {
                 [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]+
             )
             \z
+        ");
+        &REGEX
+    }
+}
+
+// PROTEOME
+
+/// Regular expression to validate proteome identifiers.
+struct ProteomeRegex;
+
+impl FieldRegex for ProteomeRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(r"(?x)
+            \A
+            (?:
+                UP[0-9]{9}
+            )
+            \z
+        ");
+        &REGEX
+    }
+
+    fn extract() -> &'static Regex {
+        lazy_regex!(r"(?x)
+            \A
+            # Group 1, Proteome ID
+            (
+                UP[0-9]{9}
+            )
+        ");
+        &REGEX
+    }
+}
+
+// TAXONOMY
+
+/// Regular expression to validate taxonomic identifiers.
+struct TaxonomyRegex;
+
+impl FieldRegex for TaxonomyRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(r"(?x)
+            \A
+            (?:
+                \d+
+            )
+            \z
+        ");
+        &REGEX
+    }
+
+    fn extract() -> &'static Regex {
+        lazy_regex!(r"(?x)
+            \A
+            # Group 1, Taxonomy ID
+            (
+                \d+
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+// FASTA HEADER
+
+/// Hard-coded index fields for data extraction.
+const ACCESSION_INDEX: usize = 2;
+const MNEMONIC_INDEX: usize = 3;
+const NAME_INDEX: usize = 4;
+const ORGANISM_INDEX: usize = 5;
+const GENE_INDEX: usize = 6;
+const PE_INDEX: usize = 7;
+const SV_INDEX: usize = 8;
+
+/// Regular expression to validate and extract FASTA headers.
+struct FastaHeaderRegex;
+
+impl FieldRegex for FastaHeaderRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(r"(?x)(?m)
+             \A
+            (?:
+                >sp\|
+                (?:
+                    [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                )
+                \|
+                (?:
+                    [a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5}
+                )
+                \s
+                (?:
+                    .+
+                )
+                \sOS=
+                (?:
+                    .+
+                )
+                \sGN=
+                (?:
+                    [[:alnum:]]+
+                )
+                \sPE=
+                (?:
+                    [[:digit:]]+
+                )
+                \sSV=
+                (?:
+                    [[:digit:]]+
+                )
+            )
+            $
+        ");
+        &REGEX
+    }
+
+    fn extract() -> &'static Regex {
+        lazy_regex!(r"(?x)(?m)
+            \A
+            # Group 1, the entire header.
+            (
+                >sp\|
+                # Group 2, Accession Number
+                (
+                    [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                )
+                \|
+                # Group 3, Mnemonic Identifier
+                (
+                    [a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5}
+                )
+                \s
+                #Group 4, Protein Name
+                (
+                    .+
+                )
+                \sOS=
+                # Group 5, Organism Name
+                (
+                    .+
+                )
+                \sGN=
+                # Group 6, Gene Name
+                (
+                    [[:alnum:]]+
+                )
+                \sPE=
+                # Group 7, Protein Evidence
+                (
+                    [[:digit:]]+
+                )
+                \sSV=
+                # Group 8, Sequence Version
+                (
+                    [[:digit:]]+
+                )
+            )
         ");
         &REGEX
     }
@@ -444,6 +713,11 @@ mod tests {
 
     // REGULAR EXPRESSIONS
 
+    /// Check regex validates or does not validate text.
+    fn validate_regex<T: FieldRegex>(text: &str, result: bool) {
+        assert_eq!(T::validate().is_match(text), result);
+    }
+
     /// Check regex matches or does not match text.
     fn check_regex<T: FieldRegex>(text: &str, result: bool) {
         assert_eq!(T::validate().is_match(text), result);
@@ -515,7 +789,6 @@ mod tests {
         check_regex::<T>("_HUMAN", false);
         check_regex::<T>("1433B_", false);
 
-        // valid + space
         check_regex::<T>(" G3P_RABIT", false);
         check_regex::<T>("G3P_RABIT ", false);
         check_regex::<T>(" ENO_ACTSZ", false);
@@ -546,6 +819,341 @@ mod tests {
         // extract
         extract_regex::<T>("SAMPLER", 1, "SAMPLER");
     }
+
+    #[test]
+    fn proteome_regex() {
+        type T = ProteomeRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>("UP000001811", true);
+        check_regex::<T>("UP000001114", true);
+
+        // mutated valid
+        check_regex::<T>("UX000001811", false);
+        check_regex::<T>("UPX00001114", false);
+
+        // valid + 1 number
+        validate_regex::<T>("UP0000018113", false);
+        validate_regex::<T>("UP0000011144", false);
+
+        // valid + trailing
+        validate_regex::<T>("UP000001811: Unplaced", false);
+        validate_regex::<T>("UP000001114: Chromosome", false);
+
+        // extract
+        extract_regex::<T>("UP000001811: Unplaced", 1, "UP000001811");
+        extract_regex::<T>("UP000001114: Chromosome", 1, "UP000001114");
+    }
+
+    #[test]
+    fn taxonomy_regex() {
+        type T = TaxonomyRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>("9606", true);
+        check_regex::<T>("731", true);
+
+        // invalid
+        check_regex::<T>("965X", false);
+        check_regex::<T>("965 ", false);
+        check_regex::<T>(" 965", false);
+        check_regex::<T>("X965", false);
+
+        // extract
+       extract_regex::<T>("9606", 1, "9606");
+    }
+
+    #[test]
+    fn fasta_header_regex() {
+        type T = FastaHeaderRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", true);
+        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\n", true);
+        check_regex::<T>(">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4", true);
+        check_regex::<T>(">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\n", true);
+
+        // invalid
+        check_regex::<T>(">up|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
+        check_regex::<T>(">sp|PX6406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
+        check_regex::<T>(">sp|P46406|G3P_RABITS Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
+        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAP-DH PE=1 SV=3", false);
+        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1X SV=3", false);
+        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=X3", false);
+
+        // extract
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", 1, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", ACCESSION_INDEX, "P46406");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", MNEMONIC_INDEX, "G3P_RABIT");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", NAME_INDEX, "Glyceraldehyde-3-phosphate dehydrogenase");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", ORGANISM_INDEX, "Oryctolagus cuniculus");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", GENE_INDEX, "GAPDH");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", PE_INDEX, "1");
+        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", SV_INDEX, "3");
+    }
+
+    // RECORDS
+
+    /// Create a record for the standard protein GAPDH.
+    fn gapdh() -> Record {
+        Record {
+            sequence_version: 3,
+            protein_evidence: ProteinEvidence::ProteinLevel,
+            mass: 35780,
+            length: 333,
+            gene: String::from("GAPDH"),
+            id: String::from("P46406"),
+            mnemonic: String::from("G3P_RABIT"),
+            name: String::from("Glyceraldehyde-3-phosphate dehydrogenase"),
+            organism: String::from("Oryctolagus cuniculus"),
+            proteome: String::from("UP000001811"),
+            sequence: String::from("MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE"),
+            taxonomy: String::from("9986")
+        }
+    }
+
+    /// Create a record for the standard protein BSA.
+    fn bsa() -> Record {
+        Record {
+            sequence_version: 4,
+            protein_evidence: ProteinEvidence::ProteinLevel,
+            mass: 69293,
+            length: 607,
+            gene: String::from("ALB"),
+            id: String::from("P02769"),
+            mnemonic: String::from("ALBU_BOVIN"),
+            name: String::from("Serum albumin"),
+            organism: String::from("Bos taurus"),
+            proteome: String::from("UP000009136"),
+            sequence: String::from("MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA"),
+            taxonomy: String::from("9913")
+        }
+    }
+
+    /// Check a record from FASTA with incomplete data is equal to the original.
+    fn incomplete_eq(x: &Record, y: &Record) {
+        assert_eq!(y.sequence_version, x.sequence_version);
+        assert_eq!(y.protein_evidence, x.protein_evidence);
+        assert_eq!(y.mass, x.mass);
+        assert_eq!(y.length, x.length);
+        assert_eq!(y.gene, x.gene);
+        assert_eq!(y.id, x.id);
+        assert_eq!(y.mnemonic, x.mnemonic);
+        assert_eq!(y.name, x.name);
+        assert_eq!(y.organism, x.organism);
+        assert_eq!(y.proteome, "");
+        assert_eq!(y.sequence, x.sequence);
+        assert_eq!(y.taxonomy, "");
+
+        assert!(x.is_valid());
+        assert!(x.is_complete());
+
+        assert!(y.is_valid());
+        assert!(!y.is_complete());
+    }
+
+    #[test]
+    fn debug_record() {
+        let text = format!("{:?}", gapdh());
+        assert_eq!(text, "Record { sequence_version: 3, protein_evidence: ProteinLevel, mass: 35780, length: 333, gene: \"GAPDH\", id: \"P46406\", mnemonic: \"G3P_RABIT\", name: \"Glyceraldehyde-3-phosphate dehydrogenase\", organism: \"Oryctolagus cuniculus\", proteome: \"UP000001811\", sequence: \"MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\", taxonomy: \"9986\" }");
+
+        let text = format!("{:?}", bsa());
+        assert_eq!(text, "Record { sequence_version: 4, protein_evidence: ProteinLevel, mass: 69293, length: 607, gene: \"ALB\", id: \"P02769\", mnemonic: \"ALBU_BOVIN\", name: \"Serum albumin\", organism: \"Bos taurus\", proteome: \"UP000009136\", sequence: \"MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\", taxonomy: \"9913\" }");
+    }
+
+    #[test]
+    fn equality_record() {
+        let x = gapdh();
+        let y = gapdh();
+        let z = bsa();
+        assert_eq!(x, y);
+        assert_ne!(x, z);
+        assert_ne!(y, z);
+    }
+
+    #[test]
+    fn properties_record() {
+        // test various permutations that can lead to
+        // invalid or incomplete identifications
+        let g1 = gapdh();
+        let mut g2 = g1.clone();
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+
+        // check keeping the protein valid but make it incomplete
+        g2.proteome = String::new();
+        assert!(g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.proteome = g1.proteome.clone();
+
+        g2.taxonomy = String::new();
+        assert!(g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.taxonomy = g1.taxonomy.clone();
+
+        // check replacing items with valid, but different data
+        g2.sequence_version = 1;
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.sequence_version = g1.sequence_version;
+
+        g2.protein_evidence = ProteinEvidence::Inferred;
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.protein_evidence = g1.protein_evidence;
+
+        g2.mass = 64234;
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.mass = g1.mass;
+
+        g2.sequence = String::from(&g2.sequence[0..200]);
+        g2.length = 200;
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.sequence = g1.sequence.clone();
+        g2.length = g1.length;
+
+        g2.gene = String::from("HIST1H1A");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.gene = g1.gene.clone();
+
+        g2.id = String::from("A0A022YWF9");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.id = g1.id.clone();
+
+        g2.id = String::from("A2BC19");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.id = g1.id.clone();
+
+        g2.mnemonic = String::from("H11_HUMAN");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.mnemonic = g1.mnemonic.clone();
+
+        g2.name = String::from("Histone H1.1");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.name = g1.name.clone();
+
+        g2.organism = String::from("Homo sapiens");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.organism = g1.organism.clone();
+
+        g2.proteome = String::from("UP000005640");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.proteome = g1.proteome.clone();
+
+        g2.taxonomy = String::from("9606");
+        assert!(g2.is_valid());
+        assert!(g2.is_complete());
+        g2.taxonomy = g1.taxonomy.clone();
+
+        // check replacing items with invalid data
+        g2.sequence_version = 0;
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.sequence_version = g1.sequence_version;
+
+        g2.protein_evidence = ProteinEvidence::Unknown;
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.protein_evidence = g1.protein_evidence;
+
+        g2.mass = 0;
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.mass = g1.mass;
+
+        g2.length = 334;
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.length = g1.length;
+
+        g2.gene = String::new();
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.gene = g1.gene.clone();
+
+        g2.id = String::new();
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.id = g1.id.clone();
+
+        g2.mnemonic = String::new();
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.mnemonic = g1.mnemonic.clone();
+
+        g2.name = String::new();
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.name = g1.name.clone();
+
+        g2.organism = String::new();
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.organism = g1.organism.clone();
+
+        g2.sequence = String::new();
+        assert!(!g2.is_valid());
+        assert!(!g2.is_complete());
+        g2.sequence = g1.sequence.clone();
+    }
+
+    #[test]
+    fn serde_record() {
+        let x = serde_json::to_string(&gapdh()).unwrap();
+        assert_eq!(x, "{\"sequence_version\":3,\"protein_evidence\":1,\"mass\":35780,\"length\":333,\"gene\":\"GAPDH\",\"id\":\"P46406\",\"mnemonic\":\"G3P_RABIT\",\"name\":\"Glyceraldehyde-3-phosphate dehydrogenase\",\"organism\":\"Oryctolagus cuniculus\",\"proteome\":\"UP000001811\",\"sequence\":\"MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\",\"taxonomy\":\"9986\"}");
+
+        let x = serde_json::to_string(&bsa()).unwrap();
+        assert_eq!(x, "{\"sequence_version\":4,\"protein_evidence\":1,\"mass\":69293,\"length\":607,\"gene\":\"ALB\",\"id\":\"P02769\",\"mnemonic\":\"ALBU_BOVIN\",\"name\":\"Serum albumin\",\"organism\":\"Bos taurus\",\"proteome\":\"UP000009136\",\"sequence\":\"MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\",\"taxonomy\":\"9913\"}");
+
+        let x = serde_json::to_string(&Record::new()).unwrap();
+        assert_eq!(x, "{\"sequence_version\":0,\"protein_evidence\":5,\"mass\":0,\"length\":0,\"gene\":\"\",\"id\":\"\",\"mnemonic\":\"\",\"name\":\"\",\"organism\":\"\",\"proteome\":\"\",\"sequence\":\"\",\"taxonomy\":\"\"}");
+    }
+
+// TODO(ahuszagh)
+//      Restore
+//    #[test]
+//    fn fasta_record() {
+//        // gapdh
+//        let p = gapdh();
+//        let x = p.to_fasta().unwrap();
+//        assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
+//        //assert_eq!(x, p.to_fasta_string().unwrap());
+//        let y = Record::from_fasta(&x).unwrap();
+//        incomplete_eq(&p, &y);
+//
+//        // bsa
+//        let p = bsa();
+//        let x = p.to_fasta().unwrap();
+//        assert_eq!(x, ">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\nMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPF\nDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEP\nERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYY\nANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVA\nRLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKE\nCCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRR\nHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEK\nLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLIL\nNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLP\nDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVV\nSTQTALA");
+//        let y = Record::from_fasta(&x).unwrap();
+//        incomplete_eq(&p, &y);
+//
+//        // empty
+//        let p = Record::new();
+//        let x = p.to_fasta().unwrap();
+//        assert_eq!(x, ">sp||  OS= GN= PE=5 SV=0");
+//    }
+
+    // TODO(ahuszagh)
+    //  CSV
 
     // TODO(ahuszagh)
     //  Import tests from uniprot.rs

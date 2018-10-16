@@ -1,6 +1,7 @@
 #[cfg_attr(test, macro_use)] extern crate assert_approx_eq;
 extern crate csv;
 #[macro_use] extern crate lazy_static;
+extern crate radix_trie;
 extern crate ref_slice;
 extern crate regex;
 extern crate reqwest;

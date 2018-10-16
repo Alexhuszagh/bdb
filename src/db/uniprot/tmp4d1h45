@@ -1,9 +1,0 @@
-//! UniProt integrations.
-
-mod error;
-// TODO(ahuszagh)
-//      mod record;
-//      mod record_list;
-//      etc...
-
-u

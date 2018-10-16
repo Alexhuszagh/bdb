@@ -1,1 +1,0 @@
-//! UniProt-specific utilities.

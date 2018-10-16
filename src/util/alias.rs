@@ -2,5 +2,8 @@
 
 use std::error::Error;
 
-/// General result type for BDB methods.
-pub type ResultType<T> = Result<T, Box<Error>>;
+/// General error type.
+pub type ErrorType = Box<Error>;
+
+/// General result type.
+pub type ResultType<T> = Result<T, ErrorType>;

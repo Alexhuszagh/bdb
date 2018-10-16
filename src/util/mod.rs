@@ -5,4 +5,4 @@
 mod alias;
 #[macro_use] mod macros;
 
-pub use self::alias::ResultType;
+pub use self::alias::{ErrorType, ResultType};

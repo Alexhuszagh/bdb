@@ -8,9 +8,11 @@ use util::ResultType;
 pub trait Text: Sized {
     /// Export model to text.
     fn to_text(&self) -> ResultType<String>;
+    //async fn to_text_async(&self) -> ResultType<String>;
 
     /// Import model from text.
     fn from_text(text: &str) -> ResultType<Self>;
+    //async fn from_text_async(text: &str) -> ResultType<Self>;
 }
 
 /// Specialization of the `Text` trait for collections.
@@ -24,22 +26,26 @@ pub trait TextCollection: Text{
     /// Returns an error if any of the items within the collection
     /// are invalid.
     fn to_text_strict(&self) -> ResultType<String>;
+    //async fn to_text_strict_async(&self) -> ResultType<String>;
 
     /// Export collection to text.
     ///
     /// Returns an error if none of the items are valid, otherwise,
     /// exports as many items as possible.
     fn to_text_lenient(&self) -> ResultType<String>;
+    //async fn to_text_lenient_async(&self) -> ResultType<String>;
 
     /// Import collection from text.
     ///
     /// Returns an error if any of the items within the document
     /// are invalid.
     fn from_text_strict(text: &str) -> ResultType<Self>;
+    //async fn from_text_strict_async(text: &str) -> ResultType<Self>;
 
     /// Import collection from text.
     ///
     /// Returns an error if none of the items within the document
     /// are valid, otherwise, imports as many items as possible.
     fn from_text_lenient(text: &str) -> ResultType<Self>;
+    //async fn from_text_lenient_async(text: &str) -> ResultType<Self>;
 }
