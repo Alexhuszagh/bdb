@@ -1,13 +1,14 @@
 //! Model for UniProt protein definitions.
 
+use ref_slice::ref_slice;
 use regex::{Captures, Regex};
-use serde_json;
-use std::io::{BufRead, Write};
-use std::fmt;
+use std::io::{BufRead, Read, Write};
+use std::mem;
 
 use bio::proteins::{AverageMass, ProteinMass};
 use traits::*;
 use util::ResultType;
+use super::csv::{to_csv, RecordIter};
 use super::error::{new_boxed_error, UniProtErrorKind};
 
 /// Identifier for the evidence type for protein existence.
@@ -25,14 +26,15 @@ use super::error::{new_boxed_error, UniProtErrorKind};
 /// More documentation can be found at:
 ///     https://www.uniprot.org/help/protein_existence
 ///
-enum_number!(ProteinEvidence {
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ProteinEvidence {
     ProteinLevel = 1,
     TranscriptLevel = 2,
     Inferred = 3,
     Predicted = 4,
     Unknown = 5,
-});
-
+}
 
 /// Convert enumerated value for ProteinEvidence to verbose text.
 #[inline]
@@ -45,6 +47,56 @@ pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
         ProteinEvidence::Unknown            => "Unknown evidence (BDB-only designation)",
     }
 }
+
+/// Convert verbose ProteinEvidence description to enumerated value.
+#[inline]
+pub fn protein_evidence_from_verbose(text: &str) -> ResultType<ProteinEvidence> {
+    match text {
+        "Evidence at protein level"                 => Ok(ProteinEvidence::ProteinLevel),
+        "Evidence at transcript level"              => Ok(ProteinEvidence::TranscriptLevel),
+        "Inferred from homology"                    => Ok(ProteinEvidence::Inferred),
+        "Predicted"                                 => Ok(ProteinEvidence::Predicted),
+        "Unknown evidence (BDB-only designation)"   => Ok(ProteinEvidence::Unknown),
+        _                                           => Err(new_boxed_error(UniProtErrorKind::InvalidInputData)),
+
+    }
+}
+
+/// Convert `ProteinEvidence` to an integer.
+#[inline(always)]
+pub fn protein_evidence_as_int(pe: ProteinEvidence) -> u8 {
+    pe as u8
+}
+
+/// Convert `ProteinEvidence` to a `String`.
+#[inline(always)]
+pub fn protein_evidence_as_string(pe: ProteinEvidence) -> String {
+    protein_evidence_as_int(pe).to_string()
+}
+
+/// Convert integer to `ProteinEvidence`.
+#[inline(always)]
+pub fn int_as_protein_evidence(n: u8) -> Option<ProteinEvidence> {
+    if n >= 1 && n <= 5 {
+        Some(unsafe { mem::transmute(n) })
+    } else {
+        None
+    }
+}
+
+/// Convert `str` to `ProteinEvidence`.
+#[inline(always)]
+pub fn str_as_protein_evidence(s: &str) -> Option<ProteinEvidence> {
+    match s.parse::<u8>() {
+        Err(_s) => None,
+        Ok(v)   => int_as_protein_evidence(v)
+    }
+}
+
+
+//#[inline(always)]
+// TODO: here...
+
 
 /// Model for a single record from a UniProt KB query.
 ///
@@ -90,6 +142,24 @@ pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
 /// [`sequence`]: struct.Record.html#structfield.sequence
 /// [`taxonomy`]: struct.Record.html#structfield.taxonomy
 /// [`ProteinEvidence.ProteinLevel`]: enum.ProteinEvidence.html#variant.ProteinLevel
+
+// Enumerated values for Record fields.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecordField {
+    SequenceVersion,
+    ProteinEvidence,
+    Mass,
+    Length,
+    Gene,
+    Id,
+    Mnemonic,
+    Name,
+    Organism,
+    Proteome,
+    Sequence,
+    Taxonomy,
+}
 
 // Extra information hidden from the documentation, for developers.
 //  Notes:
@@ -145,7 +215,7 @@ pub fn protein_evidence_verbose(evidence: ProteinEvidence) -> &'static str {
 //
 //      `taxonomy`:
 //          Numerical identifier for the species, described by "name".
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Record {
     /// Numerical identifier for protein version.
     ///
@@ -249,6 +319,9 @@ fn capture_as_string(captures: &Captures, index: usize) -> String {
     String::from(capture_as_str(captures, index))
 }
 
+// FASTA
+// -----
+
 impl Fasta for Record {
     #[inline]
     fn estimate_fasta_size(&self) -> usize {
@@ -264,7 +337,6 @@ impl Fasta for Record {
 
     fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()> {
         // Write SwissProt header
-        let evidence = self.protein_evidence as u32;
         write_alls!(
             writer,
             b">sp|",     self.id.as_bytes(),
@@ -272,7 +344,7 @@ impl Fasta for Record {
             b" ",        self.name.as_bytes(),
             b" OS=",     self.organism.as_bytes(),
             b" GN=",     self.gene.as_bytes(),
-            b" PE=",     evidence.to_string().as_bytes(),
+            b" PE=",     protein_evidence_as_string(self.protein_evidence).as_bytes(),
             b" SV=",     self.sequence_version.to_string().as_bytes()
         )?;
 
@@ -318,8 +390,10 @@ impl Fasta for Record {
         let pe = capture_as_str(&captures, PE_INDEX);
         let sv = capture_as_str(&captures, SV_INDEX);
         let mut record = Record {
+            // Can use unwrap because they were matched in the regex
+            // as "\d+" capture groups, they must be deserializeable to int.
             sequence_version: sv.parse().unwrap(),
-            protein_evidence: serde_json::from_str(pe).unwrap(),
+            protein_evidence: str_as_protein_evidence(pe).unwrap(),
             mass: 0,
             length: 0,
             gene: capture_as_string(&captures, GENE_INDEX),
@@ -340,11 +414,44 @@ impl Fasta for Record {
         }
 
         // calculate the protein length and mass
-        record.length = record.sequence.len() as u32;
-        let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
-        record.mass = mass.round() as u64;
+        if record.sequence.len() > 0 {
+            record.length = record.sequence.len() as u32;
+            let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
+            record.mass = mass.round() as u64;
+        }
 
         Ok(record)
+    }
+}
+
+// CSV
+// ---
+
+impl Csv for Record {
+    #[inline]
+    fn estimate_csv_size(&self) -> usize {
+        // 142 for the header row + 11 for each of the '\t' for the columns.
+        const CSV_VOCABULARY_SIZE: usize = 153;
+        CSV_VOCABULARY_SIZE +
+            self.gene.len() +
+            self.id.len() +
+            self.mnemonic.len() +
+            self.name.len() +
+            self.organism.len() +
+            self.sequence.len()
+    }
+
+    fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+        to_csv(writer, ref_slice(&self), delimiter)
+    }
+
+    fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Record> {
+        let mut iter = RecordIter::new(reader, delimiter);
+        iter.parse_header()?;
+        match iter.next() {
+            None    => Err(new_boxed_error(UniProtErrorKind::InvalidInputData)),
+            Some(v) => Ok(v?)
+        }
     }
 }
 
@@ -554,23 +661,23 @@ impl FieldRegex for FastaHeaderRegex {
             (?:
                 >sp\|
                 (?:
-                    [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                    (?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})?
                 )
                 \|
                 (?:
-                    [a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5}
+                    (?:[a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5})?
                 )
                 \s
                 (?:
-                    .+
+                    .*
                 )
                 \sOS=
                 (?:
-                    .+
+                    .*
                 )
                 \sGN=
                 (?:
-                    [[:alnum:]]+
+                    [[:alnum:]]*
                 )
                 \sPE=
                 (?:
@@ -594,27 +701,27 @@ impl FieldRegex for FastaHeaderRegex {
                 >sp\|
                 # Group 2, Accession Number
                 (
-                    [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                    (?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})?
                 )
                 \|
                 # Group 3, Mnemonic Identifier
                 (
-                    [a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5}
+                    (?:[a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5})?
                 )
                 \s
                 #Group 4, Protein Name
                 (
-                    .+
+                    .*
                 )
                 \sOS=
                 # Group 5, Organism Name
                 (
-                    .+
+                    .*
                 )
                 \sGN=
                 # Group 6, Gene Name
                 (
-                    [[:alnum:]]+
+                    [[:alnum:]]*
                 )
                 \sPE=
                 # Group 7, Protein Evidence
@@ -637,7 +744,6 @@ impl FieldRegex for FastaHeaderRegex {
 
 #[cfg(test)]
 mod tests {
-    use serde_json;
     use super::*;
     use super::super::test::{bsa, gapdh, incomplete_eq};
 
@@ -666,27 +772,27 @@ mod tests {
     #[test]
     fn serialize_protein_evidence() {
         // ProteinLevel
-        let text = serde_json::to_string(&ProteinEvidence::ProteinLevel).unwrap();
+        let text = protein_evidence_as_string(ProteinEvidence::ProteinLevel);
         assert_eq!(text, "1");
-        let evidence: ProteinEvidence = serde_json::from_str(&text).unwrap();
+        let evidence = str_as_protein_evidence(&text).unwrap();
         assert_eq!(evidence, ProteinEvidence::ProteinLevel);
 
         // TranscriptLevel
-        let text = serde_json::to_string(&ProteinEvidence::TranscriptLevel).unwrap();
+        let text = protein_evidence_as_string(ProteinEvidence::TranscriptLevel);
         assert_eq!(text, "2");
-        let evidence: ProteinEvidence = serde_json::from_str(&text).unwrap();
+        let evidence = str_as_protein_evidence(&text).unwrap();
         assert_eq!(evidence, ProteinEvidence::TranscriptLevel);
 
         // Inferred
-        let text = serde_json::to_string(&ProteinEvidence::Inferred).unwrap();
+        let text = protein_evidence_as_string(ProteinEvidence::Inferred);
         assert_eq!(text, "3");
-        let evidence: ProteinEvidence = serde_json::from_str(&text).unwrap();
+        let evidence = str_as_protein_evidence(&text).unwrap();
         assert_eq!(evidence, ProteinEvidence::Inferred);
 
         // Predicted
-        let text = serde_json::to_string(&ProteinEvidence::Predicted).unwrap();
+        let text = protein_evidence_as_string(ProteinEvidence::Predicted);
         assert_eq!(text, "4");
-        let evidence: ProteinEvidence = serde_json::from_str(&text).unwrap();
+        let evidence = str_as_protein_evidence(&text).unwrap();
         assert_eq!(evidence, ProteinEvidence::Predicted);
     }
 
@@ -1082,18 +1188,6 @@ mod tests {
     }
 
     #[test]
-    fn serde_record() {
-        let x = serde_json::to_string(&gapdh()).unwrap();
-        assert_eq!(x, "{\"sequence_version\":3,\"protein_evidence\":1,\"mass\":35780,\"length\":333,\"gene\":\"GAPDH\",\"id\":\"P46406\",\"mnemonic\":\"G3P_RABIT\",\"name\":\"Glyceraldehyde-3-phosphate dehydrogenase\",\"organism\":\"Oryctolagus cuniculus\",\"proteome\":\"UP000001811\",\"sequence\":\"MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\",\"taxonomy\":\"9986\"}");
-
-        let x = serde_json::to_string(&bsa()).unwrap();
-        assert_eq!(x, "{\"sequence_version\":4,\"protein_evidence\":1,\"mass\":69293,\"length\":607,\"gene\":\"ALB\",\"id\":\"P02769\",\"mnemonic\":\"ALBU_BOVIN\",\"name\":\"Serum albumin\",\"organism\":\"Bos taurus\",\"proteome\":\"UP000009136\",\"sequence\":\"MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\",\"taxonomy\":\"9913\"}");
-
-        let x = serde_json::to_string(&Record::new()).unwrap();
-        assert_eq!(x, "{\"sequence_version\":0,\"protein_evidence\":5,\"mass\":0,\"length\":0,\"gene\":\"\",\"id\":\"\",\"mnemonic\":\"\",\"name\":\"\",\"organism\":\"\",\"proteome\":\"\",\"sequence\":\"\",\"taxonomy\":\"\"}");
-    }
-
-    #[test]
     fn fasta_record() {
         // gapdh
         let p = gapdh();
@@ -1113,14 +1207,40 @@ mod tests {
         let p = Record::new();
         let x = p.to_fasta_string().unwrap();
         assert_eq!(x, ">sp||  OS= GN= PE=5 SV=0");
-        let err = Record::from_fasta_string(&x).err().unwrap();
-        assert_eq!(format!("{}", err), "UniProt error: invalid input data, cannot deserialize data");
+        let y = Record::from_fasta_string(&x).unwrap();
+        assert_eq!(p, y);
+    }
+
+    #[test]
+    fn csv_record() {
+        // gapdh
+        let p = gapdh();
+        let x = p.to_csv_string(b'\t').unwrap();
+        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n3\tEvidence at protein level\t35780\t333\tGAPDH\tP46406\tG3P_RABIT\tGlyceraldehyde-3-phosphate dehydrogenase\tOryctolagus cuniculus\tUP000001811\tMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\t9986\n");
+        let x = p.to_csv_string(b',').unwrap();
+        assert_eq!(x, "Sequence version,Protein existence,Mass,Length,Gene names  (primary ),Entry,Entry name,Protein names,Organism,Proteomes,Sequence,Organism ID\n3,Evidence at protein level,35780,333,GAPDH,P46406,G3P_RABIT,Glyceraldehyde-3-phosphate dehydrogenase,Oryctolagus cuniculus,UP000001811,MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE,9986\n");
+        let y = Record::from_csv_string(&x, b',').unwrap();
+        assert_eq!(p, y);
+
+        // bsa
+        let p = bsa();
+        let x = p.to_csv_string(b'\t').unwrap();
+        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n4\tEvidence at protein level\t69293\t607\tALB\tP02769\tALBU_BOVIN\tSerum albumin\tBos taurus\tUP000009136\tMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\t9913\n");
+        let x = p.to_csv_string(b',').unwrap();
+        assert_eq!(x, "Sequence version,Protein existence,Mass,Length,Gene names  (primary ),Entry,Entry name,Protein names,Organism,Proteomes,Sequence,Organism ID\n4,Evidence at protein level,69293,607,ALB,P02769,ALBU_BOVIN,Serum albumin,Bos taurus,UP000009136,MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA,9913\n");
+        let y = Record::from_csv_string(&x, b',').unwrap();
+        assert_eq!(p, y);
+
+        // empty
+        let p = Record::new();
+        let x = p.to_csv_string(b'\t').unwrap();
+        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n\t\t\t\t\t\t\t\t\t\t\t\n");
+        let x = p.to_csv_string(b',').unwrap();
+        assert_eq!(x, "Sequence version,Protein existence,Mass,Length,Gene names  (primary ),Entry,Entry name,Protein names,Organism,Proteomes,Sequence,Organism ID\n,,,,,,,,,,,\n");
+        let y = Record::from_csv_string(&x, b',').unwrap();
+        assert_eq!(p, y);
     }
 
     // TODO(ahuszagh)
     //  CSV
-
-    // TODO(ahuszagh)
-    //  Import tests from uniprot.rs
-    //  Implement tests of the regular expressions
 }

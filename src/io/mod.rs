@@ -2,4 +2,4 @@
 
 mod uniprot;
 
-pub use self::uniprot::{UniProtFasta};
+pub use self::uniprot::{UniProtCsv, UniProtFasta};

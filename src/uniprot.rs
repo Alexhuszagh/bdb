@@ -18,13 +18,6 @@ use tbt::{Tbt};       // TbtCollection
 
 impl Tbt for Record {
     /**
-     *  \brief Export UniProt record to TBT.
-     */
-    fn to_tbt(&self) -> ResultType<String> {
-        _slice_to_tbt(ref_slice(&self))
-    }
-
-    /**
      *  \brief Import UniProt record from a TBT row.
      */
     fn from_tbt(text: &str) -> ResultType<Record> {
@@ -41,13 +34,6 @@ impl Tbt for Record {
 
 impl Tbt for RecordList {
     /**
-     *  \brief Export UniProt records to TBT.
-     */
-    fn to_tbt(&self) -> ResultType<String> {
-        _slice_to_tbt(&self[..])
-    }
-
-    /**
      *  \brief Import UniProt records from TBT.
      */
     fn from_tbt(text: &str) -> ResultType<RecordList> {
@@ -63,75 +49,6 @@ impl Tbt for RecordList {
 
 // PRIVATE
 // -------
-
-// RECORD(S) TO TBT
-
-/**
- *  \brief Export the header columns to TBT.
- */
-fn _header_to_row() -> Vec<&'static str> {
-    vec![
-        "Sequence version",         // sequence_version
-        "Protein existence",        // protein_evidence
-        "Mass",                     // mass
-        "Length",                   // length
-        "Gene names  (primary )",   // gene
-        "Entry",                    // id
-        "Entry name",               // mnemonic
-        "Protein names",            // name
-        "Organism",                 // organism
-        "Proteomes",                // proteome
-        "Sequence",                 // sequence
-        "Organism ID",              // taxonomy
-    ]
-}
-
-/**
- *  \brief Convert a record to vector of strings to serialize into TBT.
- */
-fn _record_to_row(record: &Record) -> Vec<String> {
-    vec![
-        nonzero_to_string!(record.sequence_version),
-        String::from(match record.protein_evidence {
-            ProteinEvidence::Unknown    => "",
-            _                           => protein_evidence_verbose(record.protein_evidence),
-        }),
-        nonzero_to_string!(record.mass),
-        nonzero_to_string!(record.length),
-        record.gene.clone(),
-        record.id.clone(),
-        record.mnemonic.clone(),
-        record.name.clone(),
-        record.organism.clone(),
-        record.proteome.clone(),
-        record.sequence.clone(),
-        record.taxonomy.clone(),
-    ]
-}
-
-
-/**
- *  \brief Convert a slice of records into TBT.
- */
-fn _slice_to_tbt(records: &[Record]) -> ResultType<String> {
-    // Create our custom writer.
-    let mut writer = csv::WriterBuilder::new()
-        .delimiter(b'\t')
-        .quote_style(csv::QuoteStyle::Necessary)
-        .flexible(false)
-        .from_writer(vec![]);
-
-    // Serialize the header to TBT.
-    writer.write_record(&_header_to_row())?;
-
-    // Serialize each row to TBT.
-    for record in records {
-        writer.write_record(&_record_to_row(&record))?;
-    }
-
-    // Return a string from the writer bytes.
-    Ok(String::from_utf8(writer.into_inner()?)?)
-}
 
 // RECORD(S) FROM TBT
 
@@ -267,28 +184,6 @@ pub mod fetch {
 #[cfg(test)]
 mod tests {
     // RECORD
-
-    #[test]
-    fn tbt_gapdh() {
-        let g = gapdh();
-
-        // to_tbt
-        let x = g.to_tbt().unwrap();
-        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n3\tEvidence at protein level\t35780\t333\tGAPDH\tP46406\tG3P_RABIT\tGlyceraldehyde-3-phosphate dehydrogenase\tOryctolagus cuniculus\tUP000001811\tMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\t9986\n");
-
-        // TODO(ahuszagh) Implement deserializer
-    }
-
-    #[test]
-    fn tbt_bsa() {
-        let b = bsa();
-
-        // to_tbt
-        let x = b.to_tbt().unwrap();
-        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n4\tEvidence at protein level\t69293\t607\tALB\tP02769\tALBU_BOVIN\tSerum albumin\tBos taurus\tUP000009136\tMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\t9913\n");
-
-        // TODO(ahuszagh) Implement deserializer
-    }
 
     // LIST
 

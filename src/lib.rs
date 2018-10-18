@@ -5,9 +5,6 @@ extern crate radix_trie;
 extern crate ref_slice;
 extern crate regex;
 extern crate reqwest;
-extern crate serde;
-#[macro_use] extern crate serde_derive;
-extern crate serde_json;
 // TODO(ahuszagh)
 //  Add const_assert liberally.
 //#[macro_use] extern crate static_assertions;

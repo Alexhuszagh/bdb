@@ -31,12 +31,10 @@ pub trait Fasta: Sized {
         let capacity = self.estimate_fasta_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
-        match self.to_fasta(&mut writer) {
-            Err(e)  => Err(e),
-            _       => match String::from_utf8(writer.into_inner()) {
-                Err(e)  => Err(Box::new(e)),
-                Ok(v)   => Ok(v),
-            },
+        self.to_fasta(&mut writer)?;
+        match String::from_utf8(writer.into_inner()) {
+            Err(e)  => Err(Box::new(e)),
+            Ok(v)   => Ok(v),
         }
     }
 
