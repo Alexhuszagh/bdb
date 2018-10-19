@@ -100,6 +100,34 @@ macro_rules! to_commas {
 }
 
 
+/// Macro to strip a string of commas.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # pub fn main() {
+/// assert_eq!(strip_commas!("500"), "500");
+/// assert_eq!(strip_commas!("1,000"), "1000");
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! strip_commas {
+    ($e:expr) => ({
+        let memo = $e;
+        let mut string = String::with_capacity(memo.len());
+        for c in memo.chars() {
+            match c {
+                ',' => continue,
+                _   => string.push(c),
+            }
+        }
+        string
+    })
+}
+
+
 /// Macro to convert a comma-separated string to a number.
 ///
 /// # Examples
@@ -114,29 +142,8 @@ macro_rules! to_commas {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! from_commas {
-    ($e:expr) => ({
-        let memo = $e;
-        let string = String::with_capacity(memo.len());
-        for c in memo.chars() {
-            match c {
-                ',' => continue,
-                _   => string.push(c),
-            }
-        }
-
-        string.parse()
-    });
     ($e:expr, $t:ty) => ({
-        let memo = $e;
-        let mut string = String::with_capacity(memo.len());
-        for c in memo.chars() {
-            match c {
-                ',' => continue,
-                _   => string.push(c),
-            }
-        }
-
-        string.parse::<$t>()
+        strip_commas!($e).parse::<$t>()
     });
 }
 
