@@ -1,7 +1,8 @@
 //! Shared helper functions for unittest definitions.
 
 #[cfg(test)] use traits::*;
-#[cfg(test)] use super::record::{Record, ProteinEvidence};
+#[cfg(test)] use super::evidence::ProteinEvidence;
+#[cfg(test)] use super::record::Record;
 
 /// Create a record for the standard protein GAPDH.
 #[cfg(test)]

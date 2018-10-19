@@ -1,102 +1,15 @@
 //! Model for UniProt protein collections.
 
-use std::io::{self, BufRead, Read, Write};
-use std::str as stdstr;
+use std::io::{BufRead, Write};
 
 use traits::*;
 use util::{ErrorType, ResultType};
-use super::csv::{to_csv, RecordIter};
-use super::error::{new_boxed_error, UniProtErrorKind};
-use super::record::{Record};
+use super::fasta::FastaIter;
+use super::error::UniProtErrorKind;
+use super::record::Record;
 
 /// UniProt record collection type.
 pub type RecordList = Vec<Record>;
-
-impl Valid for RecordList {
-    #[inline]
-    fn is_valid(&self) -> bool {
-        self.iter().all(|ref x| x.is_valid())
-    }
-}
-
-impl Complete for RecordList {
-    #[inline]
-    fn is_complete(&self) -> bool {
-        self.iter().all(|ref x| x.is_complete())
-    }
-}
-
-// FASTA ITERATOR
-
-/// Iterator to parse individual FASTA entries from a document.
-struct FastaIterator<T: BufRead> {
-    reader: T,
-    buf: Vec<u8>,
-    line: String,
-}
-
-impl<T: BufRead> FastaIterator<T> {
-    /// Create new FastaIterator from a buffered reader.
-    pub fn new(reader: T) -> FastaIterator<T> {
-        FastaIterator {
-            reader: reader,
-            buf: Vec::with_capacity(8000),
-            line: String::with_capacity(8000)
-        }
-    }
-}
-
-
-impl<T: BufRead> Iterator for FastaIterator<T> {
-    type Item = io::Result<String>;
-
-    fn next(&mut self) -> Option<io::Result<String>> {
-        // Clear our previous inputs, but keep our buffer capacities.
-        unsafe {
-            self.line.as_mut_vec().set_len(0);
-            self.buf.set_len(0);
-        }
-
-        // Indefinitely loop over lines.
-        loop {
-            match self.reader.read_line(&mut self.line) {
-                Err(e)      => return Some(Err(e)),
-                Ok(size)    => match size {
-                    // Reached EOF
-                    0   => break,
-                    // Read bytes, process them.
-                    _   => unsafe {
-                        // Check if we are at the end of a record
-                        // marked by only whitespace.
-                        if self.line == "\n" || self.line == "\r\n" {
-                            // If we don't have any data, ignore repetitive
-                            // whitespace, otherwise, end the record.
-                            self.line.as_mut_vec().set_len(0);
-                            match self.buf.len() {
-                                0 => continue,
-                                _ => break,
-                            }
-                        }
-
-                        // Move all elements in `s` to `self.buf`.
-                        let v = self.line.as_mut_vec();
-                        self.buf.append(v);
-                    },
-                }
-            }
-        }
-
-        match self.buf.len() {
-            // No record present, at EOF
-            0 => None,
-            // Data present return
-            _ => Some(match stdstr::from_utf8(&self.buf) {
-                Err(_e) => Err(From::from(io::ErrorKind::InvalidData)),
-                Ok(v)   => Ok(String::from(v))
-            })
-        }
-    }
-}
 
 // FASTA
 // -----
@@ -180,16 +93,16 @@ fn record_from_fasta<T>(reader: &mut T, callback: fn(Record, &mut RecordList) ->
     where T: BufRead
 {
     let mut state = ReaderState::new(reader);
-    for result in FastaIterator::new(&mut state.reader) {
+    for result in FastaIter::new(&mut state.reader) {
         match result {
-            Err(e)      => state.error = Box::new(e),
+            Err(e)      => state.error = e,
             Ok(text)    => {
                 match Record::from_fasta_string(&text) {
                     Err(e)  => state.error = e,
                     Ok(r)   => {
                         if !callback(r, &mut state.list) {
                             state.has_errored = true;
-                            state.error = new_boxed_error(UniProtErrorKind::InvalidRecord);
+                            state.error = From::from(UniProtErrorKind::InvalidRecord);
                         }
                     },
                 }
@@ -252,14 +165,14 @@ impl FastaCollection for RecordList {
                     Some(v) => {
                         // Check if the record is valid, and error
                         if !v.is_valid() {
-                            return Err(new_boxed_error(UniProtErrorKind::InvalidRecord));
+                            return Err(From::from(UniProtErrorKind::InvalidRecord));
                         }
                         v.to_fasta(writer)?;
 
                         // Write the remaining records, prepending "\n\n"
                         for record in iter {
                             if !record.is_valid() {
-                                return Err(new_boxed_error(UniProtErrorKind::InvalidRecord));
+                                return Err(From::from(UniProtErrorKind::InvalidRecord));
                             }
                             writer.write_all(b"\n\n")?;
                             record.to_fasta(writer)?;
@@ -296,12 +209,12 @@ impl FastaCollection for RecordList {
 
     fn from_fasta_strict<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
         let mut list = RecordList::new();
-        for result in FastaIterator::new(reader) {
+        for result in FastaIter::new(reader) {
             let record = Record::from_fasta_string(&result?)?;
             if record.is_valid() {
                 list.push(record);
             } else {
-                return Err(new_boxed_error(UniProtErrorKind::InvalidRecord));
+                return Err(From::from(UniProtErrorKind::InvalidRecord));
             }
         }
 
@@ -320,39 +233,6 @@ impl FastaCollection for RecordList {
     }
 }
 
-// CSV
-// ---
-
-impl Csv for RecordList {
-    #[inline]
-    fn estimate_csv_size(&self) -> usize {
-        // 142 for the header row + 11 for each of the '\t' for the columns.
-        // Only need to count the header once.
-        const CSV_VOCABULARY_SIZE: usize = 153;
-        CSV_VOCABULARY_SIZE +
-            self.iter().fold(0, |sum, x| sum + x.estimate_csv_size() - CSV_VOCABULARY_SIZE)
-    }
-
-    fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
-        to_csv(writer, &self[..], delimiter)
-    }
-
-    fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
-        let mut iter = RecordIter::new(reader, delimiter);
-        iter.parse_header()?;
-        let list: io::Result<RecordList> = iter.collect();
-
-        match list {
-            Err(e)  => Err(From::from(e)),
-            Ok(v)   => Ok(v),
-        }
-    }
-}
-
-//impl CsvCollection for RecordList {
-//}
-
-
 // TESTS
 // -----
 
@@ -360,25 +240,7 @@ impl Csv for RecordList {
 mod tests {
     use std::io::Cursor;
     use super::*;
-    use super::super::record::*;
     use super::super::test::{bsa, gapdh, incomplete_eq};
-
-    // FASTA ITERATOR
-
-    #[test]
-    fn fasta_iterator() {
-        // Check iterator over data.
-        let s = "Line1\nLine2\n\nRecord2\nLine2\r\n\n\nRecord3\n";
-        let i = FastaIterator::new(Cursor::new(s));
-        let r: io::Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["Line1\nLine2\n", "Record2\nLine2\r\n", "Record3\n"]);
-
-        // Check iterator over empty string.
-        let s = "";
-        let i = FastaIterator::new(Cursor::new(s));
-        let r: io::Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), Vec::<String>::new());
-    }
 
     // LIST
 

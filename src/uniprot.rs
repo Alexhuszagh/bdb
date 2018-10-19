@@ -8,45 +8,6 @@
  *  :license: MIT, see LICENSE.md for more details.
  */
 
-use ::ref_slice::ref_slice;
-
-use tbt::{Tbt};       // TbtCollection
-//use text::{Text, TextCollection};
-
-// UNIPROT
-// -------
-
-impl Tbt for Record {
-    /**
-     *  \brief Import UniProt record from a TBT row.
-     */
-    fn from_tbt(text: &str) -> ResultType<Record> {
-        // TODO(ahuszagh) Implement...
-        // 1. Need to find only the first 2 lines.
-        // 2. Need to call the deserializer.
-        // 3. Need to yank just the first item.
-
-        //_text_to_list(text)[0];
-        let _text = text;
-        Err(From::from(""))
-    }
-}
-
-impl Tbt for RecordList {
-    /**
-     *  \brief Import UniProt records from TBT.
-     */
-    fn from_tbt(text: &str) -> ResultType<RecordList> {
-        // TODO(ahuszagh) Implement...
-        // 1. Need to call the deserializer.
-        // 2. Return values.
-
-        //_text_to_list(text)[0];
-        let _text = text;
-        Err(From::from(""))
-    }
-}
-
 // PRIVATE
 // -------
 

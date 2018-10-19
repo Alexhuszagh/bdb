@@ -1,5 +1,32 @@
 //! Shared macros.
 
+/// Conditionally execute code based on a binary choice.
+///
+/// This is an internal helper function to simplify the logic for
+/// numerous other macros.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # pub fn main() {
+/// assert_eq!(binary_choice!(true, 0, 2), 0);
+/// assert_eq!(binary_choice!(false, 0, 2), 2);
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! binary_choice {
+    ($condition:expr, $yes:expr, $no:expr) => (
+        if $condition {
+            $yes
+        } else {
+            $no
+        }
+    );
+}
+
+
 /// Macro to serialize non-zero numbers to string.
 ///
 /// Exports a number to string only if the number is non-zero.
@@ -16,39 +43,150 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! nonzero_to_string {
-    ($e:expr) => (
-        match $e {
-            0 => String::new(),
-            _ => $e.to_string(),
-        }
-    );
+    ($e:expr) => ({
+        // Prevent side effects from expression evaluation.
+        let memo = $e;
+        binary_choice!(memo == 0, String::new(), memo.to_string())
+    });
 }
 
 
-/// Macro to call `s.push_str(x)` for all x.
+/// Macro to parse non-zero numbers from string.
 ///
-/// Converts each successive expression in `x` to converted to
-/// `s.push_str(x)`.
+/// Parses an empty string as zero, otherwise, parses the number.
 ///
 /// # Examples
 ///
 /// ```
 /// # #[macro_use] extern crate bdb;
 /// # pub fn main() {
-/// let mut s = String::new();
-/// push_strs!(s, "1", "2", "345");
-/// assert_eq!(s, "12345");
+/// assert_eq!(nonzero_from_string!("").unwrap(), 0);
+/// assert_eq!(nonzero_from_string!("1").unwrap(), 1);
+/// assert_eq!(nonzero_from_string!("1", u8).unwrap(), 1);
 /// # }
 /// ```
 #[doc(hidden)]
 #[macro_export]
-macro_rules! push_strs {
-    // Base case, call `push_str`
-    ($s:ident, $x:expr) => ($s.push_str($x););
-    // `$x` followed by at least one `$y,`
-    ($s:ident, $x:expr, $($y:expr),+) => ({
-        $s.push_str($x);
-        push_strs!($s, $($y),+)
+macro_rules! nonzero_from_string {
+    ($e:expr) => ({
+        // Prevent side effects from expression evaluation.
+        let memo = $e;
+        binary_choice!(memo == "", Ok(0), memo.parse())
+    });
+    ($e:expr, $t:ty) => ({
+        // Prevent side effects from expression evaluation.
+        let memo = $e;
+        binary_choice!(memo == "", Ok(0), memo.parse::<$t>())
+    });
+}
+
+
+/// Macro to convert a number to a comma-separated string.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # extern crate digit_group;
+/// # use digit_group::FormatGroup;
+/// # pub fn main() {
+/// assert_eq!(to_commas!(0), "0");
+/// assert_eq!(to_commas!(1000), "1,000");
+/// # }
+#[doc(hidden)]
+#[macro_export]
+macro_rules! to_commas {
+    ($e:expr) => ($e.format_commas())
+}
+
+
+/// Macro to convert a comma-separated string to a number.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # pub fn main() {
+/// assert_eq!(from_commas!("500", u32).unwrap(), 500);
+/// assert_eq!(from_commas!("1,000", u32).unwrap(), 1000);
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! from_commas {
+    ($e:expr) => ({
+        let memo = $e;
+        let string = String::with_capacity(memo.len());
+        for c in memo.chars() {
+            match c {
+                ',' => continue,
+                _   => string.push(c),
+            }
+        }
+
+        string.parse()
+    });
+    ($e:expr, $t:ty) => ({
+        let memo = $e;
+        let mut string = String::with_capacity(memo.len());
+        for c in memo.chars() {
+            match c {
+                ',' => continue,
+                _   => string.push(c),
+            }
+        }
+
+        string.parse::<$t>()
+    });
+}
+
+
+/// Macro to serialize non-zero numbers to string.
+///
+/// Exports a number to string only if the number is non-zero.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # extern crate digit_group;
+/// # use digit_group::FormatGroup;
+/// # pub fn main() {
+/// assert_eq!(nonzero_to_commas!(0), "");
+/// assert_eq!(nonzero_to_commas!(1), "1");
+/// assert_eq!(nonzero_to_commas!(1000), "1,000");
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! nonzero_to_commas {
+    ($e:expr) => ({
+        let memo = $e;
+        binary_choice!(memo == 0, String::new(), to_commas!(memo))
+    });
+}
+
+
+/// Macro to parse non-zero numbers from string.
+///
+/// Parses an empty string as zero, otherwise, parses the number.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # pub fn main() {
+/// assert_eq!(nonzero_from_commas!("", u32).unwrap(), 0);
+/// assert_eq!(nonzero_from_commas!("1", u32).unwrap(), 1);
+/// assert_eq!(nonzero_from_commas!("1,000", u32).unwrap(), 1000);
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! nonzero_from_commas {
+    ($e:expr, $t:ty) => ({
+        let memo = $e;
+        binary_choice!(memo == "", Ok(0), from_commas!(memo, $t))
     });
 }
 
