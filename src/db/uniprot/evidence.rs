@@ -17,8 +17,9 @@ use super::error::UniProtErrorKind;
 /// `Unknown` is a custom value for invalid entries, or those with yet-
 /// to-be annotated protein evidence scores.
 ///
-/// More documentation can be found at:
-///     https://www.uniprot.org/help/protein_existence
+/// More documentation can be found [`here`].
+///
+/// [`here`]: https://www.uniprot.org/help/protein_existence
 ///
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]

@@ -4,9 +4,6 @@ extern crate digit_group;
 #[macro_use] extern crate lazy_static;
 extern crate regex;
 extern crate reqwest;
-// TODO(ahuszagh)
-//  Add const_assert liberally.
-//#[macro_use] extern crate static_assertions;
 extern crate url;
 
 // Macros and utilities (required by other modules).

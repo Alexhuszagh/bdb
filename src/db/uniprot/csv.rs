@@ -54,7 +54,7 @@ const TAXONOMY: &'static str = "Organism ID";
 // TO CSV HELPERS
 
 //// Header columns for UniProt CSV export format.
-pub static CSV_HEADER: [&'static str; 12] = [
+const CSV_HEADER: [&'static str; 12] = [
     SEQUENCE_VERSION,
     PROTEIN_EVIDENCE,
     MASS,
@@ -70,7 +70,7 @@ pub static CSV_HEADER: [&'static str; 12] = [
 ];
 
 /// Convert a record to an array of strings for CSV serialization.
-pub fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
+fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
     -> ResultType<()>
 {
     // Export values with the thousands separator.
@@ -259,7 +259,7 @@ pub fn estimate_list_size(list: &RecordList) -> usize {
 
 // WRITER
 
-/// Export record to FASTA.
+/// Export record to CSV.
 pub fn record_to_csv<T: Write>(record: &Record, writer: &mut T, delimiter: u8)
     -> ResultType<()>
 {
@@ -376,7 +376,7 @@ pub fn value_iterator_to_csv_lenient<Iter, T>(iter: Iter, writer: &mut T, delimi
 // READER
 
 /// Import record from CSV.
-pub fn csv_to_record<T: Read>(reader: &mut T, delimiter: u8)
+pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
     -> ResultType<Record>
 {
     let mut iter = CsvRecordIter::new(reader, delimiter);
@@ -574,7 +574,7 @@ impl Csv for Record {
 
     #[inline(always)]
     fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self> {
-        csv_to_record(reader, delimiter)
+        record_from_csv(reader, delimiter)
     }
 }
 

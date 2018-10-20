@@ -2,6 +2,24 @@
 
 use super::evidence::ProteinEvidence;
 
+/// Enumerated values for Record fields.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecordField {
+    SequenceVersion,
+    ProteinEvidence,
+    Mass,
+    Length,
+    Gene,
+    Id,
+    Mnemonic,
+    Name,
+    Organism,
+    Proteome,
+    Sequence,
+    Taxonomy,
+}
+
 /// Model for a single record from a UniProt KB query.
 ///
 /// Record including core query fields for a given UniProt identifier.
@@ -46,24 +64,6 @@ use super::evidence::ProteinEvidence;
 /// [`sequence`]: struct.Record.html#structfield.sequence
 /// [`taxonomy`]: struct.Record.html#structfield.taxonomy
 /// [`ProteinEvidence.ProteinLevel`]: enum.ProteinEvidence.html#variant.ProteinLevel
-
-// Enumerated values for Record fields.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum RecordField {
-    SequenceVersion,
-    ProteinEvidence,
-    Mass,
-    Length,
-    Gene,
-    Id,
-    Mnemonic,
-    Name,
-    Organism,
-    Proteome,
-    Sequence,
-    Taxonomy,
-}
 
 // Extra information hidden from the documentation, for developers.
 //  Notes:
