@@ -17,9 +17,9 @@ impl Valid for Record {
             self.mass > 0 &&
             self.length as usize == self.sequence.len() &&
             !self.sequence.is_empty() &&
-            !self.gene.is_empty() &&
             !self.name.is_empty() &&
             !self.organism.is_empty() &&
+            GeneRegex::validate().is_match(&self.gene) &&
             AccessionRegex::validate().is_match(&self.id) &&
             MnemonicRegex::validate().is_match(&self.mnemonic) &&
             AminoacidRegex::validate().is_match(&self.sequence) &&

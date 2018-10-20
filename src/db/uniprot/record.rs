@@ -82,9 +82,12 @@ pub enum RecordField {
 //          Simple integer in all variants.
 //
 //      `gene`:
-//          TODO(ahuszagh) [I believe this frequently gives more than
-//          one gene name, confirm with the unannotated human proteome.
-//          If so, designate a regex for filtering from external queries.]
+//          Identifier for the gene name. Although normally alpha-numeric,
+//          the gene name may include rather esoteric elements. An analysis
+//          of the whole human proteome also includes the following
+//          identifiers, as a regex character group: "[-_ /*.@:();'$+]".
+//          These identifiers are rather rare, from 4% of gene names to
+//          being present in almost 1 in a million gene names.
 //
 //      `id`:
 //          Accession number as a string.
@@ -178,7 +181,7 @@ impl Record {
 mod tests {
     use traits::*;
     use super::*;
-    use super::super::test::{bsa, gapdh, incomplete_eq};
+    use super::super::test::*;
 
     #[test]
     fn debug_record() {
@@ -207,156 +210,156 @@ mod tests {
         let mut g2 = g1.clone();
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g1.estimate_fasta_size(), 434);
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g1.estimate_fasta_size(), 454);
+        assert_eq!(g2.estimate_fasta_size(), 454);
 
         // check keeping the protein valid but make it incomplete
         g2.proteome = String::new();
         assert!(g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.proteome = g1.proteome.clone();
 
         g2.taxonomy = String::new();
         assert!(g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.taxonomy = g1.taxonomy.clone();
 
         // check replacing items with valid, but different data
         g2.sequence_version = 1;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.sequence_version = g1.sequence_version;
 
         g2.protein_evidence = ProteinEvidence::Inferred;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.protein_evidence = g1.protein_evidence;
 
         g2.mass = 64234;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.mass = g1.mass;
 
         g2.sequence = String::from(&g2.sequence[0..200]);
         g2.length = 200;
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 301);
+        assert_eq!(g2.estimate_fasta_size(), 321);
         g2.sequence = g1.sequence.clone();
         g2.length = g1.length;
 
         g2.gene = String::from("HIST1H1A");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 437);
+        assert_eq!(g2.estimate_fasta_size(), 457);
         g2.gene = g1.gene.clone();
 
         g2.id = String::from("A0A022YWF9");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 438);
+        assert_eq!(g2.estimate_fasta_size(), 458);
         g2.id = g1.id.clone();
 
         g2.id = String::from("A2BC19");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.id = g1.id.clone();
 
         g2.mnemonic = String::from("H11_HUMAN");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.mnemonic = g1.mnemonic.clone();
 
         g2.name = String::from("Histone H1.1");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 406);
+        assert_eq!(g2.estimate_fasta_size(), 426);
         g2.name = g1.name.clone();
 
         g2.organism = String::from("Homo sapiens");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 425);
+        assert_eq!(g2.estimate_fasta_size(), 445);
         g2.organism = g1.organism.clone();
 
         g2.proteome = String::from("UP000005640");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.proteome = g1.proteome.clone();
 
         g2.taxonomy = String::from("9606");
         assert!(g2.is_valid());
         assert!(g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.taxonomy = g1.taxonomy.clone();
 
         // check replacing items with invalid data
         g2.sequence_version = 0;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.sequence_version = g1.sequence_version;
 
         g2.protein_evidence = ProteinEvidence::Unknown;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.protein_evidence = g1.protein_evidence;
 
         g2.mass = 0;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.mass = g1.mass;
 
         g2.length = 334;
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 434);
+        assert_eq!(g2.estimate_fasta_size(), 454);
         g2.length = g1.length;
 
         g2.gene = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 429);
+        assert_eq!(g2.estimate_fasta_size(), 449);
         g2.gene = g1.gene.clone();
 
         g2.id = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 428);
+        assert_eq!(g2.estimate_fasta_size(), 448);
         g2.id = g1.id.clone();
 
         g2.mnemonic = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 425);
+        assert_eq!(g2.estimate_fasta_size(), 445);
         g2.mnemonic = g1.mnemonic.clone();
 
         g2.name = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 394);
+        assert_eq!(g2.estimate_fasta_size(), 414);
         g2.name = g1.name.clone();
 
         g2.organism = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 413);
+        assert_eq!(g2.estimate_fasta_size(), 433);
         g2.organism = g1.organism.clone();
 
         g2.sequence = String::new();
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
-        assert_eq!(g2.estimate_fasta_size(), 101);
+        assert_eq!(g2.estimate_fasta_size(), 121);
         g2.sequence = g1.sequence.clone();
     }
 
@@ -365,21 +368,21 @@ mod tests {
         // gapdh
         let p = gapdh();
         let x = p.to_fasta_string().unwrap();
-        assert_eq!(x, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\nMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA\nENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS\nAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT\nATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV\nVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA\nLNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
+        assert_eq!(x, GAPDH_FASTA);
         let y = Record::from_fasta_string(&x).unwrap();
         incomplete_eq(&p, &y);
 
         // bsa
         let p = bsa();
         let x = p.to_fasta_string().unwrap();
-        assert_eq!(x, ">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\nMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPF\nDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEP\nERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYY\nANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVA\nRLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKE\nCCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRR\nHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEK\nLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLIL\nNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLP\nDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVV\nSTQTALA");
+        assert_eq!(x, BSA_FASTA);
         let y = Record::from_fasta_string(&x).unwrap();
         incomplete_eq(&p, &y);
 
         // empty
         let p = Record::new();
         let x = p.to_fasta_string().unwrap();
-        assert_eq!(x, ">sp||  OS= GN= PE=5 SV=0");
+        assert_eq!(x, EMPTY_FASTA);
         let y = Record::from_fasta_string(&x).unwrap();
         assert_eq!(p, y);
     }
@@ -389,29 +392,27 @@ mod tests {
         // gapdh
         let p = gapdh();
         let x = p.to_csv_string(b'\t').unwrap();
-        // TODO(ahuszagh)
-        //      This is going to change, due to thousands separators...
-        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n3\tEvidence at protein level\t35780\t333\tGAPDH\tP46406\tG3P_RABIT\tGlyceraldehyde-3-phosphate dehydrogenase\tOryctolagus cuniculus\tUP000001811\tMVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE\t9986\n");
+        assert_eq!(x, GAPDH_CSV_TAB);
         let x = p.to_csv_string(b',').unwrap();
-        assert_eq!(x, "Sequence version,Protein existence,Mass,Length,Gene names  (primary ),Entry,Entry name,Protein names,Organism,Proteomes,Sequence,Organism ID\n3,Evidence at protein level,35780,333,GAPDH,P46406,G3P_RABIT,Glyceraldehyde-3-phosphate dehydrogenase,Oryctolagus cuniculus,UP000001811,MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE,9986\n");
+        assert_eq!(x, GAPDH_CSV_COMMA);
         let y = Record::from_csv_string(&x, b',').unwrap();
         assert_eq!(p, y);
 
         // bsa
         let p = bsa();
         let x = p.to_csv_string(b'\t').unwrap();
-        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n4\tEvidence at protein level\t69293\t607\tALB\tP02769\tALBU_BOVIN\tSerum albumin\tBos taurus\tUP000009136\tMKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA\t9913\n");
+        assert_eq!(x, BSA_CSV_TAB);
         let x = p.to_csv_string(b',').unwrap();
-        assert_eq!(x, "Sequence version,Protein existence,Mass,Length,Gene names  (primary ),Entry,Entry name,Protein names,Organism,Proteomes,Sequence,Organism ID\n4,Evidence at protein level,69293,607,ALB,P02769,ALBU_BOVIN,Serum albumin,Bos taurus,UP000009136,MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA,9913\n");
+        assert_eq!(x, BSA_CSV_COMMA);
         let y = Record::from_csv_string(&x, b',').unwrap();
         assert_eq!(p, y);
 
         // empty
         let p = Record::new();
         let x = p.to_csv_string(b'\t').unwrap();
-        assert_eq!(x, "Sequence version\tProtein existence\tMass\tLength\tGene names  (primary )\tEntry\tEntry name\tProtein names\tOrganism\tProteomes\tSequence\tOrganism ID\n\t\t\t\t\t\t\t\t\t\t\t\n");
+        assert_eq!(x, EMPTY_CSV_TAB);
         let x = p.to_csv_string(b',').unwrap();
-        assert_eq!(x, "Sequence version,Protein existence,Mass,Length,Gene names  (primary ),Entry,Entry name,Protein names,Organism,Proteomes,Sequence,Organism ID\n,,,,,,,,,,,\n");
+        assert_eq!(x, EMPTY_CSV_COMMA);
         let y = Record::from_csv_string(&x, b',').unwrap();
         assert_eq!(p, y);
     }

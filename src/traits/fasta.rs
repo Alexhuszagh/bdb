@@ -78,7 +78,7 @@ pub trait FastaCollection: Fasta {
 
     /// Export collection to FASTA.
     ///
-    /// Returns an error if none of the items are valid, otherwise,
+    /// Returns only errors due to serialization issues, otherwise,
     /// exports as many items as possible.
     fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
@@ -90,7 +90,7 @@ pub trait FastaCollection: Fasta {
 
     /// Import collection from FASTA.
     ///
-    /// Returns an error if none of the items within the FASTA document
-    /// are valid, otherwise, imports as many items as possible.
+    /// Returns only errors due to deserialization errors, otherwise,
+    /// imports as many items as possible.
     fn from_fasta_lenient<T: BufRead>(reader: &mut T) -> ResultType<Self>;
 }

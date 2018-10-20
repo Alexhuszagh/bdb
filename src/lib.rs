@@ -9,8 +9,14 @@ extern crate reqwest;
 //#[macro_use] extern crate static_assertions;
 extern crate url;
 
+// Macros and utilities (required by other modules).
 #[macro_use] pub mod util;
+
+// Public modules
 pub mod bio;
 pub mod db;
 pub mod io;
 pub mod traits;
+
+// Testing modules
+#[cfg(test)] pub mod test;

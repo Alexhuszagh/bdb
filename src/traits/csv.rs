@@ -69,21 +69,21 @@ pub trait CsvCollection: Csv {
     /// Returns an error if any of the items within the collection error.
     fn to_csv_strict<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()>;
 
-//    /// Export collection to CSV (with headers).
-//    ///
-//    /// Returns an error if none of the items are valid, otherwise,
-//    /// exports as many items as possible.
-//    fn to_csv_lenient<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()>;
-//
-//    /// Import collection from CSV (with headers).
-//    ///
-//    /// Returns an error if any of the rows within the CSV document
-//    /// are invalid.
-//    fn from_csv_strict<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self>;
-//
-//    /// Import collection from CSV (with headers).
-//    ///
-//    /// Returns an error if none of the rows within the CSV document
-//    /// are valid, otherwise, imports as many rows as possible.
-//    fn from_csv_lenient<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self>;
+    /// Export collection to CSV (with headers).
+    ///
+    /// Returns an error if none of the items are valid, otherwise,
+    /// exports as many items as possible.
+    fn to_csv_lenient<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()>;
+
+    /// Import collection from CSV (with headers).
+    ///
+    /// Returns an error if any of the rows within the CSV document
+    /// are invalid.
+    fn from_csv_strict<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self>;
+
+    /// Import collection from CSV (with headers).
+    ///
+    /// Returns an error if none of the rows within the CSV document
+    /// are valid, otherwise, imports as many rows as possible.
+    fn from_csv_lenient<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self>;
 }

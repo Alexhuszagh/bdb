@@ -1,11 +1,12 @@
 //! Private implementations for tab-delimited text routines.
 
 use csv;
+use digit_group::FormatGroup;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
 use bio::proteins::{AverageMass, ProteinMass};
-use traits::Csv;
+use traits::*;
 use util::ResultType;
 use super::error::UniProtErrorKind;
 use super::evidence::ProteinEvidence;
@@ -72,16 +73,13 @@ pub static CSV_HEADER: [&'static str; 12] = [
 pub fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
     -> ResultType<()>
 {
-    let sv = nonzero_to_string!(record.sequence_version);
-    let mass = nonzero_to_string!(record.mass);
-    let length = nonzero_to_string!(record.length);
-    // TODO(ahuszagh)
-    //  Avoid copying most of the strings...
+    // Export values with the thousands separator.
+    let sv = nonzero_to_commas!(record.sequence_version);
+    let mass = nonzero_to_commas!(record.mass);
+    let length = nonzero_to_commas!(record.length);
     let array: [&str; 12] = [
         &sv,
         record.protein_evidence.verbose(),
-        // TODO(ahuszagh)
-        //  All numbers should have the thousands separator....
         &mass,
         &length,
         &record.gene,
@@ -100,19 +98,28 @@ pub fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
     }
 }
 
-
 /// Create CSV writer.
-// TODO(ahuszagh)
-//      Change the `new_writer`
 #[inline(always)]
-pub fn csv_writer<T: Write>(writer: &mut T, delimiter: u8)
-    -> csv::Writer<&mut T>
+fn new_writer<T: Write>(writer: T, delimiter: u8)
+    -> csv::Writer<T>
 {
     csv::WriterBuilder::new()
         .delimiter(delimiter)
         .quote_style(csv::QuoteStyle::Necessary)
         .flexible(false)
         .from_writer(writer)
+}
+
+/// Create CSV reader.
+#[inline(always)]
+fn new_reader<T: Read>(reader: T, delimiter: u8)
+    -> csv::Reader<T>
+{
+    csv::ReaderBuilder::new()
+        .delimiter(delimiter)
+        .has_headers(false)
+        .flexible(false)
+        .from_reader(reader)
 }
 
 // RECORD ITERATOR
@@ -131,8 +138,6 @@ fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
         None    => return Err(From::from(UniProtErrorKind::InvalidInputData)),
         Some(v) => v?,
     };
-    // TODO(ahuszagh)       Remove debug statements
-    println!("{:?}", row);
 
     for tup in row.iter().enumerate() {
         let (index, item) = tup;
@@ -166,8 +171,6 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
         Err(e)  => return Some(Err(From::from(e))),
         Ok(v)   => v,
     };
-    // TODO(ahuszagh)       // Remove
-    println!("{:?}", row);
 
     let mut record = Record::new();
     for (key, index) in map.iter() {
@@ -178,7 +181,7 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
         // match the key and diligently handle errors to percolate up
         match key {
             RecordField::SequenceVersion => {
-                match nonzero_from_string!(value, u8) {
+                match nonzero_from_commas!(value, u8) {
                     Err(e)  => return Some(Err(From::from(e))),
                     Ok(v)   => record.sequence_version = v,
                 }
@@ -191,19 +194,15 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
                 }
             }
 
-            // TODO(ahuszagh)
-            //  Need to strip any ","s
             RecordField::Mass => {
-                match nonzero_from_string!(value, u64) {
+                match nonzero_from_commas!(value, u64) {
                     Err(e)  => return Some(Err(From::from(e))),
                     Ok(v)   => record.mass = v,
                 }
             },
 
-            // TODO(ahuszagh)
-            //  Need to strip any ","s
             RecordField::Length => {
-                match nonzero_from_string!(value, u32) {
+                match nonzero_from_commas!(value, u32) {
                     Err(e)  => return Some(Err(From::from(e))),
                     Ok(v)   => record.length = v,
                 }
@@ -233,86 +232,16 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
     Some(Ok(record))
 }
 
-/// Non-owning iterator to extract records lazily from a document.
-pub struct RecordIter<'r, T: 'r + Read> {
-    map: RecordFieldIndex,
-    iter: csv::StringRecordsIntoIter<&'r mut T>
-}
-
-impl<'r, T: 'r + Read> RecordIter<'r, T> {
-     /// Create new RecordIter from a reader.
-    pub fn new(reader: &mut T, delimiter: u8) -> RecordIter<T> {
-        RecordIter {
-            map: RecordFieldIndex::new(),
-            iter: csv::ReaderBuilder::new()
-                .delimiter(delimiter)
-                .flexible(false)
-                .has_headers(false)
-                .from_reader(reader)
-                .into_records(),
-        }
-    }
-
-    /// Parse the header to determine the fields for the map.
-    pub fn parse_header(&mut self) -> ResultType<()> {
-        parse_header(self.iter.next(), &mut self.map)
-    }
-}
-
-impl<'r, T: 'r + Read> Iterator for RecordIter<'r, T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        next(self.iter.next(), &self.map)
-    }
-}
-
-/// Owning iterator to extract records lazily from a document.
-#[allow(dead_code)] // TODO(ahuszagh)       Remove
-pub struct RecordIntoIter<T: Read> {
-    map: RecordFieldIndex,
-    iter: csv::StringRecordsIntoIter<T>
-}
-
-impl<T: Read> RecordIntoIter<T> {
-     /// Create new RecordIntoIter from a reader.
-    #[allow(dead_code)] // TODO(ahuszagh)       Remove
-    pub fn new(reader: T, delimiter: u8) -> Self {
-        RecordIntoIter {
-            map: RecordFieldIndex::new(),
-            iter: csv::ReaderBuilder::new()
-                .delimiter(delimiter)
-                .flexible(false)
-                .has_headers(false)
-                .from_reader(reader)
-                .into_records(),
-        }
-    }
-
-    /// Parse the header to determine the fields for the map.
-    #[allow(dead_code)] // TODO(ahuszagh)       Remove
-    pub fn parse_header(&mut self) -> ResultType<()> {
-        parse_header(self.iter.next(), &mut self.map)
-    }
-}
-
-impl<T: Read> Iterator for RecordIntoIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        next(self.iter.next(), &self.map)
-    }
-}
-
 // SIZE
 
 /// Estimated size of the CSV header.
 const CSV_HEADER_SIZE: usize = 142;
 
-/// Estimate the size of a  CSV row from a record.
+/// Estimate the size of a CSV row from a record.
+#[inline]
 pub fn estimate_record_size(record: &Record) -> usize {
-    // Number of "\t" delimiters per row.
-    const CSV_VOCABULARY_SIZE: usize = 11;
+    // The vocabulary size is actually 11, overestimate to adjust for number export.
+    const CSV_VOCABULARY_SIZE: usize = 31;
     CSV_VOCABULARY_SIZE +
         record.gene.len() +
         record.id.len() +
@@ -322,15 +251,125 @@ pub fn estimate_record_size(record: &Record) -> usize {
         record.sequence.len()
 }
 
+/// Estimate the size of a CSV export from list.
+#[inline]
+pub fn estimate_list_size(list: &RecordList) -> usize {
+    list.iter().fold(0, |sum, x| sum + estimate_record_size(x))
+}
+
 // WRITER
 
 /// Export record to FASTA.
 pub fn record_to_csv<T: Write>(record: &Record, writer: &mut T, delimiter: u8)
     -> ResultType<()>
 {
-    let mut writer = csv_writer(writer, delimiter);
+    let mut writer = new_writer(writer, delimiter);
     writer.write_record(&CSV_HEADER)?;
     item_to_csv(&mut writer, record)?;
+    Ok(())
+}
+
+// WRITER -- DEFAULT
+
+/// Default export from a non-owning iterator to CSV.
+pub fn reference_iterator_to_csv<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    for record in iter {
+        item_to_csv(&mut writer, record)?;
+    }
+    Ok(())
+}
+
+/// Default exporter from an owning iterator to FASTA.
+pub fn value_iterator_to_csv<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    for record in iter {
+        item_to_csv(&mut writer, &record?)?;
+    }
+    Ok(())
+}
+
+// WRITER -- STRICT
+
+/// Strict export from a non-owning iterator to CSV.
+pub fn reference_iterator_to_csv_strict<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    for record in iter {
+        if record.is_valid() {
+            item_to_csv(&mut writer, record)?;
+        } else {
+            return Err(From::from(UniProtErrorKind::InvalidRecord));
+        }
+    }
+    Ok(())
+}
+
+/// Strict exporter from an owning iterator to FASTA.
+pub fn value_iterator_to_csv_strict<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    for result in iter {
+        let record = result?;
+        if record.is_valid() {
+            item_to_csv(&mut writer, &record)?;
+        } else {
+            return Err(From::from(UniProtErrorKind::InvalidRecord));
+        }
+    }
+    Ok(())
+}
+
+// WRITER -- LENIENT
+
+/// Lenient export from a non-owning iterator to CSV.
+pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    for record in iter {
+        if record.is_valid() {
+            item_to_csv(&mut writer, record)?;
+        }
+    }
+    Ok(())
+}
+
+/// Lenient exporter from an owning iterator to FASTA.
+pub fn value_iterator_to_csv_lenient<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    for result in iter {
+        let record = result?;
+        if record.is_valid() {
+            item_to_csv(&mut writer, &record)?;
+        }
+    }
     Ok(())
 }
 
@@ -340,64 +379,368 @@ pub fn record_to_csv<T: Write>(record: &Record, writer: &mut T, delimiter: u8)
 pub fn csv_to_record<T: Read>(reader: &mut T, delimiter: u8)
     -> ResultType<Record>
 {
-    let mut iter = RecordIter::new(reader, delimiter);
-    iter.parse_header()?;
+    let mut iter = CsvRecordIter::new(reader, delimiter);
     match iter.next() {
         None    => Err(From::from(UniProtErrorKind::InvalidInputData)),
         Some(v) => Ok(v?)
     }
 }
 
+// READER -- DEFAULT
+
+/// Iterator to lazily load `Record`s from a document.
+pub struct CsvRecordIter<T: Read> {
+    map: RecordFieldIndex,
+    iter: csv::StringRecordsIntoIter<T>,
+    has_map: bool,
+}
+
+impl<T: Read> CsvRecordIter<T> {
+     /// Create new CsvRecordIter from a reader.
+    #[inline]
+    pub fn new(reader: T, delimiter: u8) -> Self {
+        CsvRecordIter {
+            map: RecordFieldIndex::new(),
+            iter: new_reader(reader, delimiter).into_records(),
+            has_map: false,
+        }
+    }
+
+    /// Parse the header to determine the fields for the map.
+    #[inline]
+    fn parse_header(&mut self) -> ResultType<()> {
+        // Do not set `has_map` until the headers are parsed.
+        parse_header(self.iter.next(), &mut self.map)?;
+        self.has_map = true;
+        Ok(())
+    }
+}
+
+impl<T: Read> Iterator for CsvRecordIter<T> {
+    type Item = ResultType<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Parse headers if they have not already been parsed
+        if !self.has_map {
+            match self.parse_header() {
+                Err(e) => return Some(Err(e)),
+                _      => (),
+            }
+        }
+        next(self.iter.next(), &self.map)
+    }
+}
+
+/// Create default record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_csv<T: Read>(reader: T, delimiter: u8) -> CsvRecordIter<T> {
+    CsvRecordIter::new(reader, delimiter)
+}
+
+// READER -- STRICT
+
+/// Iterator to lazily load `Record`s from a document.
+pub struct CsvRecordStrictIter<T: Read> {
+    map: RecordFieldIndex,
+    iter: csv::StringRecordsIntoIter<T>,
+    has_map: bool,
+}
+
+impl<T: Read> CsvRecordStrictIter<T> {
+     /// Create new CsvRecordStrictIter from a reader.
+    #[inline]
+    pub fn new(reader: T, delimiter: u8) -> Self {
+        CsvRecordStrictIter {
+            map: RecordFieldIndex::new(),
+            iter: new_reader(reader, delimiter).into_records(),
+            has_map: false,
+        }
+    }
+
+    /// Parse the header to determine the fields for the map.
+    #[inline]
+    fn parse_header(&mut self) -> ResultType<()> {
+        // Do not set `has_map` until the headers are parsed.
+        parse_header(self.iter.next(), &mut self.map)?;
+        self.has_map = true;
+        Ok(())
+    }
+}
+
+impl<T: Read> Iterator for CsvRecordStrictIter<T> {
+    type Item = ResultType<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Parse headers if they have not already been parsed
+        if !self.has_map {
+            match self.parse_header() {
+                Err(e) => return Some(Err(e)),
+                _      => (),
+            }
+        }
+
+        match next(self.iter.next(), &self.map)? {
+            Err(e)  => Some(Err(e)),
+            Ok(r)   => {
+                if r.is_valid() {
+                    Some(Ok(r))
+                } else {
+                    Some(Err(From::from(UniProtErrorKind::InvalidRecord)))
+                }
+            }
+        }
+    }
+}
+
+/// Create strict record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_csv_strict<T: Read>(reader: T, delimiter: u8) -> CsvRecordStrictIter<T> {
+    CsvRecordStrictIter::new(reader, delimiter)
+}
+
+// READER -- LENIENT
+
+/// Iterator to lazily load `Record`s from a document.
+pub struct CsvRecordLenientIter<T: Read> {
+    map: RecordFieldIndex,
+    iter: csv::StringRecordsIntoIter<T>,
+    has_map: bool,
+}
+
+impl<T: Read> CsvRecordLenientIter<T> {
+     /// Create new CsvRecordLenientIter from a reader.
+    #[inline]
+    pub fn new(reader: T, delimiter: u8) -> Self {
+        CsvRecordLenientIter {
+            map: RecordFieldIndex::new(),
+            iter: new_reader(reader, delimiter).into_records(),
+            has_map: false,
+        }
+    }
+
+    /// Parse the header to determine the fields for the map.
+    #[inline]
+    fn parse_header(&mut self) -> ResultType<()> {
+        // Do not set `has_map` until the headers are parsed.
+        parse_header(self.iter.next(), &mut self.map)?;
+        self.has_map = true;
+        Ok(())
+    }
+}
+
+impl<T: Read> Iterator for CsvRecordLenientIter<T> {
+    type Item = ResultType<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Parse headers if they have not already been parsed
+        if !self.has_map {
+            match self.parse_header() {
+                Err(e) => return Some(Err(e)),
+                _      => (),
+            }
+        }
+
+        loop {
+            match next(self.iter.next(), &self.map)? {
+                Err(e)  => return Some(Err(e)),
+                Ok(r)   => {
+                    if r.is_valid() {
+                        return Some(Ok(r));
+                    }
+                },
+            }
+        }
+    }
+}
+
+/// Create lenient record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_csv_lenient<T: Read>(reader: T, delimiter: u8) -> CsvRecordLenientIter<T> {
+    CsvRecordLenientIter::new(reader, delimiter)
+}
+
 // TRAITS
 
 impl Csv for Record {
-    #[inline]
+    #[inline(always)]
     fn estimate_csv_size(&self) -> usize {
         CSV_HEADER_SIZE + estimate_record_size(self)
     }
 
+    #[inline(always)]
     fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
         record_to_csv(self, writer, delimiter)
     }
 
+    #[inline(always)]
     fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self> {
         csv_to_record(reader, delimiter)
     }
 }
 
 impl Csv for RecordList {
-    #[inline]
+    #[inline(always)]
     fn estimate_csv_size(&self) -> usize {
-        CSV_HEADER_SIZE + self.iter().fold(0, |sum, x| sum + estimate_record_size(x))
+        CSV_HEADER_SIZE + estimate_list_size(self)
     }
 
+    #[inline(always)]
     fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
-        // TODO(ahuszagh)
-        //  Simplify using traits
-        let mut writer = csv_writer(writer, delimiter);
-        writer.write_record(&CSV_HEADER)?;
-        for record in self {
-            item_to_csv(&mut writer, record)?;
-        }
-        Ok(())
+        reference_iterator_to_csv(self.iter(), writer, delimiter)
     }
 
+    #[inline(always)]
     fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
-        // TODO(ahuszagh)
-        //  Simplify using traits
-        let mut iter = RecordIter::new(reader, delimiter);
-        iter.parse_header()?;
-        iter.collect()
+        iterator_from_csv(reader, delimiter).collect()
     }
 }
 
-//impl CsvCollection for RecordList {
-//}
+impl CsvCollection for RecordList {
+    #[inline(always)]
+    fn to_csv_strict<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+        reference_iterator_to_csv_strict(self.iter(), writer, delimiter)
+    }
+
+    #[inline(always)]
+    fn to_csv_lenient<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+        reference_iterator_to_csv_lenient(self.iter(), writer, delimiter)
+    }
+
+    #[inline(always)]
+    fn from_csv_strict<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
+        iterator_from_csv_strict(reader, delimiter).collect()
+    }
+
+    #[inline(always)]
+    fn from_csv_lenient<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
+        Ok(iterator_from_csv_lenient(reader, delimiter).filter_map(Result::ok).collect())
+    }
+}
 
 // TESTS
 // -----
 
 #[cfg(test)]
 mod tests {
-    // TODO(ahuszagh)   Implement
+    use std::io::Cursor;
+    use super::*;
+    use super::super::test::*;
+
+    #[test]
+    fn estimate_size_test() {
+        let g = gapdh();
+        let b = bsa();
+        let v = vec![gapdh(), bsa()];
+        assert_eq!(estimate_record_size(&g), 445);
+        assert_eq!(estimate_record_size(&b), 680);
+        assert_eq!(estimate_list_size(&v), 1125);
+    }
+
+    macro_rules! by_value {
+        ($x:expr) => ($x.iter().map(|x| { Ok(x.clone()) }))
+    }
+
+    #[test]
+    fn iterator_to_csv_test() {
+        let v = vec![gapdh(), bsa()];
+        let u = vec![gapdh(), bsa(), Record::new()];
+
+        // reference -- default
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_csv(v.iter(), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        // value -- default
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_csv(by_value!(v), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        // reference -- strict
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_csv_strict(v.iter(), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        let mut w = Cursor::new(vec![]);
+        let r = reference_iterator_to_csv_strict(u.iter(), &mut w, b'\t');
+        assert!(r.is_err());
+
+        // value -- strict
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_csv_strict(by_value!(v), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        let mut w = Cursor::new(vec![]);
+        let r = value_iterator_to_csv_strict(by_value!(u), &mut w, b'\t');
+        assert!(r.is_err());
+
+        // reference -- lenient
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_csv_lenient(v.iter(), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_csv_lenient(u.iter(), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        // value -- lenient
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_csv_lenient(by_value!(v), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_csv_lenient(by_value!(u), &mut w, b'\t').unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+    }
+
+    #[test]
+    fn iterator_from_csv_test() {
+        // VALID
+        let text = GAPDH_BSA_CSV_TAB;
+        let expected = vec![gapdh(), bsa()];
+
+        // record iterator -- default
+        let iter = CsvRecordIter::new(Cursor::new(text), b'\t');
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(expected, v.unwrap());
+
+        // Compile check only
+        iterator_from_csv(&mut Cursor::new(text), b'\t');
+
+        // record iterator -- strict
+        let iter = CsvRecordStrictIter::new(Cursor::new(text), b'\t');
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(expected, v.unwrap());
+
+        // Compile check only
+        iterator_from_csv_strict(&mut Cursor::new(text), b'\t');
+
+        // record iterator -- lenient
+        let iter = CsvRecordLenientIter::new(Cursor::new(text), b'\t');
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(expected, v.unwrap());
+
+        // Compile check only
+        iterator_from_csv_lenient(&mut Cursor::new(text), b'\t');
+
+        // INVALID
+        let text = GAPDH_EMPTY_CSV_TAB;
+        let expected1 = vec![gapdh(), Record::new()];
+        let expected2 = vec![gapdh()];
+
+        // record iterator -- default
+        let iter = iterator_from_csv(Cursor::new(text), b'\t');
+        let v: ResultType<RecordList> = iter.collect();
+        let v = v.unwrap();
+        assert_eq!(expected1, v);
+
+        // record iterator -- strict
+        let iter = iterator_from_csv_strict(Cursor::new(text), b'\t');
+        let v: ResultType<RecordList> = iter.collect();
+        assert!(v.is_err());
+
+        // record iterator -- lenient
+        let iter = iterator_from_csv_lenient(Cursor::new(text), b'\t');
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(expected2, v.unwrap());
+    }
 }

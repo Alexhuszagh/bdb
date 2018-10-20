@@ -1,5 +1,7 @@
 //! Shared macros.
 
+// GENERAL
+
 /// Conditionally execute code based on a binary choice.
 ///
 /// This is an internal helper function to simplify the logic for
@@ -26,6 +28,7 @@ macro_rules! binary_choice {
     );
 }
 
+// TO/FROM STRING
 
 /// Macro to serialize non-zero numbers to string.
 ///
@@ -197,6 +200,7 @@ macro_rules! nonzero_from_commas {
     });
 }
 
+// RECURSIVE APPLICATION
 
 /// Macro to call `s.write_all(x)` for all x.
 ///

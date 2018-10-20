@@ -95,6 +95,36 @@ impl FieldRegex for MnemonicRegex {
     }
 }
 
+// GENE
+
+/// Regular expression to validate gene names.
+pub struct GeneRegex;
+
+impl FieldRegex for GeneRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(r"(?x)
+            \A
+            (?:
+                [[:alnum:]-_\x20/*.@:();'$+]+
+            )
+            \z
+        ");
+        &REGEX
+    }
+
+    fn extract() -> &'static Regex {
+        lazy_regex!(r"(?x)
+            \A
+            # Group 1, Gene Name
+            (
+                [[:alnum:]-_\x20/*.@:();'$+]+
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
 // AMINOACID
 
 /// Regular expression to validate aminoacid sequences.
@@ -136,6 +166,9 @@ impl FieldRegex for ProteomeRegex {
             \A
             (?:
                 UP[0-9]{9}
+                (?:
+                    :\s[[:upper:]][[:lower:]]+
+                )?
             )
             \z
         ");
@@ -223,7 +256,7 @@ impl FieldRegex for FastaHeaderRegex {
                 )
                 \sGN=
                 (?:
-                    [[:alnum:]]*
+                    [[:alnum:]-_\x20/*.@:();'$+]*
                 )
                 \sPE=
                 (?:
@@ -267,7 +300,7 @@ impl FieldRegex for FastaHeaderRegex {
                 \sGN=
                 # Group 6, Gene Name
                 (
-                    [[:alnum:]]*
+                    [[:alnum:]-_\x20/*.@:();'$+]*
                 )
                 \sPE=
                 # Group 7, Protein Evidence
@@ -304,6 +337,10 @@ pub fn capture_as_string(captures: &Captures, index: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use std::path::PathBuf;
+    use test::testdata_dir;
     use super::*;
 
     /// Check regex validates or does not validate text.
@@ -394,6 +431,35 @@ mod tests {
     }
 
     #[test]
+    fn gene_regex() {
+        type T = GeneRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>("ND3", true);
+        check_regex::<T>("KIF5B-RET(NM_020975)_K15;R12", true);
+        check_regex::<T>("TRA@", true);
+        check_regex::<T>("HLA-DRB5", true);
+        check_regex::<T>("NOD2/CARD15", true);
+        check_regex::<T>("Hosa(Biaka)-T2R50", true);
+        check_regex::<T>("cytb", true);
+        check_regex::<T>("dopamine D4 receptor/ DRD4", true);
+
+        // valid + 1 letter
+        check_regex::<T>("ND3[", false);
+        check_regex::<T>("ND3`", false);
+
+        // extract
+        extract_regex::<T>("ND3", 1, "ND3");
+        extract_regex::<T>("KIF5B-RET(NM_020975)_K15;R12", 1, "KIF5B-RET(NM_020975)_K15;R12");
+        extract_regex::<T>("TRA@", 1, "TRA@");
+        extract_regex::<T>("Hosa(Biaka)-T2R50", 1, "Hosa(Biaka)-T2R50");
+        extract_regex::<T>("dopamine D4 receptor/ DRD4", 1, "dopamine D4 receptor/ DRD4");
+    }
+
+    #[test]
     fn aminoacid_regex() {
         type T = AminoacidRegex;
 
@@ -433,8 +499,8 @@ mod tests {
         validate_regex::<T>("UP0000011144", false);
 
         // valid + trailing
-        validate_regex::<T>("UP000001811: Unplaced", false);
-        validate_regex::<T>("UP000001114: Chromosome", false);
+        validate_regex::<T>("UP000001811: Unplaced", true);
+        validate_regex::<T>("UP000001114: Chromosome", true);
 
         // extract
         extract_regex::<T>("UP000001811: Unplaced", 1, "UP000001811");
@@ -479,7 +545,7 @@ mod tests {
         check_regex::<T>(">up|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
         check_regex::<T>(">sp|PX6406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
         check_regex::<T>(">sp|P46406|G3P_RABITS Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
-        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAP-DH PE=1 SV=3", false);
+        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAP[DH PE=1 SV=3", false);
         check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1X SV=3", false);
         check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=X3", false);
 
@@ -494,4 +560,21 @@ mod tests {
         extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::SV_INDEX, "3");
     }
 
+    fn human_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/human");
+        dir
+    }
+
+    #[test]
+    #[ignore]
+    fn human_gene_regex() {
+        let mut path = human_dir();
+        path.push("gene");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for gene in reader.lines() {
+            assert!(GeneRegex::validate().is_match(&gene.unwrap()));
+        }
+    }
 }
