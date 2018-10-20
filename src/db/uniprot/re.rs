@@ -135,7 +135,7 @@ impl FieldRegex for AminoacidRegex {
         lazy_regex!(r"(?x)
             \A
             (?:
-                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]+
+                [ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnpqrstuvwxyz]+
             )
             \z
         ");
@@ -147,7 +147,7 @@ impl FieldRegex for AminoacidRegex {
             \A
             # Group 1, Aminoacid Sequence
             (
-                [ABCDEFGHIJKLMNPQRSTVWXYZabcdefghijklmnpqrstvwxyz]+
+                [ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnpqrstuvwxyz]+
             )
             \z
         ");
@@ -234,6 +234,8 @@ impl FastaHeaderRegex {
 }
 
 impl FieldRegex for FastaHeaderRegex {
+    // TODO(ahuszagh)
+    //  Also have to deal with >tr
     fn validate() -> &'static Regex {
         lazy_regex!(r"(?x)(?m)
              \A
@@ -471,6 +473,9 @@ mod tests {
         check_regex::<T>("sampler", true);
         check_regex::<T>("sAmpLer", true);
 
+        // Add "U", which is a non-standard aminoacid (selenocysteine)
+        check_regex::<T>("USAMPLER", true);
+
         // invalid aminoacid
         check_regex::<T>("ORANGE", false);
         check_regex::<T>("oRANGE", false);
@@ -560,10 +565,40 @@ mod tests {
         extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::SV_INDEX, "3");
     }
 
+    fn all_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/all");
+        dir
+    }
+
     fn human_dir() -> PathBuf {
         let mut dir = testdata_dir();
         dir.push("uniprot/human");
         dir
+    }
+
+    #[test]
+    #[ignore]
+    fn human_accession_regex() {
+        let mut path = human_dir();
+        path.push("accession");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for id in reader.lines() {
+            assert!(AccessionRegex::validate().is_match(&id.unwrap()));
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn human_mnemonic_regex() {
+        let mut path = human_dir();
+        path.push("mnemonic");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for id in reader.lines() {
+            assert!(MnemonicRegex::validate().is_match(&id.unwrap()));
+        }
     }
 
     #[test]
@@ -576,5 +611,55 @@ mod tests {
         for gene in reader.lines() {
             assert!(GeneRegex::validate().is_match(&gene.unwrap()));
         }
+    }
+
+    #[test]
+    #[ignore]
+    fn human_aminoacid_regex() {
+        let mut path = human_dir();
+        path.push("aminoacid");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for sequence in reader.lines() {
+            assert!(AminoacidRegex::validate().is_match(&sequence.unwrap()));
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn all_proteome_regex() {
+        let mut path = all_dir();
+        path.push("proteome");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for proteome in reader.lines() {
+            assert!(ProteomeRegex::validate().is_match(&proteome.unwrap()));
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn all_taxonomy_regex() {
+        let mut path = all_dir();
+        path.push("taxonomy");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for ahuszagh in reader.lines() {
+            assert!(TaxonomyRegex::validate().is_match(&ahuszagh.unwrap()));
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn human_fasta_header_regex() {
+        // TODO(ahuszagh)
+        //  Doesn't actually work due to ">tr", need to restore
+//        let mut path = human_dir();
+//        path.push("header");
+//        let reader = BufReader::new(File::open(path).unwrap());
+//
+//        for header in reader.lines() {
+//            assert!(FastaHeaderRegex::validate().is_match(&header.unwrap()));
+//        }
     }
 }
