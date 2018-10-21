@@ -1,5 +1,16 @@
 //! Input and output helpers for UniProt models.
 
+// RE-EXPORTS
+
+// Use re-exports to avoid name collisions with traits.
+pub use self::private::UniProtCsv as Csv;
+pub use self::private::UniProtFasta as Fasta;
+
+// PRIVATE
+// -------
+
+mod private {
+
 use std::convert::AsRef;
 use std::path::Path;
 
@@ -65,9 +76,7 @@ impl UniProtCsv {
     }
 }
 
-// TODO(ahuszagh)
-//  Add other classes
-
+}   /* private */
 
 #[cfg(test)]
 mod tests {
