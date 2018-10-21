@@ -26,6 +26,7 @@ pub struct FastaIter<T: BufRead> {
 
 impl<T: BufRead> FastaIter<T> {
     /// Create new FastaIter from a buffered reader.
+    #[inline]
     pub fn new(reader: T) -> Self {
         FastaIter {
             reader: reader,
@@ -33,55 +34,61 @@ impl<T: BufRead> FastaIter<T> {
             line: String::with_capacity(8000)
         }
     }
+
+    /// Export the buffer to a string without affecting the buffer.
+    #[inline]
+    fn to_string_impl(&self) -> Option<ResultType<String>> {
+        Some(match stdstr::from_utf8(&self.buf) {
+            Err(e)  => Err(From::from(e)),
+            Ok(v)   => Ok(String::from(v)),
+        })
+    }
+
+    /// Export the buffer to a string.
+    #[inline]
+    fn to_string(&mut self) -> Option<ResultType<String>> {
+        let result = self.to_string_impl();
+        unsafe { self.buf.set_len(0); }
+        result
+    }
 }
 
 impl<T: BufRead> Iterator for FastaIter<T> {
     type Item = ResultType<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Clear our previous inputs, but keep our buffer capacities.
-        unsafe {
-            self.line.as_mut_vec().set_len(0);
-            self.buf.set_len(0);
-        }
-
         // Indefinitely loop over lines.
         loop {
             match self.reader.read_line(&mut self.line) {
                 Err(e)      => return Some(Err(From::from(e))),
                 Ok(size)    => match size {
                     // Reached EOF
-                    0   => break,
+                    0   => {
+                        return match self.buf.len() {
+                            0   => None,
+                            _   => self.to_string(),
+                        };
+                    },
                     // Read bytes, process them.
                     _   => unsafe {
-                        // Check if we are at the end of a record
-                        // marked by only whitespace.
+                        // Ignore whitespace.
                         if self.line == "\n" || self.line == "\r\n" {
-                            // If we don't have any data, ignore repetitive
-                            // whitespace, otherwise, end the record.
                             self.line.as_mut_vec().set_len(0);
-                            match self.buf.len() {
-                                0 => continue,
-                                _ => break,
-                            }
+                            continue;
+                        } else if self.buf.len() > 0 && self.line.starts_with(">") {
+                            // Create result from existing buffer,
+                            // clear the existing buffer, and add
+                            // the current line to a new buffer.
+                            let result = self.to_string();
+                            self.buf.append(self.line.as_mut_vec());
+                            return result;
+                        } else {
+                            // Move the line to the buffer.
+                            self.buf.append(self.line.as_mut_vec());
                         }
-
-                        // Move all elements in `s` to `self.buf`.
-                        let v = self.line.as_mut_vec();
-                        self.buf.append(v);
                     },
                 }
             }
-        }
-
-        match self.buf.len() {
-            // No record present, at EOF
-            0 => None,
-            // Data present return
-            _ => Some(match stdstr::from_utf8(&self.buf) {
-                Err(e)  => Err(From::from(e)),
-                Ok(v)   => Ok(String::from(v)),
-            })
         }
     }
 }
@@ -158,7 +165,7 @@ impl<'r, T: 'r + Write> WriterState<'r, T> {
     fn to_fasta(&mut self, record: &Record) -> ResultType<()> {
         // Only write the prefix if the last export worked.
         if self.previous {
-            self.writer.write_all(b"\n\n")?;
+            self.writer.write_all(b"\n")?;
         }
 
         match record.to_fasta(self.writer) {
@@ -262,12 +269,12 @@ pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(iter: Iter, writer: &mut 
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    // Write all records, prepending "\n\n" after the first record
+    // Write all records, prepending "\n" after the first record
     let mut previous = false;
     for record in iter {
         if record.is_valid() {
             if previous {
-                writer.write_all(b"\n\n")?;
+                writer.write_all(b"\n")?;
             }
             record.to_fasta(writer)?;
             previous = true;
@@ -285,13 +292,13 @@ pub fn value_iterator_to_fasta_strict<Iter, T>(iter: Iter, writer: &mut T)
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    // Write all records, prepending "\n\n" after the first record
+    // Write all records, prepending "\n" after the first record
     let mut previous = false;
     for result in iter {
         let record = result?;
         if record.is_valid() {
             if previous {
-                writer.write_all(b"\n\n")?;
+                writer.write_all(b"\n")?;
             }
             record.to_fasta(writer)?;
             previous = true;
@@ -643,17 +650,24 @@ impl FastaCollection for RecordList {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    // TODO(ahuszagh)
+    //      Fix these warnings...
+    #[allow(unused_imports)]
+    use std::fs::File;
+    #[allow(unused_imports)]
+    use std::io::{BufRead, BufReader, Cursor};
+    use std::path::PathBuf;
+    use test::testdata_dir;
     use super::*;
     use super::super::test::*;
 
     #[test]
     fn fasta_iter_test() {
         // Check iterator over data.
-        let s = "Line1\nLine2\n\nRecord2\nLine2\r\n\n\nRecord3\n";
+        let s = ">tr\nXX\n>sp\nXX\nXX\n>tr\n";
         let i = FastaIter::new(Cursor::new(s));
         let r: ResultType<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["Line1\nLine2\n", "Record2\nLine2\r\n", "Record3\n"]);
+        assert_eq!(r.unwrap(), &[">tr\nXX\n", ">sp\nXX\nXX\n", ">tr\n"]);
 
         // Check iterator over empty string.
         let s = "";
@@ -780,5 +794,21 @@ mod tests {
         let iter = iterator_from_fasta_lenient(Cursor::new(text));
         let v: ResultType<RecordList> = iter.collect();
         incomplete_list_eq(&expected2, &v.unwrap());
+    }
+
+    fn fasta_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/fasta");
+        dir
+    }
+
+    #[test]
+    #[ignore]
+    fn human_fasta_test() {
+        let mut path = fasta_dir();
+        path.push("human.fasta");
+//        let reader = BufReader::new(File::open(path).unwrap());
+// TODO(ahuszagh)
+//  Wait... there's not going to be 2 lines in between entries.... FML...
     }
 }
