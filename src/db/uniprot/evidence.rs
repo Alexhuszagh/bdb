@@ -1,9 +1,7 @@
 //! Model for UniProt protein evidence.
 
-use util::{ResultType};
+use util::{ErrorKind, ResultType};
 use std::mem;
-
-use super::error::UniProtErrorKind;
 
 /// Identifier for the evidence type for protein existence.
 ///
@@ -64,7 +62,7 @@ impl ProteinEvidence {
             Self::INFERRED_LEVEL_VERBOSE     => Ok(ProteinEvidence::Inferred),
             Self::PREDICTED_LEVEL_VERBOSE    => Ok(ProteinEvidence::Predicted),
             Self::UNKNOWN_LEVEL_VERBOSE      => Ok(ProteinEvidence::Unknown),
-            _                                => Err(From::from(UniProtErrorKind::InvalidInput)),
+            _                                => Err(From::from(ErrorKind::InvalidEnumeration)),
         }
     }
 
@@ -80,7 +78,7 @@ impl ProteinEvidence {
         if int >= Self::MIN && int <= Self::MAX {
             Ok(unsafe { mem::transmute(int) })
         } else {
-            Err(From::from(UniProtErrorKind::ProteinEvidenceInvalidNumber))
+            Err(From::from(ErrorKind::InvalidEnumeration))
         }
     }
 
@@ -127,7 +125,7 @@ impl ProteinEvidence {
             Self::INFERRED_LEVEL_XML_VERBOSE     => Ok(ProteinEvidence::Inferred),
             Self::PREDICTED_LEVEL_XML_VERBOSE    => Ok(ProteinEvidence::Predicted),
             Self::UNKNOWN_LEVEL_XML_VERBOSE      => Ok(ProteinEvidence::Unknown),
-            _                                    => Err(From::from(UniProtErrorKind::InvalidInput)),
+            _                                    => Err(From::from(ErrorKind::InvalidEnumeration)),
         }
     }
 }

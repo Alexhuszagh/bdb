@@ -5,8 +5,7 @@ use std::str as stdstr;
 
 use bio::proteins::{AverageMass, ProteinMass};
 use traits::*;
-use util::{ErrorType, ResultType};
-use super::error::UniProtErrorKind;
+use util::{BufferType, ErrorKind, ErrorType, ResultType};
 use super::evidence::ProteinEvidence;
 use super::re::*;
 use super::record::Record;
@@ -20,7 +19,7 @@ use super::record_list::RecordList;
 /// from the document.
 pub struct FastaIter<T: BufRead> {
     reader: T,
-    buf: Vec<u8>,
+    buf: BufferType,
     line: String,
 }
 
@@ -279,7 +278,7 @@ pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(iter: Iter, writer: &mut 
             record.to_fasta(writer)?;
             previous = true;
         } else {
-            return Err(From::from(UniProtErrorKind::InvalidRecord));
+            return Err(From::from(ErrorKind::InvalidRecord));
         }
     }
 
@@ -303,7 +302,7 @@ pub fn value_iterator_to_fasta_strict<Iter, T>(iter: Iter, writer: &mut T)
             record.to_fasta(writer)?;
             previous = true;
         } else {
-            return Err(From::from(UniProtErrorKind::InvalidRecord));
+            return Err(From::from(ErrorKind::InvalidRecord));
         }
     }
 
@@ -359,7 +358,7 @@ fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
 
     // process the header and match it to the FASTA record
     let captures = match R::extract().captures(&header) {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
         Some(v) => v,
     };
 
@@ -392,7 +391,7 @@ fn record_header_from_trembl(header: &str) -> ResultType<Record> {
 
     // process the header and match it to the FASTA record
     let captures = match R::extract().captures(&header) {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
         Some(v) => v,
     };
 
@@ -428,19 +427,19 @@ pub fn record_from_fasta<T: BufRead>(reader: &mut T)
     // Short-circuit if the header is `None`.
     let mut lines = reader.lines();
     let header = match lines.next() {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
         Some(v) => v?,
     };
 
     // Ensure we don't raise an out-of-bounds error on the subsequent slice.
     if header.len() < 3 {
-        return Err(From::from(UniProtErrorKind::InvalidInput));
+        return Err(From::from(ErrorKind::InvalidInput));
     }
 
     let mut record = match &header[..3] {
         ">sp"   => record_header_from_swissprot(&header)?,
         ">tr"   => record_header_from_trembl(&header)?,
-        _       => return Err(From::from(UniProtErrorKind::InvalidFastaType)),
+        _       => return Err(From::from(ErrorKind::InvalidFastaType)),
     };
 
     // add sequence data to the FASTA sequence
@@ -523,13 +522,12 @@ impl<T: BufRead> Iterator for FastaRecordStrictIter<T> {
         let text = match self.iter.next()? {
             Err(e)   => return Some(Err(e)),
             Ok(text) => text,
-
         };
 
         Some(Record::from_fasta_string(&text).and_then(|r| {
             match r.is_valid() {
                 true    => Ok(r),
-                false   => Err(From::from(UniProtErrorKind::InvalidRecord)),
+                false   => Err(From::from(ErrorKind::InvalidRecord)),
             }
         }))
     }

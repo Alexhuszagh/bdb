@@ -7,8 +7,7 @@ use std::io::{Read, Write};
 
 use bio::proteins::{AverageMass, ProteinMass};
 use traits::*;
-use util::ResultType;
-use super::error::UniProtErrorKind;
+use util::{ErrorKind, ResultType};
 use super::evidence::ProteinEvidence;
 use super::record::{Record, RecordField};
 use super::record_list::RecordList;
@@ -135,7 +134,7 @@ fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
     -> ResultType<()>
 {
     let row = match opt {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
         Some(v) => v?,
     };
 
@@ -313,7 +312,7 @@ pub fn reference_iterator_to_csv_strict<'a, Iter, T>(iter: Iter, writer: &mut T,
         if record.is_valid() {
             item_to_csv(&mut writer, record)?;
         } else {
-            return Err(From::from(UniProtErrorKind::InvalidRecord));
+            return Err(From::from(ErrorKind::InvalidRecord));
         }
     }
     Ok(())
@@ -332,7 +331,7 @@ pub fn value_iterator_to_csv_strict<Iter, T>(iter: Iter, writer: &mut T, delimit
         if record.is_valid() {
             item_to_csv(&mut writer, &record)?;
         } else {
-            return Err(From::from(UniProtErrorKind::InvalidRecord));
+            return Err(From::from(ErrorKind::InvalidRecord));
         }
     }
     Ok(())
@@ -381,7 +380,7 @@ pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
 {
     let mut iter = CsvRecordIter::new(reader, delimiter);
     match iter.next() {
-        None    => Err(From::from(UniProtErrorKind::InvalidInput)),
+        None    => Err(From::from(ErrorKind::InvalidInput)),
         Some(v) => Ok(v?)
     }
 }
@@ -485,7 +484,7 @@ impl<T: Read> Iterator for CsvRecordStrictIter<T> {
                 if r.is_valid() {
                     Some(Ok(r))
                 } else {
-                    Some(Err(From::from(UniProtErrorKind::InvalidRecord)))
+                    Some(Err(From::from(ErrorKind::InvalidRecord)))
                 }
             }
         }

@@ -15,6 +15,7 @@ mod tests {
     use std::path::PathBuf;
     use test::testdata_dir;
     use traits::*;
+    use util::BufferType;
     use super::*;
     use super::super::test::*;
 
@@ -70,11 +71,11 @@ mod tests {
         let x = v.to_fasta_string().unwrap();
         assert_eq!(x, GAPDH_BSA_FASTA);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_fasta_strict(&mut Cursor::new(&mut buf)).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_FASTA);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_fasta_lenient(&mut Cursor::new(&mut buf)).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_FASTA);
 
@@ -91,11 +92,11 @@ mod tests {
         let x = v.to_fasta_string().unwrap();
         assert_eq!(x, "");
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_fasta_strict(&mut Cursor::new(&mut buf)).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "");
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_fasta_lenient(&mut Cursor::new(&mut buf)).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "");
 
@@ -110,7 +111,7 @@ mod tests {
         let x = v.to_fasta_string().unwrap();
         assert_eq!(x, EMPTY_FASTA);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         assert!(v.to_fasta_strict(&mut Cursor::new(&mut buf)).is_err());
         assert!(v.to_fasta_lenient(&mut Cursor::new(&mut buf)).is_ok());
         assert_eq!(String::from_utf8(buf).unwrap(), "");
@@ -126,7 +127,7 @@ mod tests {
         let x = v.to_fasta_string().unwrap();
         assert_eq!(x, GAPDH_EMPTY_FASTA);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         assert!(v.to_fasta_strict(&mut Cursor::new(&mut buf)).is_err());
         v.to_fasta_lenient(&mut Cursor::new(&mut buf)).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_FASTA);
@@ -150,11 +151,11 @@ mod tests {
         let x = v.to_csv_string(b'\t').unwrap();
         assert_eq!(x, GAPDH_BSA_CSV_TAB);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_CSV_TAB);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_CSV_TAB);
 
@@ -171,11 +172,11 @@ mod tests {
         let x = v.to_csv_string(b'\t').unwrap();
         assert_eq!(x, HEADER_CSV_TAB);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), HEADER_CSV_TAB);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), HEADER_CSV_TAB);
 
@@ -190,7 +191,7 @@ mod tests {
         let x = v.to_csv_string(b'\t').unwrap();
         assert_eq!(x, EMPTY_CSV_TAB);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         assert!(v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').is_err());
         buf.clear();
         assert!(v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').is_ok());
@@ -207,7 +208,7 @@ mod tests {
         let x = v.to_csv_string(b'\t').unwrap();
         assert_eq!(x, GAPDH_EMPTY_CSV_TAB);
 
-        let mut buf: Vec<u8> = vec![];
+        let mut buf: BufferType = vec![];
         assert!(v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').is_err());
         v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_CSV_TAB);

@@ -9,7 +9,6 @@ pub mod low_level;
 pub mod client;
 
 mod complete;
-mod error;
 mod evidence;
 mod re;
 mod record;
@@ -27,7 +26,6 @@ mod fasta;
 mod xml;
 
 // Re-export the models into the parent module.
-pub use self::error::{UniProtError, UniProtErrorKind};
 pub use self::evidence::ProteinEvidence;
 pub use self::record::{Record, RecordField};
 pub use self::record_list::RecordList;

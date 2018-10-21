@@ -65,7 +65,6 @@ pub trait Fasta: Sized {
         let mut reader = BufReader::new(file);
         Self::from_fasta(&mut reader)
     }
-
 }
 
 /// Specialization of the `Fasta` trait for collections.

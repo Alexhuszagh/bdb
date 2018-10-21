@@ -1,6 +1,6 @@
 //! Error definitions for UniProt models and services.
 
-use std::error::Error;
+use std::error::Error as StdError;
 use std::io;
 use std::fmt;
 use std::num::ParseIntError;
@@ -15,23 +15,25 @@ use util::ErrorType;
 
 /// Error type.
 #[derive(Debug)]
-pub enum UniProtErrorKind {
-    // PROTEIN EVIDENCE
+pub enum ErrorKind {
+    // ENUMERATION
 
-    /// Deserializer fails due to improper number for protein evidence.
-    ProteinEvidenceInvalidNumber,
+    /// Enumeration creation fails due to invalid value.
+    InvalidEnumeration,
 
     // RECORD
 
     /// Serializer fails due to invalid record data.
     InvalidRecord,
+
+    // DESERIALIZER
+
     /// Deserializer fails due to invalid or empty input data.
     InvalidInput,
-
-    // FASTA
-
     /// Deserializer fails because the FASTA type is not recognized.
     InvalidFastaType,
+    /// Deserializer fails because of an unexpected EOF.
+    UnexpectedEof,
 
     // INHERITED
     Io(io::Error),
@@ -44,40 +46,40 @@ pub enum UniProtErrorKind {
 
 // CONVERSIONS
 
-impl From<io::Error> for UniProtError {
+impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        UniProtError(UniProtErrorKind::Io(err))
+        Error(ErrorKind::Io(err))
     }
 }
 
-impl From<Utf8Error> for UniProtError {
+impl From<Utf8Error> for Error {
     fn from(err: Utf8Error) -> Self {
-        UniProtError(UniProtErrorKind::Utf8(err))
+        Error(ErrorKind::Utf8(err))
     }
 }
 
-impl From<ParseIntError> for UniProtError {
+impl From<ParseIntError> for Error {
     fn from(err: ParseIntError) -> Self {
-        UniProtError(UniProtErrorKind::ParseInt(err))
+        Error(ErrorKind::ParseInt(err))
     }
 }
 
 #[cfg(feature = "xml")]
-impl From<XmlError> for UniProtError {
+impl From<XmlError> for Error {
     fn from(err: XmlError) -> Self {
-        UniProtError(UniProtErrorKind::Xml(err))
+        Error(ErrorKind::Xml(err))
     }
 }
 
-impl From<UniProtErrorKind> for UniProtError {
-    fn from(kind: UniProtErrorKind) -> Self {
-        UniProtError(kind)
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Error(kind)
     }
 }
 
-impl From<UniProtErrorKind> for ErrorType {
-    fn from(kind: UniProtErrorKind) -> Self {
-        Box::new(UniProtError(kind))
+impl From<ErrorKind> for ErrorType {
+    fn from(kind: ErrorKind) -> Self {
+        Box::new(Error(kind))
     }
 }
 
@@ -88,52 +90,55 @@ impl From<UniProtErrorKind> for ErrorType {
 /// Errors may occur during serializing/deserializing data, as well
 /// as over network and file I/O.
 #[derive(Debug)]
-pub struct UniProtError(UniProtErrorKind);
+pub struct Error(ErrorKind);
 
-impl UniProtError {
+impl Error {
     /// Get error type.
-    pub fn kind(&self) -> &UniProtErrorKind {
+    pub fn kind(&self) -> &ErrorKind {
         &self.0
     }
 }
 
-impl fmt::Display for UniProtError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "UniProt error: {}", self.description())
     }
 }
 
-impl Error for UniProtError {
+impl StdError for Error {
     fn description(&self) -> &str {
         match self.kind() {
             // PROTEIN EVIDENCE
 
-            UniProtErrorKind::ProteinEvidenceInvalidNumber => {
-                "out-of-range number found, cannot create ProteinEvidence."
+            ErrorKind::InvalidEnumeration => {
+                "out-of-range value found, cannot create enumeration"
             }
 
             // RECORD
 
-            UniProtErrorKind::InvalidRecord => {
-                "invalid record found, cannot serialize data"
-            },
-            UniProtErrorKind::InvalidInput => {
-                "invalid input data, cannot deserialize data"
+            ErrorKind::InvalidRecord => {
+                "invalid record found, cannot write data"
             },
 
-            // FASTA
+            // DESERIALIZER
 
-            UniProtErrorKind::InvalidFastaType => {
-                "invalid FASTA type, cannot deserialize data"
+            ErrorKind::InvalidInput => {
+                "invalid input data, cannot read data"
             },
+            ErrorKind::InvalidFastaType => {
+                "invalid FASTA type, cannot read data"
+            },
+            ErrorKind::UnexpectedEof => {
+                "unexpected EOF, cannot read data"
+            }
 
             // INHERITED
-            UniProtErrorKind::Io(ref err) => err.description(),
-            UniProtErrorKind::Utf8(ref err) => err.description(),
-            UniProtErrorKind::ParseInt(ref err) => err.description(),
+            ErrorKind::Io(ref err) => err.description(),
+            ErrorKind::Utf8(ref err) => err.description(),
+            ErrorKind::ParseInt(ref err) => err.description(),
 
             #[cfg(feature = "xml")]
-            UniProtErrorKind::Xml(ref err) => match err {
+            ErrorKind::Xml(ref err) => match err {
                 XmlError::Io(ref e) => e.description(),
                 XmlError::Utf8(ref e) => e.description(),
                 XmlError::UnexpectedEof(_) => "xml: unexpected EOF",
@@ -151,14 +156,14 @@ impl Error for UniProtError {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&StdError> {
         match self.kind() {
-            UniProtErrorKind::Io(ref err) => Some(err),
-            UniProtErrorKind::Utf8(ref err) => Some(err),
-            UniProtErrorKind::ParseInt(ref err) => Some(err),
+            ErrorKind::Io(ref err) => Some(err),
+            ErrorKind::Utf8(ref err) => Some(err),
+            ErrorKind::ParseInt(ref err) => Some(err),
 
             #[cfg(feature = "xml")]
-            UniProtErrorKind::Xml(ref err) => match err {
+            ErrorKind::Xml(ref err) => match err {
                 XmlError::Io(ref e) => Some(e),
                 XmlError::Utf8(ref e) => Some(e),
                 _  => None,

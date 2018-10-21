@@ -5,8 +5,7 @@ use quick_xml::{Reader, Writer};
 use std::io::{BufRead, Write};
 
 use traits::*;
-use util::ResultType;
-use super::error::UniProtErrorKind;
+use util::{BufferType, ErrorKind, ResultType};
 use super::record::Record;
 use super::record_list::RecordList;
 
@@ -72,7 +71,7 @@ fn write_declaration<T: Write>(writer: &mut Writer<T>) -> ResultType<()>
     const ENCODING: &'static [u8] = b"UTF-8";
     let decl = BytesDecl::new(VERSION, Some(ENCODING), None);
     match writer.write_event(Event::Decl(decl)) {
-        Err(e)  => Err(From::from(UniProtErrorKind::Xml(e))),
+        Err(e)  => Err(From::from(ErrorKind::Xml(e))),
         _       => Ok(()),
     }
 }
@@ -82,7 +81,7 @@ fn write_declaration<T: Write>(writer: &mut Writer<T>) -> ResultType<()>
 fn write_event<'a, T: Write>(writer: &mut Writer<T>, event: Event<'a>) -> ResultType<()>
 {
     match writer.write_event(event) {
-        Err(e)  => Err(From::from(UniProtErrorKind::Xml(e))),
+        Err(e)  => Err(From::from(ErrorKind::Xml(e))),
         _       => Ok(()),
     }
 }
@@ -375,13 +374,44 @@ fn estimate_list_size(list: &RecordList) -> usize {
 
 // READER
 
+/// Import record data from XML.
+#[allow(unused_mut, unused_variables)]  // TODO(ahuszagh) Remove
+pub fn item_from_xml<T: BufRead>(reader: &mut Reader<T>)
+    -> ResultType<Record>
+{
+    let mut depth: usize = 1;
+    Err(From::from(""))
+}
+
 /// Import record from XML.
 #[allow(unused_mut, unused_variables)]  // TODO(ahuszagh) Remove
 pub fn record_from_xml<T: BufRead>(reader: &mut T)
     -> ResultType<Record>
 {
     let mut reader = new_reader(reader);
-    Err(From::from(""))
+    let mut depth: usize = 0;
+    let mut buf = Vec::new();
+    let mut record = Record::new();
+    loop {
+        match reader.read_event(&mut buf) {
+            Ok(Event::Start(ref e)) => {
+                depth += 1;
+                if depth == 1 {
+                    match e.name() {
+                        b"uniprot" => {
+                            return item_from_xml(&mut reader);
+                        },
+                        _  => (),
+                    }
+                }
+            },
+            Ok(Event::End(ref e)) => depth -= 1,
+            Err(e) => return Err(From::from(ErrorKind::Xml(e))),
+            Ok(Event::Eof) => return Err(From::from(ErrorKind::UnexpectedEof)),
+            _ => (),
+        }
+        buf.clear();
+    }
 }
 // TODO(ahuszagh)
 //      Implement.
@@ -467,7 +497,7 @@ pub fn reference_iterator_to_xml_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
         if record.is_valid() {
             write_entry(record, &mut writer)?;
         } else {
-            return Err(From::from(UniProtErrorKind::InvalidRecord));
+            return Err(From::from(ErrorKind::InvalidRecord));
         }
     }
 
@@ -490,7 +520,7 @@ pub fn value_iterator_to_xml_strict<Iter, T>(iter: Iter, writer: &mut T)
         if record.is_valid() {
             write_entry(&record, &mut writer)?;
         } else {
-            return Err(From::from(UniProtErrorKind::InvalidRecord));
+            return Err(From::from(ErrorKind::InvalidRecord));
         }
     }
 
