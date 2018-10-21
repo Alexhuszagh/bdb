@@ -16,7 +16,7 @@ use super::record_list::RecordList;
 // SHARED
 
 /// Header `sequence_version`.
-const SEQUENCE_VERSION: &'static str = "Sequence version";
+const SEQUENCE_VERSION: &'static str = "Version (sequence)";
 
 /// Header `protein_evidence`.
 const PROTEIN_EVIDENCE: &'static str = "Protein existence";
@@ -235,7 +235,7 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
 // SIZE
 
 /// Estimated size of the CSV header.
-const CSV_HEADER_SIZE: usize = 142;
+const CSV_HEADER_SIZE: usize = 144;
 
 /// Estimate the size of a CSV row from a record.
 #[inline]

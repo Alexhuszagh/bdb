@@ -80,6 +80,28 @@ impl UniProtCsv {
 
 #[cfg(test)]
 mod tests {
-    // TODO(ahuszagh)
-    // Add tests
+    use std::fs::read_to_string;
+    use std::path::PathBuf;
+    use test::testdata_dir;
+    use super::*;
+
+    fn fasta_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/fasta");
+        dir
+    }
+
+    #[test]
+    #[ignore]
+    fn fasta_test() {
+        let mut path = fasta_dir();
+        path.push("list.fasta");
+
+        let expected = read_to_string(&path).unwrap();
+        let actual = Fasta::to_string(&Fasta::from_file(&path).unwrap()).unwrap();
+
+        // ignore the 1st and 4th element, the TrEMBL formatting differs.
+        assert_eq!(expected.lines().nth(1), actual.lines().nth(1));
+        assert_eq!(expected.lines().nth(2), actual.lines().nth(2));
+    }
 }

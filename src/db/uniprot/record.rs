@@ -122,7 +122,7 @@ pub enum RecordField {
 //
 //      `taxonomy`:
 //          Numerical identifier for the species, described by "name".
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Record {
     /// Numerical identifier for protein version.
     ///

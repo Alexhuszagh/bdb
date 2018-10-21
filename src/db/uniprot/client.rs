@@ -1,12 +1,10 @@
 //! Client to post queries to the UniProt KB service.
 
 use reqwest::{self, Response};
-use std::io::{Cursor, Read};        // TODO: remove
 use url;
 
 use util::{ErrorType, ResultType};
-use super::csv::{RecordIter, RecordIntoIter};
-//use super::record_list::RecordList;
+use super::csv::CsvRecordIter;
 
 /// Host URL for the UniProt KB domain and path.
 const HOST: &str = "https://www.uniprot.org:443/uniprot/";
@@ -15,7 +13,7 @@ const HOST: &str = "https://www.uniprot.org:443/uniprot/";
 const DELIMITER: &str = " OR ";
 
 /// Return type to iteratively produce records.
-type IteratorType = RecordIntoIter<Response>;
+type IteratorType = CsvRecordIter<Response>;
 
 /// Request UniProt records by accession number.
 ///
@@ -25,7 +23,6 @@ pub fn by_id(id: &str) -> ResultType<IteratorType> {
     by_id_impl(id)
 }
 
-
 /// Request UniProt records by accession numbers.
 ///
 /// * `ids` - Slice of accession numbers (eg. [P46406]).
@@ -34,7 +31,6 @@ pub fn by_id_list(ids: &[&str]) -> ResultType<IteratorType> {
     by_id_impl(&ids.join(DELIMITER))
 }
 
-
 /// Request UniProt records by mnemonic.
 ///
 /// * `mnemonic` - Single mnemonic (eg. G3P_RABBIT).
@@ -42,7 +38,6 @@ pub fn by_id_list(ids: &[&str]) -> ResultType<IteratorType> {
 pub fn by_mnemonic(mnemonic: &str) -> ResultType<IteratorType> {
     by_mnemonic_impl(mnemonic)
 }
-
 
 /// Request UniProt records by mnemonics.
 ///
@@ -83,15 +78,8 @@ fn call(query: &str) -> ResultType<IteratorType> {
     let response = reqwest::get(&url).map_err(|e| {
         Box::new(e) as ErrorType
     })?;
-    // TODO(ahuszagh)   Remove the following debug statements.
-    //let text = response.text();
-    println!("url = {:?}", url);
-    //println!("body = {:?}", text);
 
-    let mut iter = RecordIntoIter::new(response, b'\t');
-    iter.parse_header()?;
-    Ok(iter)
-//    Err(From::from(""))
+    Ok(CsvRecordIter::new(response, b'\t'))
 }
 
 // TESTS
@@ -100,13 +88,79 @@ fn call(query: &str) -> ResultType<IteratorType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::evidence::ProteinEvidence;
+    use super::super::record::Record;
+    use super::super::record_list::RecordList;
+
+    fn check_gapdh(record: &Record) {
+        assert_eq!(record.sequence_version, 3);
+        assert_eq!(record.protein_evidence, ProteinEvidence::ProteinLevel);
+        assert_eq!(record.mass, 35780);
+        assert_eq!(record.length, 333);
+        assert_eq!(record.gene, "GAPDH");
+        assert_eq!(record.id, "P46406");
+        assert_eq!(record.mnemonic, "G3P_RABIT");
+        assert_eq!(record.name, "Glyceraldehyde-3-phosphate dehydrogenase (GAPDH) (EC 1.2.1.12) (Peptidyl-cysteine S-nitrosylase GAPDH) (EC 2.6.99.-)");
+        assert_eq!(record.organism, "Oryctolagus cuniculus (Rabbit)");
+        assert_eq!(record.proteome, "UP000001811: Unplaced");
+        assert_eq!(record.sequence, "MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKAENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIISAPSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAITATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSVVDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIALNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE");
+        assert_eq!(record.taxonomy, "9986");
+    }
+
+    fn check_bsa(record: &Record) {
+        assert_eq!(record.sequence_version, 4);
+        assert_eq!(record.protein_evidence, ProteinEvidence::ProteinLevel);
+        assert_eq!(record.mass, 69293);
+        assert_eq!(record.length, 607);
+        assert_eq!(record.gene, "ALB");
+        assert_eq!(record.id, "P02769");
+        assert_eq!(record.mnemonic, "ALBU_BOVIN");
+        assert_eq!(record.name, "Serum albumin (BSA) (allergen Bos d 6)");
+        assert_eq!(record.organism, "Bos taurus (Bovine)");
+        assert_eq!(record.proteome, "UP000009136: Unplaced");
+        assert_eq!(record.sequence, "MKWVTFISLLLLFSSAYSRGVFRRDTHKSEIAHRFKDLGEEHFKGLVLIAFSQYLQQCPFDEHVKLVNELTEFAKTCVADESHAGCEKSLHTLFGDELCKVASLRETYGDMADCCEKQEPERNECFLSHKDDSPDLPKLKPDPNTLCDEFKADEKKFWGKYLYEIARRHPYFYAPELLYYANKYNGVFQECCQAEDKGACLLPKIETMREKVLASSARQRLRCASIQKFGERALKAWSVARLSQKFPKAEFVEVTKLVTDLTKVHKECCHGDLLECADDRADLAKYICDNQDTISSKLKECCDKPLLEKSHCIAEVEKDAIPENLPPLTADFAEDKDVCKNYQEAKDAFLGSFLYEYSRRHPEYAVSVLLRLAKEYEATLEECCAKDDPHACYSTVFDKLKHLVDEPQNLIKQNCDQFEKLGEYGFQNALIVRYTRKVPQVSTPTLVEVSRSLGKVGTRCCTKPESERMPCTEDYLSLILNRLCVLHEKTPVSEKVTKCCTESLVNRRPCFSALTPDETYVPKAFDEKLFTFHADICTLPDTEKQIKKQTALVELLKHKPKATEEQLKTVMENFVAFVDKCCAADDKEACFAVEGPKLVVSTQTALA");
+        assert_eq!(record.taxonomy, "9913");
+    }
 
     #[test]
+    #[ignore]
     fn by_id_test() {
-        // TODO(ahuszagh)       Restore
-        //let record = by_id("P46406").unwrap().next().unwrap().unwrap();
-        //println!("{:?}", record);
+        let record: Record = by_id("P46406").unwrap().next().unwrap().unwrap();
+        check_gapdh(&record);
     }
-    // TODO(ahuszagh)
-    //      Implement these routines.
+
+    #[test]
+    #[ignore]
+    fn by_id_list_test() {
+        let ids = ["P46406", "P02769"];
+        let result: ResultType<RecordList> = by_id_list(&ids).unwrap().collect();
+        let mut list = result.unwrap();
+        list.sort();        // Ensure we get a stable ordering
+
+        // Check properties.
+        assert_eq!(list.len(), 2);
+        check_gapdh(&list[0]);
+        check_bsa(&list[1]);
+    }
+
+    #[test]
+    #[ignore]
+    fn by_mnemonic_test() {
+        let record: Record = by_mnemonic("G3P_RABIT").unwrap().next().unwrap().unwrap();
+        check_gapdh(&record);
+    }
+
+    #[test]
+    #[ignore]
+    fn by_mnemonic_list_test() {
+        let mnemonics = ["G3P_RABIT", "ALBU_BOVIN"];
+        let result: ResultType<RecordList> = by_mnemonic_list(&mnemonics).unwrap().collect();
+        let mut list = result.unwrap();
+        list.sort();        // Ensure we get a stable ordering
+
+        // Check properties.
+        assert_eq!(list.len(), 2);
+        check_gapdh(&list[0]);
+        check_bsa(&list[1]);
+    }
 }

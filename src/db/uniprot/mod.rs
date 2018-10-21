@@ -2,10 +2,9 @@
 
 // Expose the low-level API in a public submodule.
 pub mod low_level;
+// Expose the client API in a public submodule.
+pub mod client;
 
-// TODO(ahuszagh)
-//      Restore
-//mod client;
 mod complete;
 mod csv;
 mod error;
@@ -17,8 +16,7 @@ mod record_list;
 mod test;
 mod valid;
 
-// Re-export the high-level API into the parent module.
-//pub use self::client::{by_id, by_id_list, by_mnemonic, by_mnemonic_list};
+// Re-export the models into the parent module.
 pub use self::error::{UniProtError, UniProtErrorKind};
 pub use self::evidence::ProteinEvidence;
 pub use self::record::{Record, RecordField};
