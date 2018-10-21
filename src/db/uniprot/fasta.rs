@@ -502,7 +502,7 @@ pub fn iterator_from_fasta<T: BufRead>(reader: T) -> FastaRecordIter<T> {
 ///
 /// Wraps `FastaIter` and converts the text to records strictly.
 pub struct FastaRecordStrictIter<T: BufRead> {
-    iter: FastaIter<T>
+    iter: FastaRecordIter<T>
 }
 
 impl<T: BufRead> FastaRecordStrictIter<T> {
@@ -510,7 +510,7 @@ impl<T: BufRead> FastaRecordStrictIter<T> {
     #[inline]
     pub fn new(reader: T) -> Self {
         FastaRecordStrictIter {
-            iter: FastaIter::new(reader)
+            iter: FastaRecordIter::new(reader)
         }
     }
 }
@@ -519,12 +519,7 @@ impl<T: BufRead> Iterator for FastaRecordStrictIter<T> {
     type Item = ResultType<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let text = match self.iter.next()? {
-            Err(e)   => return Some(Err(e)),
-            Ok(text) => text,
-        };
-
-        Some(Record::from_fasta_string(&text).and_then(|r| {
+        Some(self.iter.next()?.and_then(|r| {
             match r.is_valid() {
                 true    => Ok(r),
                 false   => Err(From::from(ErrorKind::InvalidRecord)),
@@ -545,7 +540,7 @@ pub fn iterator_from_fasta_strict<T: BufRead>(reader: T) -> FastaRecordStrictIte
 ///
 /// Wraps `FastaIter` and converts the text to records leniently.
 pub struct FastaRecordLenientIter<T: BufRead> {
-    iter: FastaIter<T>,
+    iter: FastaRecordIter<T>,
 }
 
 impl<T: BufRead> FastaRecordLenientIter<T> {
@@ -553,7 +548,7 @@ impl<T: BufRead> FastaRecordLenientIter<T> {
     #[inline]
     pub fn new(reader: T) -> Self {
         FastaRecordLenientIter {
-            iter: FastaIter::new(reader),
+            iter: FastaRecordIter::new(reader),
         }
     }
 }
@@ -563,12 +558,7 @@ impl<T: BufRead> Iterator for FastaRecordLenientIter<T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let text = match self.iter.next()? {
-                Err(e)   => return Some(Err(e)),
-                Ok(text) => text,
-            };
-
-            match Record::from_fasta_string(&text) {
+            match self.iter.next()? {
                 Err(e)  => return Some(Err(e)),
                 Ok(r)   => {
                     if r.is_valid() {

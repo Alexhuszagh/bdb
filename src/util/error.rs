@@ -5,6 +5,7 @@ use std::io;
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 
 #[cfg(feature = "xml")]
 use quick_xml::Error as XmlError;
@@ -38,6 +39,7 @@ pub enum ErrorKind {
     // INHERITED
     Io(io::Error),
     Utf8(Utf8Error),
+    FromUtf8(FromUtf8Error),
     ParseInt(ParseIntError),
 
     #[cfg(feature = "xml")]
@@ -55,6 +57,12 @@ impl From<io::Error> for Error {
 impl From<Utf8Error> for Error {
     fn from(err: Utf8Error) -> Self {
         Error(ErrorKind::Utf8(err))
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(err: FromUtf8Error) -> Self {
+        Error(ErrorKind::FromUtf8(err))
     }
 }
 
@@ -135,6 +143,7 @@ impl StdError for Error {
             // INHERITED
             ErrorKind::Io(ref err) => err.description(),
             ErrorKind::Utf8(ref err) => err.description(),
+            ErrorKind::FromUtf8(ref err) => err.description(),
             ErrorKind::ParseInt(ref err) => err.description(),
 
             #[cfg(feature = "xml")]
@@ -160,6 +169,7 @@ impl StdError for Error {
         match self.kind() {
             ErrorKind::Io(ref err) => Some(err),
             ErrorKind::Utf8(ref err) => Some(err),
+            ErrorKind::FromUtf8(ref err) => Some(err),
             ErrorKind::ParseInt(ref err) => Some(err),
 
             #[cfg(feature = "xml")]

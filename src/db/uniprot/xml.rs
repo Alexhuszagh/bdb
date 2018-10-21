@@ -1,26 +1,18 @@
 //! Helper utilities for XML loading and saving.
+//!
+//! This module, especially the implementation of the reader, is quite
+//! difficult to understand, due to the low-level optimizations and the
+//! SAX-like API present for the pull XML parser. The module is copiously
+//! commented to try to facilitate maintainability.
 
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
-use quick_xml::{Reader, Writer};
+use quick_xml::{Writer};
 use std::io::{BufRead, Write};
 
 use traits::*;
-use util::{BufferType, ErrorKind, ResultType};
+use util::{ErrorKind, ResultType, XmlReader};
 use super::record::Record;
 use super::record_list::RecordList;
-
-// SHARED -- READER
-
-/// Create CSV writer.
-#[inline(always)]
-fn new_reader<T: BufRead>(reader: T)
-    -> Reader<T>
-{
-    Reader::from_reader(reader)
-}
-
-// TODO(ahuszagh)
-//      Implement.
 
 // SHARED -- WRITER
 
@@ -372,49 +364,295 @@ fn estimate_list_size(list: &RecordList) -> usize {
     list.iter().fold(0, |sum, x| sum + estimate_record_size(x))
 }
 
+// XML RECORD ITER
+
+/// Macro to quickly return None or an Error inside an Option<Result<>>;
+macro_rules! try_opterr {
+    ($e:expr) => ({
+         match $e? {
+            Err(e)  => return Some(Err(e)),
+            _ => (),
+        }
+    });
+}
+
+pub struct XmlRecordIter<T: BufRead> {
+    reader: XmlReader<T>,
+}
+
+impl<T: BufRead> XmlRecordIter<T> {
+    /// Create new XmlRecordIter from a buffered reader.
+    #[inline]
+    pub fn new(reader: T) -> Self {
+        XmlRecordIter {
+            reader: XmlReader::new(reader),
+        }
+    }
+
+    /// Enter the entry element.
+    #[inline]
+    fn enter_entry(&mut self) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_start(b"entry", 1));
+        Some(Ok(()))
+    }
+
+    /// Leave the entry element.
+    #[inline]
+    fn leave_entry(&mut self) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_end(b"entry", 1));
+        Some(Ok(()))
+    }
+
+    /// Read the accession number.
+    #[inline]
+    fn read_accession(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_start(b"accession", 2));
+
+        match self.reader.read_text(b"accession") {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => record.id = v,
+        }
+
+        Some(Ok(()))
+    }
+
+    /// Read the mnemonic identifier.
+    #[inline]
+    fn read_mnemonic(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_start(b"name", 2));
+
+        match self.reader.read_text(b"name") {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => record.mnemonic = v,
+        }
+
+        Some(Ok(()))
+    }
+
+    /// Read the protein name.
+    #[inline]
+    fn read_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        // Ensure we get to the recommendedName, since "alternativeName"
+        // also has the same attributes.
+        try_opterr!(self.reader.seek_start(b"recommendedName", 3));
+
+        // Read the protein name
+        try_opterr!(self.reader.seek_start(b"fullName", 4));
+        match self.reader.read_text(b"fullName") {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => record.name = v,
+        }
+
+        try_opterr!(self.reader.seek_end(b"recommendedName", 3));
+
+        Some(Ok(()))
+    }
+
+    /// Read the text from the name element.
+    #[inline]
+    fn read_gene_impl(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        match self.reader.read_text(b"name") {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => record.gene = v,
+        }
+
+        Some(Ok(()))
+    }
+
+    /// Read the gene name.
+    #[inline]
+    fn read_gene(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_start(b"gene", 2));
+
+        //  Gene XML format.
+        //      <gene>
+        //      <name type="primary">GAPDH</name>
+        //      <name type="synonym">GAPD</name>
+        //      </gene>
+
+        // Callback to determine if we're reading the primary gene name.
+        fn is_gene<'a>(event: BytesStart<'a>, _: &mut Record)
+            -> Option<ResultType<bool>>
+        {
+            for result in event.attributes() {
+                let attribute = match result {
+                    Err(e) => return Some(Err(From::from(ErrorKind::Xml(e)))),
+                    Ok(v)  => v,
+                };
+                if attribute.key == b"type" && &*attribute.value == b"primary" {
+                    return Some(Ok(true));
+                }
+            }
+            Some(Ok(false))
+        }
+
+        // Here we invoke the actual callback iteratively until we find the element.
+        loop {
+            match self.reader.seek_start_callback(b"name", 3, record, is_gene)? {
+                Err(e)  => return Some(Err(e)),
+                Ok(v)   => {
+                    if v {
+                        try_opterr!(self.read_gene_impl(record));
+                        return Some(Ok(()));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Read the taxonomy.
+    #[inline]
+    fn read_taxonomy(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        // Callback to parse the taxonomy information.
+        fn parse_taxonomy<'a>(event: BytesStart<'a>, record: &mut Record)
+            -> Option<ResultType<bool>>
+        {
+            for result in event.attributes() {
+                let attribute = match result {
+                    Err(e) => return Some(Err(From::from(ErrorKind::Xml(e)))),
+                    Ok(v)  => v,
+                };
+                if attribute.key == b"type" && &*attribute.value != b"NCBI Taxonomy" {
+                    // If the dbReference type is not NCBI Taxonomy, quit early
+                    return Some(Ok(false));
+                } else if attribute.key == b"id" {
+                    // Parse the taxonomic identifier.
+                    record.taxonomy = match String::from_utf8(attribute.value.to_vec()) {
+                        Err(e) => return Some(Err(From::from(ErrorKind::FromUtf8(e)))),
+                        Ok(v)  => v,
+                    };
+                    return Some(Ok(true));
+                }
+            }
+            Some(Ok(false))
+        }
+
+        // Invoker our callback
+        Some(match self.reader.seek_start_callback(b"dbReference", 3, record, parse_taxonomy)? {
+            Err(e)  => Err(e),
+            Ok(_)   => Ok(()),
+        })
+    }
+
+    /// Read the text from the name element.
+    #[inline]
+    fn read_organism_impl(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        match self.reader.read_text(b"name") {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => record.organism = v,
+        }
+
+        Some(Ok(()))
+    }
+
+    /// Read the organism name.
+    #[inline]
+    fn read_organism(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_start(b"organism", 2));
+
+        //  Organism XML format.
+        //        <organism>
+        //        <name type="scientific">Oryctolagus cuniculus</name>
+        //        <name type="common">Rabbit</name>
+        //        <dbReference type="NCBI Taxonomy" id="9986"/>
+        //        ...
+        //        </organism>
+
+        // Callback to determine if we're reading the scientific name.
+        fn is_organism<'a>(event: BytesStart<'a>, _: &mut Record)
+            -> Option<ResultType<bool>>
+        {
+            for result in event.attributes() {
+                let attribute = match result {
+                    Err(e) => return Some(Err(From::from(ErrorKind::Xml(e)))),
+                    Ok(v)  => v,
+                };
+                if attribute.key == b"type" && &*attribute.value == b"scientific" {
+                    return Some(Ok(true));
+                }
+            }
+            Some(Ok(false))
+        }
+
+        // Here we invoke the actual callback iteratively until we find the element.
+        loop {
+            match self.reader.seek_start_callback(b"name", 3, record, is_organism)? {
+                Err(e)  => return Some(Err(e)),
+                Ok(v)   => {
+                    if v {
+                        try_opterr!(self.read_organism_impl(record));
+                        return self.read_taxonomy(record)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Parse the UniProt record.
+    fn parse_record(&mut self) -> Option<ResultType<Record>> {
+        let mut record = Record::new();
+
+        try_opterr!(self.read_accession(&mut record));
+        try_opterr!(self.read_mnemonic(&mut record));
+        try_opterr!(self.read_protein(&mut record));
+        try_opterr!(self.read_gene(&mut record));
+        try_opterr!(self.read_organism(&mut record));
+
+        // TODO(ahuszagh)...
+        //      Add more calls here...
+        //      Need:
+        //          sequence_version
+        //          protein_evidence
+        //          mass
+        //          length
+        //          proteome
+        //          sequence
+
+        Some(Ok(record))
+    }
+}
+
+impl<T: BufRead> Iterator for XmlRecordIter<T> {
+    type Item = ResultType<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Enter the entry, which stores our position for the entry element.
+        try_opterr!(self.enter_entry());
+        let record = self.parse_record()?;
+
+        // Exit the entry, so we're ready for the next iteration.
+        match self.leave_entry() {
+            None    => return Some(Err(From::from(ErrorKind::UnexpectedEof))),
+            Some(v) => match v {
+                Err(e)  => return Some(Err(e)),
+                _  => (),
+            },
+        }
+
+        Some(record)
+    }
+}
+
 // READER
 
 /// Import record data from XML.
-#[allow(unused_mut, unused_variables)]  // TODO(ahuszagh) Remove
-pub fn item_from_xml<T: BufRead>(reader: &mut Reader<T>)
-    -> ResultType<Record>
+#[allow(dead_code)]
+fn iterator_from_uniprot<T: BufRead>(reader: T)
+    -> XmlRecordIter<T>
 {
-    let mut depth: usize = 1;
-    Err(From::from(""))
+    XmlRecordIter::new(reader)
 }
 
 /// Import record from XML.
-#[allow(unused_mut, unused_variables)]  // TODO(ahuszagh) Remove
+#[allow(unused_mut)]
 pub fn record_from_xml<T: BufRead>(reader: &mut T)
     -> ResultType<Record>
 {
-    let mut reader = new_reader(reader);
-    let mut depth: usize = 0;
-    let mut buf = Vec::new();
-    let mut record = Record::new();
-    loop {
-        match reader.read_event(&mut buf) {
-            Ok(Event::Start(ref e)) => {
-                depth += 1;
-                if depth == 1 {
-                    match e.name() {
-                        b"uniprot" => {
-                            return item_from_xml(&mut reader);
-                        },
-                        _  => (),
-                    }
-                }
-            },
-            Ok(Event::End(ref e)) => depth -= 1,
-            Err(e) => return Err(From::from(ErrorKind::Xml(e))),
-            Ok(Event::Eof) => return Err(From::from(ErrorKind::UnexpectedEof)),
-            _ => (),
-        }
-        buf.clear();
+    match iterator_from_uniprot(reader).next() {
+        None    => Err(From::from(ErrorKind::UnexpectedEof)),
+        Some(v) => v
     }
 }
-// TODO(ahuszagh)
-//      Implement.
 
 // READER -- DEFAULT
 
@@ -614,6 +852,34 @@ impl Xml for RecordList {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io::{BufReader};
+    use std::path::PathBuf;
+    use test::testdata_dir;
+    use super::*;
+
+    fn xml_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/xml");
+        dir
+    }
+
+    #[test]
+    //#[ignore]     // TODO(ahuszagh)    Restore
+    fn gapdh_test() {
+        let mut path = xml_dir();
+        path.push("P46406.xml");
+        let mut reader = BufReader::new(File::open(path).unwrap());
+
+        let record = record_from_xml(&mut reader);
+        panic!("At the disco! {:?}", record);
+
+//        let expected = vec!["A0A2U8RNL1", "P02769", "P46406", "Q53FP0"];
+//        let v = RecordList::from_csv(&mut reader, b'\t').unwrap();
+//        let actual: Vec<String> = v.iter().map(|r| r.id.clone()).collect();
+//        assert_eq!(expected, actual);
+    }
+
     // TODO(ahuszagh)
     //  Implement...
 }

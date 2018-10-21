@@ -440,9 +440,7 @@ pub fn iterator_from_csv<T: Read>(reader: T, delimiter: u8) -> CsvRecordIter<T> 
 
 /// Iterator to lazily load `Record`s from a document.
 pub struct CsvRecordStrictIter<T: Read> {
-    map: RecordFieldIndex,
-    iter: csv::StringRecordsIntoIter<T>,
-    has_map: bool,
+    iter: CsvRecordIter<T>,
 }
 
 impl<T: Read> CsvRecordStrictIter<T> {
@@ -450,19 +448,8 @@ impl<T: Read> CsvRecordStrictIter<T> {
     #[inline]
     pub fn new(reader: T, delimiter: u8) -> Self {
         CsvRecordStrictIter {
-            map: RecordFieldIndex::new(),
-            iter: new_reader(reader, delimiter).into_records(),
-            has_map: false,
+            iter: CsvRecordIter::new(reader, delimiter),
         }
-    }
-
-    /// Parse the header to determine the fields for the map.
-    #[inline]
-    fn parse_header(&mut self) -> ResultType<()> {
-        // Do not set `has_map` until the headers are parsed.
-        parse_header(self.iter.next(), &mut self.map)?;
-        self.has_map = true;
-        Ok(())
     }
 }
 
@@ -470,15 +457,7 @@ impl<T: Read> Iterator for CsvRecordStrictIter<T> {
     type Item = ResultType<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Parse headers if they have not already been parsed
-        if !self.has_map {
-            match self.parse_header() {
-                Err(e) => return Some(Err(e)),
-                _      => (),
-            }
-        }
-
-        match next(self.iter.next(), &self.map)? {
+        match self.iter.next()? {
             Err(e)  => Some(Err(e)),
             Ok(r)   => {
                 if r.is_valid() {
@@ -501,9 +480,7 @@ pub fn iterator_from_csv_strict<T: Read>(reader: T, delimiter: u8) -> CsvRecordS
 
 /// Iterator to lazily load `Record`s from a document.
 pub struct CsvRecordLenientIter<T: Read> {
-    map: RecordFieldIndex,
-    iter: csv::StringRecordsIntoIter<T>,
-    has_map: bool,
+    iter: CsvRecordIter<T>,
 }
 
 impl<T: Read> CsvRecordLenientIter<T> {
@@ -511,19 +488,8 @@ impl<T: Read> CsvRecordLenientIter<T> {
     #[inline]
     pub fn new(reader: T, delimiter: u8) -> Self {
         CsvRecordLenientIter {
-            map: RecordFieldIndex::new(),
-            iter: new_reader(reader, delimiter).into_records(),
-            has_map: false,
+            iter: CsvRecordIter::new(reader, delimiter),
         }
-    }
-
-    /// Parse the header to determine the fields for the map.
-    #[inline]
-    fn parse_header(&mut self) -> ResultType<()> {
-        // Do not set `has_map` until the headers are parsed.
-        parse_header(self.iter.next(), &mut self.map)?;
-        self.has_map = true;
-        Ok(())
     }
 }
 
@@ -531,16 +497,8 @@ impl<T: Read> Iterator for CsvRecordLenientIter<T> {
     type Item = ResultType<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Parse headers if they have not already been parsed
-        if !self.has_map {
-            match self.parse_header() {
-                Err(e) => return Some(Err(e)),
-                _      => (),
-            }
-        }
-
         loop {
-            match next(self.iter.next(), &self.map)? {
+            match self.iter.next()? {
                 Err(e)  => return Some(Err(e)),
                 Ok(r)   => {
                     if r.is_valid() {
