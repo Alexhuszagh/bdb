@@ -97,6 +97,41 @@ impl ProteinEvidence {
     }
 }
 
+#[cfg(feature = "xml")]
+impl ProteinEvidence {
+    /// XML Verbose constant messages.
+    const PROTEIN_LEVEL_XML_VERBOSE: &'static str = "evidence at protein level";
+    const TRANSCRIPT_LEVEL_XML_VERBOSE: &'static str = "evidence at transcript level";
+    const INFERRED_LEVEL_XML_VERBOSE: &'static str = "inferred from homology";
+    const PREDICTED_LEVEL_XML_VERBOSE: &'static str = "predicted";
+    const UNKNOWN_LEVEL_XML_VERBOSE: &'static str = "";
+
+    /// Convert enumerated value for ProteinEvidence to XML verbose text.
+    #[inline]
+    pub fn xml_verbose(&self) -> &'static str {
+        match self {
+            ProteinEvidence::ProteinLevel       => Self::PROTEIN_LEVEL_XML_VERBOSE,
+            ProteinEvidence::TranscriptLevel    => Self::TRANSCRIPT_LEVEL_XML_VERBOSE,
+            ProteinEvidence::Inferred           => Self::INFERRED_LEVEL_XML_VERBOSE,
+            ProteinEvidence::Predicted          => Self::PREDICTED_LEVEL_XML_VERBOSE,
+            ProteinEvidence::Unknown            => Self::UNKNOWN_LEVEL_XML_VERBOSE,
+        }
+    }
+
+    /// Create enumerated value from XML verbose text.
+    #[inline]
+    pub fn from_xml_verbose(text: &str) -> ResultType<Self> {
+        match text {
+            Self::PROTEIN_LEVEL_XML_VERBOSE      => Ok(ProteinEvidence::ProteinLevel),
+            Self::TRANSCRIPT_LEVEL_XML_VERBOSE   => Ok(ProteinEvidence::TranscriptLevel),
+            Self::INFERRED_LEVEL_XML_VERBOSE     => Ok(ProteinEvidence::Inferred),
+            Self::PREDICTED_LEVEL_XML_VERBOSE    => Ok(ProteinEvidence::Predicted),
+            Self::UNKNOWN_LEVEL_XML_VERBOSE      => Ok(ProteinEvidence::Unknown),
+            _                                    => Err(From::from(UniProtErrorKind::InvalidInput)),
+        }
+    }
+}
+
 // TESTS
 // -----
 
@@ -143,6 +178,26 @@ mod tests {
         // Predicted
         let text = ProteinEvidence::Predicted.verbose();
         assert_eq!(text, "Predicted");
+    }
+
+    #[cfg(feature = "xml")]
+    #[test]
+    fn protein_evidence_xml_verbose_test() {
+        // ProteinLevel
+        let text = ProteinEvidence::ProteinLevel.xml_verbose();
+        assert_eq!(text, "evidence at protein level");
+
+        // TranscriptLevel
+        let text = ProteinEvidence::TranscriptLevel.xml_verbose();
+        assert_eq!(text, "evidence at transcript level");
+
+        // Inferred
+        let text = ProteinEvidence::Inferred.xml_verbose();
+        assert_eq!(text, "inferred from homology");
+
+        // Predicted
+        let text = ProteinEvidence::Predicted.xml_verbose();
+        assert_eq!(text, "predicted");
     }
 
     fn serialize_protein_evidence(evidence: ProteinEvidence, expected: &str) {
