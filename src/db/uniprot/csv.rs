@@ -135,7 +135,7 @@ fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
     -> ResultType<()>
 {
     let row = match opt {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInputData)),
+        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
         Some(v) => v?,
     };
 
@@ -381,7 +381,7 @@ pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
 {
     let mut iter = CsvRecordIter::new(reader, delimiter);
     match iter.next() {
-        None    => Err(From::from(UniProtErrorKind::InvalidInputData)),
+        None    => Err(From::from(UniProtErrorKind::InvalidInput)),
         Some(v) => Ok(v?)
     }
 }

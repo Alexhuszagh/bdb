@@ -23,7 +23,12 @@ pub enum UniProtErrorKind {
     /// Serializer fails due to invalid record data.
     InvalidRecord,
     /// Deserializer fails due to invalid or empty input data.
-    InvalidInputData,
+    InvalidInput,
+
+    // FASTA
+
+    /// Deserializer fails because the FASTA type is not recognized.
+    InvalidFastaType,
 
     // INHERITED
     Io(io::Error),
@@ -99,8 +104,14 @@ impl Error for UniProtError {
             UniProtErrorKind::InvalidRecord => {
                 "invalid record found, cannot serialize data"
             },
-            UniProtErrorKind::InvalidInputData => {
+            UniProtErrorKind::InvalidInput => {
                 "invalid input data, cannot deserialize data"
+            },
+
+            // FASTA
+
+            UniProtErrorKind::InvalidFastaType => {
+                "invalid FASTA type, cannot deserialize data"
             },
 
             // INHERITED

@@ -12,3 +12,4 @@
 
 pub use super::csv::*;
 pub use super::fasta::*;
+pub use super::re::*;

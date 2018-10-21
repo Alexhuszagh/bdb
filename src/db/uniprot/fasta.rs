@@ -346,47 +346,94 @@ pub fn value_iterator_to_fasta_lenient<Iter, T>(iter: Iter, writer: &mut T)
 
 // READER
 
-/// Import record from FASTA.
-pub fn record_from_fasta<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
-{
-    type R = FastaHeaderRegex;
-
-    // split along lines
-    // first line is the header, rest are the sequences
-    // short-circuit if the header is None.
-    let mut lines = reader.lines();
-    let header = match lines.next() {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInputData)),
-        Some(v) => v?,
-    };
+/// Import record from SwissProt FASTA.
+fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
+    type R = SwissProtHeaderRegex;
 
     // process the header and match it to the FASTA record
-    let captures = match FastaHeaderRegex::extract().captures(&header) {
-        None    => return Err(From::from(UniProtErrorKind::InvalidInputData)),
+    let captures = match R::extract().captures(&header) {
+        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
         Some(v) => v,
     };
 
     // initialize the record with header data
     let pe = capture_as_str(&captures, R::PE_INDEX);
     let sv = capture_as_str(&captures, R::SV_INDEX);
-    let mut record = Record {
+    Ok(Record {
         // Can use unwrap because they were matched in the regex
         // as "\d+" capture groups, they must be deserializeable to int.
         sequence_version: sv.parse().unwrap(),
         protein_evidence: ProteinEvidence::from_str(pe)?,
         mass: 0,
         length: 0,
-        gene: capture_as_string(&captures, R::GENE_INDEX),
+        gene: optional_capture_as_string(&captures, R::GENE_INDEX),
         id: capture_as_string(&captures, R::ACCESSION_INDEX),
         mnemonic: capture_as_string(&captures, R::MNEMONIC_INDEX),
         name: capture_as_string(&captures, R::NAME_INDEX),
         organism: capture_as_string(&captures, R::ORGANISM_INDEX),
+        taxonomy: optional_capture_as_string(&captures, R::TAXONOMY_INDEX),
 
         // unused fields in header
         proteome: String::new(),
         sequence: String::new(),
-        taxonomy: String::new(),
+    })
+}
+
+/// Import record from TrEMBL FASTA.
+fn record_header_from_trembl(header: &str) -> ResultType<Record> {
+    type R = TrEMBLHeaderRegex;
+
+    // process the header and match it to the FASTA record
+    let captures = match R::extract().captures(&header) {
+        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
+        Some(v) => v,
+    };
+
+    // initialize the record with header data
+    let pe = capture_as_str(&captures, R::PE_INDEX);
+    let sv = capture_as_str(&captures, R::SV_INDEX);
+    Ok(Record {
+        // Can use unwrap because they were matched in the regex
+        // as "\d+" capture groups, they must be deserializeable to int.
+        sequence_version: sv.parse().unwrap(),
+        protein_evidence: ProteinEvidence::from_str(pe)?,
+        mass: 0,
+        length: 0,
+        gene: optional_capture_as_string(&captures, R::GENE_INDEX),
+        id: capture_as_string(&captures, R::ACCESSION_INDEX),
+        mnemonic: capture_as_string(&captures, R::MNEMONIC_INDEX),
+        name: capture_as_string(&captures, R::NAME_INDEX),
+        organism: capture_as_string(&captures, R::ORGANISM_INDEX),
+        taxonomy: optional_capture_as_string(&captures, R::TAXONOMY_INDEX),
+
+        // unused fields in header
+        proteome: String::new(),
+        sequence: String::new(),
+    })
+}
+
+/// Import record from FASTA.
+pub fn record_from_fasta<T: BufRead>(reader: &mut T)
+    -> ResultType<Record>
+{
+    // Split along lines.
+    // First line is the header, rest are the sequences.
+    // Short-circuit if the header is `None`.
+    let mut lines = reader.lines();
+    let header = match lines.next() {
+        None    => return Err(From::from(UniProtErrorKind::InvalidInput)),
+        Some(v) => v?,
+    };
+
+    // Ensure we don't raise an out-of-bounds error on the subsequent slice.
+    if header.len() < 3 {
+        return Err(From::from(UniProtErrorKind::InvalidInput));
+    }
+
+    let mut record = match &header[..3] {
+        ">sp"   => record_header_from_swissprot(&header)?,
+        ">tr"   => record_header_from_trembl(&header)?,
+        _       => return Err(From::from(UniProtErrorKind::InvalidFastaType)),
     };
 
     // add sequence data to the FASTA sequence

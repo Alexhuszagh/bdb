@@ -64,7 +64,7 @@ impl ProteinEvidence {
             Self::INFERRED_LEVEL_VERBOSE     => Ok(ProteinEvidence::Inferred),
             Self::PREDICTED_LEVEL_VERBOSE    => Ok(ProteinEvidence::Predicted),
             Self::UNKNOWN_LEVEL_VERBOSE      => Ok(ProteinEvidence::Unknown),
-            _                                => Err(From::from(UniProtErrorKind::InvalidInputData)),
+            _                                => Err(From::from(UniProtErrorKind::InvalidInput)),
         }
     }
 

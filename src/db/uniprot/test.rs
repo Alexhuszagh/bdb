@@ -61,7 +61,6 @@ pub fn incomplete_eq(x: &Record, y: &Record) {
     assert_eq!(y.organism, x.organism);
     assert_eq!(y.proteome, "");
     assert_eq!(y.sequence, x.sequence);
-    assert_eq!(y.taxonomy, "");
 
     assert!(x.is_valid());
     assert!(x.is_complete());

@@ -67,7 +67,19 @@ impl FieldRegex for MnemonicRegex {
         lazy_regex!(r"(?x)
             \A
             (?:
-                [a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5}
+                (?:
+                    (?:
+                        [[:alnum:]]{1,5}
+                    )
+                    |
+                    (?:
+                        [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                    )
+                )
+                _
+                (?:
+                    [[:alnum:]]{1,5}
+                )
             )
             \z
         ");
@@ -80,13 +92,21 @@ impl FieldRegex for MnemonicRegex {
             # Group 1, Mnemonic Identifier
             (
                 # Group 2, Protein Name
+                # Can be either {1,5} alnum characters in SwissProt
+                # or an accession number in TrEMBL.
                 (
-                    [a-zA-Z0-9]{1,5}
+                    (?:
+                        [[:alnum:]]{1,5}
+                    )
+                    |
+                    (?:
+                        [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                    )
                 )
                 _
                 # Group 3, Species Name
                 (
-                    [a-zA-Z0-9]{1,5}
+                    [[:alnum:]]{1,5}
                 )
             )
             \z
@@ -219,23 +239,22 @@ impl FieldRegex for TaxonomyRegex {
 
 // FASTA HEADER
 
-/// Regular expression to validate and extract FASTA headers.
-pub struct FastaHeaderRegex;
+/// Regular expression to validate and extract SwissProt FASTA headers.
+pub struct SwissProtHeaderRegex;
 
-impl FastaHeaderRegex {
+impl SwissProtHeaderRegex {
     /// Hard-coded index fields for data extraction.
     pub const ACCESSION_INDEX: usize = 2;
     pub const MNEMONIC_INDEX: usize = 3;
     pub const NAME_INDEX: usize = 4;
     pub const ORGANISM_INDEX: usize = 5;
-    pub const GENE_INDEX: usize = 6;
-    pub const PE_INDEX: usize = 7;
-    pub const SV_INDEX: usize = 8;
+    pub const TAXONOMY_INDEX: usize = 6;
+    pub const GENE_INDEX: usize = 7;
+    pub const PE_INDEX: usize = 8;
+    pub const SV_INDEX: usize = 9;
 }
 
-impl FieldRegex for FastaHeaderRegex {
-    // TODO(ahuszagh)
-    //  Also have to deal with >tr
+impl FieldRegex for SwissProtHeaderRegex {
     fn validate() -> &'static Regex {
         lazy_regex!(r"(?x)(?m)
              \A
@@ -246,20 +265,28 @@ impl FieldRegex for FastaHeaderRegex {
                 )
                 \|
                 (?:
-                    (?:[a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5})?
+                    (?:[[:alnum:]]{1,5}_[[:alnum:]]{1,5})?
                 )
                 \s
                 (?:
-                    .*
+                    .*?
                 )
                 \sOS=
                 (?:
-                    .*
+                    .*?
                 )
-                \sGN=
                 (?:
-                    [[:alnum:]-_\x20/*.@:();'$+]*
-                )
+                    \sOX=
+                    (?:
+                        \d*
+                    )
+                )?
+                (?:
+                    \sGN=
+                    (?:
+                        [[:alnum:]-_\x20/*.@:();'$+]*
+                    )
+                )?
                 \sPE=
                 (?:
                     [[:digit:]]+
@@ -286,31 +313,186 @@ impl FieldRegex for FastaHeaderRegex {
                 )
                 \|
                 # Group 3, Mnemonic Identifier
+                # The first part must be {1,5} alnum characters in SwissProt
                 (
-                    (?:[a-zA-Z0-9]{1,5}_[a-zA-Z0-9]{1,5})?
+                    (?:[[:alnum:]]{1,5}_[[:alnum:]]{1,5})?
                 )
                 \s
                 #Group 4, Protein Name
                 (
-                    .*
+                    .*?
                 )
                 \sOS=
                 # Group 5, Organism Name
                 (
-                    .*
+                    .*?
                 )
-                \sGN=
-                # Group 6, Gene Name
-                (
-                    [[:alnum:]-_\x20/*.@:();'$+]*
-                )
+                (?:
+                    \sOX=
+                    # Group 6, Taxonomy ID
+                    (
+                        \d*
+                    )
+                )?
+                (?:
+                    \sGN=
+                    # Group 7, Gene Name
+                    (
+                        [[:alnum:]-_\x20/*.@:();'$+]*
+                    )
+                )?
                 \sPE=
-                # Group 7, Protein Evidence
+                # Group 8, Protein Evidence
                 (
                     [[:digit:]]+
                 )
                 \sSV=
-                # Group 8, Sequence Version
+                # Group 9, Sequence Version
+                (
+                    [[:digit:]]+
+                )
+            )
+        ");
+        &REGEX
+    }
+}
+
+/// Regular expression to validate and extract TrEMBL FASTA headers.
+pub struct TrEMBLHeaderRegex;
+
+impl TrEMBLHeaderRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const ACCESSION_INDEX: usize = 2;
+    pub const MNEMONIC_INDEX: usize = 3;
+    pub const NAME_INDEX: usize = 4;
+    pub const ORGANISM_INDEX: usize = 5;
+    pub const TAXONOMY_INDEX: usize = 6;
+    pub const GENE_INDEX: usize = 7;
+    pub const PE_INDEX: usize = 8;
+    pub const SV_INDEX: usize = 9;
+}
+
+impl FieldRegex for TrEMBLHeaderRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(r"(?x)(?m)
+             \A
+            (?:
+                >tr\|
+                (?:
+                    (?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})?
+                )
+                \|
+                (?:
+                    (?:
+                        (?:
+                            (?:
+                                [[:alnum:]]{1,5}
+                            )
+                            |
+                            (?:
+                                [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                            )
+                        )
+                        _
+                        (?:
+                            [[:alnum:]]{1,5}
+                        )
+                    )?
+                )
+                \s
+                (?:
+                    .*??
+                )
+                \sOS=
+                (?:
+                    .*??
+                )
+                (?:
+                    \sOX=
+                    (?:
+                        \d*
+                    )
+                )?
+                (?:
+                    \sGN=
+                    (?:
+                        [[:alnum:]-_\x20/*.@:();'$+]*
+                    )
+                )?
+                \sPE=
+                (?:
+                    [[:digit:]]+
+                )
+                \sSV=
+                (?:
+                    [[:digit:]]+
+                )
+            )
+            $
+        ");
+        &REGEX
+    }
+
+    fn extract() -> &'static Regex {
+        lazy_regex!(r"(?x)(?m)
+            \A
+            # Group 1, the entire header.
+            (
+                >tr\|
+                # Group 2, Accession Number
+                (
+                    (?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})?
+                )
+                \|
+                # Group 3, Mnemonic Identifier
+                (
+                    (?:
+                        (?:
+                            (?:
+                                [[:alnum:]]{1,5}
+                            )
+                            |
+                            (?:
+                                [OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}
+                            )
+                        )
+                        _
+                        (?:
+                            [[:alnum:]]{1,5}
+                        )
+                    )?
+                )
+                \s
+                #Group 4, Protein Name
+                (
+                    .*?
+                )
+                \sOS=
+                # Group 5, Organism Name
+                (
+                    .*?
+                )
+                (?:
+                    \sOX=
+                    # Group 6, Taxonomy ID
+                    (
+                        \d*
+                    )
+                )?
+                (?:
+                    \sGN=
+                    # Group 7, Gene Name
+                    (
+                        [[:alnum:]-_\x20/*.@:();'$+]*
+                    )
+                )?
+                \sPE=
+                # Group 8, Protein Evidence
+                (
+                    [[:digit:]]+
+                )
+                \sSV=
+                # Group 9, Sequence Version
                 (
                     [[:digit:]]+
                 )
@@ -328,10 +510,25 @@ pub fn capture_as_str<'t>(captures: &'t Captures, index: usize) -> &'t str {
     captures.get(index).unwrap().as_str()
 }
 
+/// Convert optional capture group to `&str`.
+#[inline(always)]
+pub fn optional_capture_as_str<'t>(captures: &'t Captures, index: usize) -> &'t str {
+    match captures.get(index) {
+        None    => "",
+        Some(v) => v.as_str(),
+    }
+}
+
 /// Convert capture group to `String`.
 #[inline(always)]
 pub fn capture_as_string(captures: &Captures, index: usize) -> String {
     String::from(capture_as_str(captures, index))
+}
+
+/// Convert optional capture group to `String`.
+#[inline(always)]
+pub fn optional_capture_as_string(captures: &Captures, index: usize) -> String {
+    String::from(optional_capture_as_str(captures, index))
 }
 
 // TESTS
@@ -410,16 +607,19 @@ mod tests {
         check_regex::<T>("G3P_RABIT", true);
         check_regex::<T>("1433B_HUMAN", true);
         check_regex::<T>("ENO_ACTSZ", true);
+        check_regex::<T>("A0A024R832_HUMAN", true);
 
         // valid + 1 letter
         check_regex::<T>("G3P_RABITX", false);
         check_regex::<T>("1433B_HUMANX", false);
+        check_regex::<T>("A0A024R832_HUMANX", false);
 
         // valid - group
         check_regex::<T>("_RABIT", false);
         check_regex::<T>("G3P_", false);
         check_regex::<T>("_HUMAN", false);
         check_regex::<T>("1433B_", false);
+        check_regex::<T>("A0A024R832_", false);
 
         check_regex::<T>(" G3P_RABIT", false);
         check_regex::<T>("G3P_RABIT ", false);
@@ -534,8 +734,8 @@ mod tests {
     }
 
     #[test]
-    fn fasta_header_regex() {
-        type T = FastaHeaderRegex;
+    fn swissprot_header_regex() {
+        type T = SwissProtHeaderRegex;
 
         // empty
         check_regex::<T>("", false);
@@ -545,24 +745,70 @@ mod tests {
         check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\n", true);
         check_regex::<T>(">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4", true);
         check_regex::<T>(">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\n", true);
+        check_regex::<T>(">sp|Q9N2K0|ENH1_HUMAN HERV-H_2q24.3 provirus ancestral Env polyprotein OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex::<T>(">sp|Q6ZN92|DUTL_HUMAN Putative inactive deoxyuridine 5\'-triphosphate nucleotidohydrolase-like protein FLJ16323 OS=Homo sapiens OX=9606 PE=5 SV=1", true);
 
         // invalid
         check_regex::<T>(">up|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
         check_regex::<T>(">sp|PX6406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
         check_regex::<T>(">sp|P46406|G3P_RABITS Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
-        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAP[DH PE=1 SV=3", false);
         check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1X SV=3", false);
         check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=X3", false);
 
         // extract
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", 1, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::ACCESSION_INDEX, "P46406");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::MNEMONIC_INDEX, "G3P_RABIT");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::NAME_INDEX, "Glyceraldehyde-3-phosphate dehydrogenase");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::ORGANISM_INDEX, "Oryctolagus cuniculus");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::GENE_INDEX, "GAPDH");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::PE_INDEX, "1");
-        extract_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", T::SV_INDEX, "3");
+        static GAPDH: &'static str = ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3";
+        extract_regex::<T>(GAPDH, 1, GAPDH);
+        extract_regex::<T>(GAPDH, T::ACCESSION_INDEX, "P46406");
+        extract_regex::<T>(GAPDH, T::MNEMONIC_INDEX, "G3P_RABIT");
+        extract_regex::<T>(GAPDH, T::NAME_INDEX, "Glyceraldehyde-3-phosphate dehydrogenase");
+        extract_regex::<T>(GAPDH, T::ORGANISM_INDEX, "Oryctolagus cuniculus");
+        extract_regex::<T>(GAPDH, T::GENE_INDEX, "GAPDH");
+        extract_regex::<T>(GAPDH, T::PE_INDEX, "1");
+        extract_regex::<T>(GAPDH, T::SV_INDEX, "3");
+
+        // extract (no gene name)
+        static ENH1: &'static str = ">sp|Q9N2K0|ENH1_HUMAN HERV-H_2q24.3 provirus ancestral Env polyprotein OS=Homo sapiens OX=9606 PE=2 SV=1";
+        extract_regex::<T>(ENH1, 1, ENH1);
+        extract_regex::<T>(ENH1, T::ACCESSION_INDEX, "Q9N2K0");
+        extract_regex::<T>(ENH1, T::MNEMONIC_INDEX, "ENH1_HUMAN");
+        extract_regex::<T>(ENH1, T::NAME_INDEX, "HERV-H_2q24.3 provirus ancestral Env polyprotein");
+        extract_regex::<T>(ENH1, T::ORGANISM_INDEX, "Homo sapiens");
+        extract_regex::<T>(ENH1, T::TAXONOMY_INDEX, "9606");
+        extract_regex::<T>(ENH1, T::PE_INDEX, "2");
+        extract_regex::<T>(ENH1, T::SV_INDEX, "1");
+    }
+
+    #[test]
+    fn trembl_header_regex() {
+        type T = TrEMBLHeaderRegex;
+
+        // empty
+        check_regex::<T>("", false);
+
+        // valid
+        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", true);
+        check_regex::<T>(">tr|O14861|O14861_HUMAN Zinc finger protein (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex::<T>(">tr|Q53FP0|Q53FP0_HUMAN Pyridoxine 5\'-phosphate oxidase variant (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex::<T>(">tr|B7ZKX2|B7ZKX2_HUMAN Uncharacterized protein OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex::<T>(">tr|Q59FB0|Q59FB0_HUMAN PREDICTED: KRAB domain only 2 variant (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+
+        // invalid
+        check_regex::<T>(">ur|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
+        check_regex::<T>(">tr|AXA2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
+        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMANS MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
+        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4X SV=1", false);
+        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=X1", false);
+
+        // extract
+        static O14861: &'static str = ">tr|O14861|O14861_HUMAN Zinc finger protein (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1";
+        extract_regex::<T>(O14861, 1, O14861);
+        extract_regex::<T>(O14861, T::ACCESSION_INDEX, "O14861");
+        extract_regex::<T>(O14861, T::MNEMONIC_INDEX, "O14861_HUMAN");
+        extract_regex::<T>(O14861, T::NAME_INDEX, "Zinc finger protein (Fragment)");
+        extract_regex::<T>(O14861, T::ORGANISM_INDEX, "Homo sapiens");
+        extract_regex::<T>(O14861, T::TAXONOMY_INDEX, "9606");
+        extract_regex::<T>(O14861, T::PE_INDEX, "2");
+        extract_regex::<T>(O14861, T::SV_INDEX, "1");
     }
 
     fn all_dir() -> PathBuf {
@@ -596,8 +842,8 @@ mod tests {
         path.push("mnemonic");
         let reader = BufReader::new(File::open(path).unwrap());
 
-        for id in reader.lines() {
-            assert!(MnemonicRegex::validate().is_match(&id.unwrap()));
+        for mnemonic in reader.lines() {
+            assert!(MnemonicRegex::validate().is_match(&mnemonic.unwrap()));
         }
     }
 
@@ -652,14 +898,19 @@ mod tests {
     #[test]
     #[ignore]
     fn human_fasta_header_regex() {
-        // TODO(ahuszagh)
-        //  Doesn't actually work due to ">tr", need to restore
-//        let mut path = human_dir();
-//        path.push("header");
-//        let reader = BufReader::new(File::open(path).unwrap());
-//
-//        for header in reader.lines() {
-//            assert!(FastaHeaderRegex::validate().is_match(&header.unwrap()));
-//        }
+        let mut path = human_dir();
+        path.push("header");
+        let reader = BufReader::new(File::open(path).unwrap());
+
+        for header in reader.lines() {
+            let header = header.unwrap();
+            if header.starts_with(">sp") {
+                assert!(SwissProtHeaderRegex::validate().is_match(&header));
+            } else if header.starts_with(">tr") {
+                assert!(TrEMBLHeaderRegex::validate().is_match(&header));
+            } else {
+                panic!("Unknown FASTA format.");
+            }
+        }
     }
 }
