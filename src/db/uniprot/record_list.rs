@@ -10,7 +10,10 @@ pub type RecordList = Vec<Record>;
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use std::fs::File;
+    use std::io::{BufReader, Cursor};
+    use std::path::PathBuf;
+    use test::testdata_dir;
     use traits::*;
     use super::*;
     use super::super::test::*;
@@ -215,5 +218,24 @@ mod tests {
         assert_eq!(&v[0], &z[0]);
         assert_eq!(v[1], y[1]);
         assert_eq!(z.len(), 1);
+    }
+
+    fn fasta_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/fasta");
+        dir
+    }
+
+    #[test]
+    #[ignore]
+    fn list_fasta_test() {
+        let mut path = fasta_dir();
+        path.push("list.fasta");
+        let mut reader = BufReader::new(File::open(path).unwrap());
+
+        let expected = vec!["A0A2U8RNL1", "P02769", "P46406", "Q53FP0"];
+        let v = RecordList::from_fasta(&mut reader).unwrap();
+        let actual: Vec<String> = v.iter().map(|r| r.id.clone()).collect();
+        assert_eq!(expected, actual);
     }
 }

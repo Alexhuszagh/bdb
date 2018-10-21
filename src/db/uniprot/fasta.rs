@@ -650,12 +650,8 @@ impl FastaCollection for RecordList {
 
 #[cfg(test)]
 mod tests {
-    // TODO(ahuszagh)
-    //      Fix these warnings...
-    #[allow(unused_imports)]
     use std::fs::File;
-    #[allow(unused_imports)]
-    use std::io::{BufRead, BufReader, Cursor};
+    use std::io::{BufReader, Cursor};
     use std::path::PathBuf;
     use test::testdata_dir;
     use super::*;
@@ -807,8 +803,11 @@ mod tests {
     fn human_fasta_test() {
         let mut path = fasta_dir();
         path.push("human.fasta");
-//        let reader = BufReader::new(File::open(path).unwrap());
-// TODO(ahuszagh)
-//  Wait... there's not going to be 2 lines in between entries.... FML...
+        let reader = BufReader::new(File::open(path).unwrap());
+        let iter = FastaRecordIter::new(reader);
+
+        // do nothing, just check it parses.
+        for _ in iter {
+        }
     }
 }
