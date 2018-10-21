@@ -100,7 +100,7 @@ impl<T: BufRead> Iterator for FastaIter<T> {
 /// Used to prevent reallocations during record exportation to string,
 /// to minimize costly library calls.
 #[inline]
-pub fn estimate_record_size(record: &Record) -> usize {
+fn estimate_record_size(record: &Record) -> usize {
     // The vocabulary size is actually 20, overestimate to adjust for number export.
     const FASTA_VOCABULARY_SIZE: usize = 40;
     FASTA_VOCABULARY_SIZE +
@@ -114,8 +114,8 @@ pub fn estimate_record_size(record: &Record) -> usize {
 
 /// Estimate the size of a FASTA record list.
 #[inline]
-pub fn estimate_list_size(list: &RecordList) -> usize {
-    list.iter().fold(0, |sum, x| sum + x.estimate_fasta_size())
+fn estimate_list_size(list: &RecordList) -> usize {
+    list.iter().fold(0, |sum, x| sum + estimate_record_size(x))
 }
 
 // WRITER STATE

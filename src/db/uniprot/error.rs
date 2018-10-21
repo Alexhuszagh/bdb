@@ -6,6 +6,9 @@ use std::fmt;
 use std::num::ParseIntError;
 use std::str::Utf8Error;
 
+#[cfg(feature = "xml")]
+use quick_xml::Error as XmlError;
+
 use util::ErrorType;
 
 // TYPE
@@ -34,6 +37,9 @@ pub enum UniProtErrorKind {
     Io(io::Error),
     Utf8(Utf8Error),
     ParseInt(ParseIntError),
+
+    #[cfg(feature = "xml")]
+    Xml(XmlError),
 }
 
 // CONVERSIONS
@@ -53,6 +59,13 @@ impl From<Utf8Error> for UniProtError {
 impl From<ParseIntError> for UniProtError {
     fn from(err: ParseIntError) -> Self {
         UniProtError(UniProtErrorKind::ParseInt(err))
+    }
+}
+
+#[cfg(feature = "xml")]
+impl From<XmlError> for UniProtError {
+    fn from(err: XmlError) -> Self {
+        UniProtError(UniProtErrorKind::Xml(err))
     }
 }
 
@@ -118,6 +131,23 @@ impl Error for UniProtError {
             UniProtErrorKind::Io(ref err) => err.description(),
             UniProtErrorKind::Utf8(ref err) => err.description(),
             UniProtErrorKind::ParseInt(ref err) => err.description(),
+
+            #[cfg(feature = "xml")]
+            UniProtErrorKind::Xml(ref err) => match err {
+                XmlError::Io(ref e) => e.description(),
+                XmlError::Utf8(ref e) => e.description(),
+                XmlError::UnexpectedEof(_) => "xml: unexpected EOF",
+                XmlError::EndEventMismatch {expected: _, found: _} => "xml: end event mismatch",
+                XmlError::UnexpectedToken(_) => "xml: unexpected token",
+                XmlError::UnexpectedBang => "xml: unexpected '!'",
+                XmlError::TextNotFound => "xml: expected Event::Text",
+                XmlError::XmlDeclWithoutVersion(_) => "xml: missing version in declaration",
+                XmlError::NameWithQuote(_) => "xml: key cannot contain quote",
+                XmlError::NoEqAfterName(_) => "xml: no '=' or ' '  after key",
+                XmlError::UnquotedValue(_) => "xml: value is not quoted",
+                XmlError::DuplicatedAttribute(_, _) => "xml: duplicate attribute found",
+                XmlError::EscapeError(_) => "xml: escape error",
+            },
         }
     }
 
@@ -126,6 +156,14 @@ impl Error for UniProtError {
             UniProtErrorKind::Io(ref err) => Some(err),
             UniProtErrorKind::Utf8(ref err) => Some(err),
             UniProtErrorKind::ParseInt(ref err) => Some(err),
+
+            #[cfg(feature = "xml")]
+            UniProtErrorKind::Xml(ref err) => match err {
+                XmlError::Io(ref e) => Some(e),
+                XmlError::Utf8(ref e) => Some(e),
+                _  => None,
+            },
+
             _ => None
         }
     }

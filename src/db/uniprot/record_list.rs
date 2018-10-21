@@ -61,6 +61,7 @@ mod tests {
         assert_eq!(y.estimate_fasta_size(), 1143);
     }
 
+    #[cfg(feature = "fasta")]
     #[test]
     fn fasta_list() {
         let v: RecordList = vec![gapdh(), bsa()];
@@ -140,6 +141,7 @@ mod tests {
         assert_eq!(z.len(), 1);
     }
 
+    #[cfg(feature = "csv")]
     #[test]
     fn csv_list() {
         let v: RecordList = vec![gapdh(), bsa()];
@@ -220,12 +222,14 @@ mod tests {
         assert_eq!(z.len(), 1);
     }
 
+    #[cfg(feature = "fasta")]
     fn fasta_dir() -> PathBuf {
         let mut dir = testdata_dir();
         dir.push("uniprot/fasta");
         dir
     }
 
+    #[cfg(feature = "fasta")]
     #[test]
     #[ignore]
     fn list_fasta_test() {
@@ -238,4 +242,28 @@ mod tests {
         let actual: Vec<String> = v.iter().map(|r| r.id.clone()).collect();
         assert_eq!(expected, actual);
     }
+
+    #[cfg(feature = "csv")]
+    fn csv_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/csv");
+        dir
+    }
+
+    #[cfg(feature = "csv")]
+    #[test]
+    #[ignore]
+    fn list_csv_test() {
+        let mut path = csv_dir();
+        path.push("list.csv");
+        let mut reader = File::open(path).unwrap();
+
+        let expected = vec!["A0A2U8RNL1", "P02769", "P46406", "Q53FP0"];
+        let v = RecordList::from_csv(&mut reader, b'\t').unwrap();
+        let actual: Vec<String> = v.iter().map(|r| r.id.clone()).collect();
+        assert_eq!(expected, actual);
+    }
+
+    // TODO(ahuszagh)
+    //  Implement the XML unittests.
 }

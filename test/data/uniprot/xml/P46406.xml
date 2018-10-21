@@ -1,0 +1,949 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uniprot xmlns="http://uniprot.org/uniprot" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://uniprot.org/uniprot http://www.uniprot.org/support/docs/uniprot.xsd">
+<entry dataset="Swiss-Prot" created="1995-11-01" modified="2018-06-20" version="143">
+<accession>P46406</accession>
+<accession>Q4AC92</accession>
+<name>G3P_RABIT</name>
+<protein>
+<recommendedName>
+<fullName>Glyceraldehyde-3-phosphate dehydrogenase</fullName>
+<shortName>GAPDH</shortName>
+<ecNumber>1.2.1.12</ecNumber>
+</recommendedName>
+<alternativeName>
+<fullName>Peptidyl-cysteine S-nitrosylase GAPDH</fullName>
+<ecNumber>2.6.99.-</ecNumber>
+</alternativeName>
+</protein>
+<gene>
+<name type="primary">GAPDH</name>
+<name type="synonym">GAPD</name>
+</gene>
+<organism>
+<name type="scientific">Oryctolagus cuniculus</name>
+<name type="common">Rabbit</name>
+<dbReference type="NCBI Taxonomy" id="9986"/>
+<lineage>
+<taxon>Eukaryota</taxon>
+<taxon>Metazoa</taxon>
+<taxon>Chordata</taxon>
+<taxon>Craniata</taxon>
+<taxon>Vertebrata</taxon>
+<taxon>Euteleostomi</taxon>
+<taxon>Mammalia</taxon>
+<taxon>Eutheria</taxon>
+<taxon>Euarchontoglires</taxon>
+<taxon>Glires</taxon>
+<taxon>Lagomorpha</taxon>
+<taxon>Leporidae</taxon>
+<taxon>Oryctolagus</taxon>
+</lineage>
+</organism>
+<reference key="1">
+<citation type="journal article" date="1995" name="Gene" volume="163" first="325" last="326">
+<title>Sequence of the rabbit glyceraldehyde-3-phosphate dehydrogenase-encoding cDNA.</title>
+<authorList>
+<person name="Applequist S.E."/>
+<person name="Keyna U."/>
+<person name="Calvin M.R."/>
+<person name="Beck-Engeser G.B."/>
+<person name="Raman C."/>
+<person name="Jaeck H.-M."/>
+</authorList>
+<dbReference type="PubMed" id="7590291"/>
+<dbReference type="DOI" id="10.1016/0378-1119(95)00386-K"/>
+</citation>
+<scope>NUCLEOTIDE SEQUENCE [MRNA]</scope>
+<source>
+<tissue>Spleen</tissue>
+</source>
+</reference>
+<reference key="2">
+<citation type="journal article" date="1983" name="Nature" volume="302" first="718" last="721">
+<title>A new troponin T and cDNA clones for 13 different muscle proteins, found by shotgun sequencing.</title>
+<authorList>
+<person name="Putney S.D."/>
+<person name="Herlihy W.C."/>
+<person name="Schimmel P.R."/>
+</authorList>
+<dbReference type="PubMed" id="6687628"/>
+<dbReference type="DOI" id="10.1038/302718a0"/>
+</citation>
+<scope>NUCLEOTIDE SEQUENCE [MRNA] OF 33-79</scope>
+</reference>
+<reference key="3">
+<citation type="journal article" date="2006" name="Stem Cells" volume="24" first="86" last="94">
+<title>Limbal epithelial side-population cells have stem cell-like properties, including quiescent state.</title>
+<authorList>
+<person name="Umemoto T."/>
+<person name="Yamato M."/>
+<person name="Nishida K."/>
+<person name="Yang J."/>
+<person name="Tano Y."/>
+<person name="Okano T."/>
+</authorList>
+<dbReference type="PubMed" id="16150918"/>
+<dbReference type="DOI" id="10.1634/stemcells.2005-0064"/>
+</citation>
+<scope>NUCLEOTIDE SEQUENCE [MRNA] OF 107-267</scope>
+</reference>
+<reference key="4">
+<citation type="journal article" date="2003" name="Acta Crystallogr. D" volume="59" first="2218" last="2227">
+<title>Structure of rabbit-muscle glyceraldehyde-3-phosphate dehydrogenase.</title>
+<authorList>
+<person name="Cowan-Jacob S.W."/>
+<person name="Kaufmann M."/>
+<person name="Anselmo A.N."/>
+<person name="Stark W."/>
+<person name="Gruetter M.G."/>
+</authorList>
+<dbReference type="PubMed" id="14646080"/>
+<dbReference type="DOI" id="10.1107/S0907444903020493"/>
+</citation>
+<scope>X-RAY CRYSTALLOGRAPHY (2.4 ANGSTROMS) IN COMPLEX WITH NAD</scope>
+<scope>SUBUNIT</scope>
+</reference>
+<comment type="function">
+<text evidence="2">Has both glyceraldehyde-3-phosphate dehydrogenase and nitrosylase activities, thereby playing a role in glycolysis and nuclear functions, respectively. Glyceraldehyde-3-phosphate dehydrogenase is a key enzyme in glycolysis that catalyzes the first step of the pathway by converting D-glyceraldehyde 3-phosphate (G3P) into 3-phospho-D-glyceroyl phosphate. Modulates the organization and assembly of the cytoskeleton. Facilitates the CHP1-dependent microtubule and membrane associations through its ability to stimulate the binding of CHP1 to microtubules. Also participates in nuclear events including transcription, RNA transport, DNA replication and apoptosis. Nuclear functions are probably due to the nitrosylase activity that mediates cysteine S-nitrosylation of nuclear target proteins such as SIRT1, HDAC2 and PRKDC. Component of the GAIT (gamma interferon-activated inhibitor of translation) complex which mediates interferon-gamma-induced transcript-selective translation inhibition in inflammation processes. Upon interferon-gamma treatment assembles into the GAIT complex which binds to stem loop-containing GAIT elements in the 3'-UTR of diverse inflammatory mRNAs (such as ceruplasmin) and suppresses their translation (By similarity).</text>
+</comment>
+<comment type="catalytic activity">
+<text evidence="5">D-glyceraldehyde 3-phosphate + phosphate + NAD(+) = 3-phospho-D-glyceroyl phosphate + NADH.</text>
+</comment>
+<comment type="pathway">
+<text>Carbohydrate degradation; glycolysis; pyruvate from D-glyceraldehyde 3-phosphate: step 1/5.</text>
+</comment>
+<comment type="subunit">
+<text evidence="2 3">Homotetramer. Interacts with EIF1AD, USP25, PRKCI and WARS. Interacts with TPPP; the interaction is direct. Interacts (when S-nitrosylated) with SIAH1; leading to nuclear translocation. Interacts with RILPL1/GOSPEL, leading to prevent the interaction between GAPDH and SIAH1 and prevent nuclear translocation. Interacts with CHP1; the interaction increases the binding of CHP1 with microtubules. Associates with microtubules. Interacts with phosphorylated RPL13A (By similarity). Component of the GAIT complex. Interacts with FKBP6; leading to inhibit GAPDH catalytic activity (By similarity).</text>
+</comment>
+<comment type="interaction">
+<interactant intactId="EBI-2750726"/>
+<interactant intactId="EBI-917838">
+<id>P61023</id>
+<label>Chp1</label>
+</interactant>
+<organismsDiffer>true</organismsDiffer>
+<experiments>2</experiments>
+</comment>
+<comment type="subcellular location">
+<subcellularLocation>
+<location evidence="2">Cytoplasm</location>
+<location evidence="2">Cytosol</location>
+</subcellularLocation>
+<subcellularLocation>
+<location evidence="2">Nucleus</location>
+</subcellularLocation>
+<subcellularLocation>
+<location evidence="2">Cytoplasm</location>
+<location evidence="2">Cytoskeleton</location>
+</subcellularLocation>
+<text evidence="2">Translocates to the nucleus following S-nitrosylation and interaction with SIAH1, which contains a nuclear localization signal.</text>
+</comment>
+<comment type="domain">
+<text evidence="3">The [IL]-x-C-x-x-[DE] motif is a proposed target motif for cysteine S-nitrosylation mediated by the iNOS-S100A8/A9 transnitrosylase complex.</text>
+</comment>
+<comment type="PTM">
+<text evidence="2">ISGylated.</text>
+</comment>
+<comment type="PTM">
+<text evidence="2 3">S-nitrosylation of Cys-150 leads to interaction with SIAH1, followed by translocation to the nucleus. S-nitrosylation of Cys-245 is induced by interferon-gamma and LDL(ox) implicating the iNOS-S100A8/9 transnitrosylase complex and seems to prevent interaction with phosphorylated RPL13A and to interfere with GAIT complex activity (By similarity).</text>
+</comment>
+<comment type="PTM">
+<text evidence="2">Sulfhydration at Cys-150 increases catalytic activity.</text>
+</comment>
+<comment type="PTM">
+<text evidence="3">Oxidative stress can promote the formation of high molecular weight disulfide-linked GAPDH aggregates, through a process called nucleocytoplasmic coagulation.</text>
+</comment>
+<comment type="similarity">
+<text evidence="7">Belongs to the glyceraldehyde-3-phosphate dehydrogenase family.</text>
+</comment>
+<comment type="online information" name="Worthington enzyme manual">
+<link uri="http://www.worthington-biochem.com/GAPD/"/>
+</comment>
+<dbReference type="EC" id="1.2.1.12"/>
+<dbReference type="EC" id="2.6.99.-"/>
+<dbReference type="EMBL" id="L23961">
+<property type="protein sequence ID" value="AAA85218.1"/>
+<property type="molecule type" value="mRNA"/>
+</dbReference>
+<dbReference type="EMBL" id="V00884">
+<property type="protein sequence ID" value="CAA24253.1"/>
+<property type="molecule type" value="mRNA"/>
+</dbReference>
+<dbReference type="EMBL" id="AB231852">
+<property type="protein sequence ID" value="BAE19661.1"/>
+<property type="molecule type" value="mRNA"/>
+</dbReference>
+<dbReference type="PIR" id="JC4309">
+<property type="entry name" value="JC4309"/>
+</dbReference>
+<dbReference type="RefSeq" id="NP_001075722.1">
+<property type="nucleotide sequence ID" value="NM_001082253.1"/>
+</dbReference>
+<dbReference type="UniGene" id="Ocu.87"/>
+<dbReference type="PDB" id="1J0X">
+<property type="method" value="X-ray"/>
+<property type="resolution" value="2.40"/>
+<property type="chains" value="O/P/Q/R=2-333"/>
+</dbReference>
+<dbReference type="PDBsum" id="1J0X"/>
+<dbReference type="ProteinModelPortal" id="P46406"/>
+<dbReference type="SMR" id="P46406"/>
+<dbReference type="BioGrid" id="1172097">
+<property type="interactions" value="1"/>
+</dbReference>
+<dbReference type="DIP" id="DIP-6005N"/>
+<dbReference type="IntAct" id="P46406">
+<property type="interactions" value="3"/>
+</dbReference>
+<dbReference type="MINT" id="P46406"/>
+<dbReference type="STRING" id="9986.ENSOCUP00000017094"/>
+<dbReference type="BindingDB" id="P46406"/>
+<dbReference type="ChEMBL" id="CHEMBL1075199"/>
+<dbReference type="Allergome" id="12131">
+<property type="allergen name" value="Ory c GAPDH"/>
+</dbReference>
+<dbReference type="MoonProt" id="P46406"/>
+<dbReference type="CarbonylDB" id="P46406"/>
+<dbReference type="SwissPalm" id="P46406"/>
+<dbReference type="PRIDE" id="P46406"/>
+<dbReference type="GeneID" id="100009074"/>
+<dbReference type="KEGG" id="ocu:100009074"/>
+<dbReference type="CTD" id="2597"/>
+<dbReference type="eggNOG" id="KOG0657">
+<property type="taxonomic scope" value="Eukaryota"/>
+</dbReference>
+<dbReference type="eggNOG" id="COG0057">
+<property type="taxonomic scope" value="LUCA"/>
+</dbReference>
+<dbReference type="HOGENOM" id="HOG000071678"/>
+<dbReference type="HOVERGEN" id="HBG000227"/>
+<dbReference type="InParanoid" id="P46406"/>
+<dbReference type="KO" id="K00134"/>
+<dbReference type="SABIO-RK" id="P46406"/>
+<dbReference type="UniPathway" id="UPA00109">
+<property type="reaction ID" value="UER00184"/>
+</dbReference>
+<dbReference type="EvolutionaryTrace" id="P46406"/>
+<dbReference type="PRO" id="PR:P46406"/>
+<dbReference type="Proteomes" id="UP000001811">
+<property type="component" value="Unplaced"/>
+</dbReference>
+<dbReference type="GO" id="GO:0005737">
+<property type="term" value="C:cytoplasm"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0005829">
+<property type="term" value="C:cytosol"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0097452">
+<property type="term" value="C:GAIT complex"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0015630">
+<property type="term" value="C:microtubule cytoskeleton"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0005634">
+<property type="term" value="C:nucleus"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0004365">
+<property type="term" value="F:glyceraldehyde-3-phosphate dehydrogenase (NAD+) (phosphorylating) activity"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0008017">
+<property type="term" value="F:microtubule binding"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0051287">
+<property type="term" value="F:NAD binding"/>
+<property type="evidence" value="ECO:0000501"/>
+<property type="project" value="InterPro"/>
+</dbReference>
+<dbReference type="GO" id="GO:0050661">
+<property type="term" value="F:NADP binding"/>
+<property type="evidence" value="ECO:0000501"/>
+<property type="project" value="InterPro"/>
+</dbReference>
+<dbReference type="GO" id="GO:0035605">
+<property type="term" value="F:peptidyl-cysteine S-nitrosylase activity"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0006006">
+<property type="term" value="P:glucose metabolic process"/>
+<property type="evidence" value="ECO:0000501"/>
+<property type="project" value="InterPro"/>
+</dbReference>
+<dbReference type="GO" id="GO:0006096">
+<property type="term" value="P:glycolytic process"/>
+<property type="evidence" value="ECO:0000501"/>
+<property type="project" value="UniProtKB-UniPathway"/>
+</dbReference>
+<dbReference type="GO" id="GO:0000226">
+<property type="term" value="P:microtubule cytoskeleton organization"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0051402">
+<property type="term" value="P:neuron apoptotic process"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0035606">
+<property type="term" value="P:peptidyl-cysteine S-trans-nitrosylation"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0050821">
+<property type="term" value="P:protein stabilization"/>
+<property type="evidence" value="ECO:0000250"/>
+<property type="project" value="UniProtKB"/>
+</dbReference>
+<dbReference type="GO" id="GO:0006417">
+<property type="term" value="P:regulation of translation"/>
+<property type="evidence" value="ECO:0000501"/>
+<property type="project" value="UniProtKB-KW"/>
+</dbReference>
+<dbReference type="InterPro" id="IPR020831">
+<property type="entry name" value="GlycerAld/Erythrose_P_DH"/>
+</dbReference>
+<dbReference type="InterPro" id="IPR020830">
+<property type="entry name" value="GlycerAld_3-P_DH_AS"/>
+</dbReference>
+<dbReference type="InterPro" id="IPR020829">
+<property type="entry name" value="GlycerAld_3-P_DH_cat"/>
+</dbReference>
+<dbReference type="InterPro" id="IPR020828">
+<property type="entry name" value="GlycerAld_3-P_DH_NAD(P)-bd"/>
+</dbReference>
+<dbReference type="InterPro" id="IPR006424">
+<property type="entry name" value="Glyceraldehyde-3-P_DH_1"/>
+</dbReference>
+<dbReference type="InterPro" id="IPR036291">
+<property type="entry name" value="NAD(P)-bd_dom_sf"/>
+</dbReference>
+<dbReference type="PANTHER" id="PTHR10836">
+<property type="entry name" value="PTHR10836"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="Pfam" id="PF02800">
+<property type="entry name" value="Gp_dh_C"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="Pfam" id="PF00044">
+<property type="entry name" value="Gp_dh_N"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="PIRSF" id="PIRSF000149">
+<property type="entry name" value="GAP_DH"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="PRINTS" id="PR00078">
+<property type="entry name" value="G3PDHDRGNASE"/>
+</dbReference>
+<dbReference type="SMART" id="SM00846">
+<property type="entry name" value="Gp_dh_N"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="SUPFAM" id="SSF51735">
+<property type="entry name" value="SSF51735"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="TIGRFAMs" id="TIGR01534">
+<property type="entry name" value="GAPDH-I"/>
+<property type="match status" value="1"/>
+</dbReference>
+<dbReference type="PROSITE" id="PS00071">
+<property type="entry name" value="GAPDH"/>
+<property type="match status" value="1"/>
+</dbReference>
+<proteinExistence type="evidence at protein level"/>
+<keyword id="KW-0002">3D-structure</keyword>
+<keyword id="KW-0007">Acetylation</keyword>
+<keyword id="KW-0013">ADP-ribosylation</keyword>
+<keyword id="KW-0053">Apoptosis</keyword>
+<keyword id="KW-0181">Complete proteome</keyword>
+<keyword id="KW-0963">Cytoplasm</keyword>
+<keyword id="KW-0206">Cytoskeleton</keyword>
+<keyword id="KW-0324">Glycolysis</keyword>
+<keyword id="KW-1017">Isopeptide bond</keyword>
+<keyword id="KW-0488">Methylation</keyword>
+<keyword id="KW-0520">NAD</keyword>
+<keyword id="KW-0539">Nucleus</keyword>
+<keyword id="KW-0560">Oxidoreductase</keyword>
+<keyword id="KW-0597">Phosphoprotein</keyword>
+<keyword id="KW-1185">Reference proteome</keyword>
+<keyword id="KW-0702">S-nitrosylation</keyword>
+<keyword id="KW-0808">Transferase</keyword>
+<keyword id="KW-0810">Translation regulation</keyword>
+<keyword id="KW-0832">Ubl conjugation</keyword>
+<feature type="chain" description="Glyceraldehyde-3-phosphate dehydrogenase" id="PRO_0000145493">
+<location>
+<begin position="1"/>
+<end position="333"/>
+</location>
+</feature>
+<feature type="nucleotide phosphate-binding region" description="NAD" evidence="6">
+<location>
+<begin position="11"/>
+<end position="12"/>
+</location>
+</feature>
+<feature type="region of interest" description="Interaction with WARS" evidence="2">
+<location>
+<begin position="1"/>
+<end position="146"/>
+</location>
+</feature>
+<feature type="region of interest" description="Glyceraldehyde 3-phosphate binding" evidence="2">
+<location>
+<begin position="149"/>
+<end position="151"/>
+</location>
+</feature>
+<feature type="region of interest" description="Glyceraldehyde 3-phosphate binding" evidence="2">
+<location>
+<begin position="209"/>
+<end position="210"/>
+</location>
+</feature>
+<feature type="short sequence motif" description="[IL]-x-C-x-x-[DE] motif" evidence="3">
+<location>
+<begin position="243"/>
+<end position="248"/>
+</location>
+</feature>
+<feature type="active site" description="Nucleophile">
+<location>
+<position position="150"/>
+</location>
+</feature>
+<feature type="binding site" description="NAD" evidence="6">
+<location>
+<position position="33"/>
+</location>
+</feature>
+<feature type="binding site" description="NAD; via carbonyl oxygen" evidence="6">
+<location>
+<position position="78"/>
+</location>
+</feature>
+<feature type="binding site" description="NAD" evidence="2">
+<location>
+<position position="120"/>
+</location>
+</feature>
+<feature type="binding site" description="Glyceraldehyde 3-phosphate" evidence="2">
+<location>
+<position position="180"/>
+</location>
+</feature>
+<feature type="binding site" description="Glyceraldehyde 3-phosphate" evidence="2">
+<location>
+<position position="232"/>
+</location>
+</feature>
+<feature type="binding site" description="NAD" evidence="6">
+<location>
+<position position="314"/>
+</location>
+</feature>
+<feature type="site" description="Activates thiol group during catalysis">
+<location>
+<position position="177"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine" evidence="3">
+<location>
+<position position="3"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="7"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphotyrosine" evidence="3">
+<location>
+<position position="40"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-acetyllysine" evidence="3">
+<location>
+<position position="59"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="62"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine" evidence="3">
+<location>
+<position position="64"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="68"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="73"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphoserine" evidence="3">
+<location>
+<position position="120"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphoserine" evidence="3">
+<location>
+<position position="146"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="147"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphoserine" evidence="3">
+<location>
+<position position="149"/>
+</location>
+</feature>
+<feature type="modified residue" description="ADP-ribosylcysteine; by autocatalysis; in irreversibly inhibited form" evidence="2">
+<location>
+<position position="150"/>
+</location>
+</feature>
+<feature type="modified residue" description="Cysteine persulfide" evidence="2">
+<location>
+<position position="150"/>
+</location>
+</feature>
+<feature type="modified residue" description="S-nitrosocysteine; in reversibly inhibited form" evidence="4">
+<location>
+<position position="150"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="151"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="153"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="175"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="180"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="182"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine; alternate" evidence="3">
+<location>
+<position position="192"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-acetyllysine; alternate" evidence="3">
+<location>
+<position position="192"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-malonyllysine; alternate" evidence="2">
+<location>
+<position position="192"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="209"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine; alternate" evidence="3">
+<location>
+<position position="213"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-malonyllysine; alternate" evidence="2">
+<location>
+<position position="213"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-acetyllysine" evidence="3">
+<location>
+<position position="217"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="223"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine; alternate" evidence="3">
+<location>
+<position position="225"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-acetyllysine; alternate" evidence="3">
+<location>
+<position position="225"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="227"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphothreonine" evidence="3">
+<location>
+<position position="235"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphoserine" evidence="3">
+<location>
+<position position="239"/>
+</location>
+</feature>
+<feature type="modified residue" description="S-nitrosocysteine" evidence="3">
+<location>
+<position position="245"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6-acetyllysine" evidence="3">
+<location>
+<position position="252"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine" evidence="3">
+<location>
+<position position="258"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine" evidence="3">
+<location>
+<position position="261"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphoserine" evidence="3">
+<location>
+<position position="310"/>
+</location>
+</feature>
+<feature type="modified residue" description="Deamidated asparagine" evidence="2">
+<location>
+<position position="314"/>
+</location>
+</feature>
+<feature type="modified residue" description="Phosphoserine" evidence="3">
+<location>
+<position position="331"/>
+</location>
+</feature>
+<feature type="modified residue" description="N6,N6-dimethyllysine" evidence="3">
+<location>
+<position position="332"/>
+</location>
+</feature>
+<feature type="cross-link" description="Glycyl lysine isopeptide (Lys-Gly) (interchain with G-Cter in SUMO2)" evidence="3">
+<location>
+<position position="184"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="3"/>
+<end position="7"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="11"/>
+<end position="23"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="25"/>
+<end position="32"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="34"/>
+<end position="36"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="38"/>
+<end position="46"/>
+</location>
+</feature>
+<feature type="turn" evidence="1">
+<location>
+<begin position="49"/>
+<end position="51"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="58"/>
+<end position="61"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="64"/>
+<end position="67"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="70"/>
+<end position="75"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="80"/>
+<end position="82"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="85"/>
+<end position="88"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="91"/>
+<end position="95"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="97"/>
+<end position="99"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="103"/>
+<end position="107"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="108"/>
+<end position="112"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="115"/>
+<end position="121"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="124"/>
+<end position="126"/>
+</location>
+</feature>
+<feature type="turn" evidence="1">
+<location>
+<begin position="131"/>
+<end position="133"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="135"/>
+<end position="137"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="143"/>
+<end position="146"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="150"/>
+<end position="166"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="168"/>
+<end position="178"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="183"/>
+<end position="187"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="194"/>
+<end position="197"/>
+</location>
+</feature>
+<feature type="turn" evidence="1">
+<location>
+<begin position="200"/>
+<end position="202"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="205"/>
+<end position="208"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="211"/>
+<end position="218"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="220"/>
+<end position="222"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="225"/>
+<end position="234"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="239"/>
+<end position="249"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="253"/>
+<end position="265"/>
+</location>
+</feature>
+<feature type="turn" evidence="1">
+<location>
+<begin position="266"/>
+<end position="271"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="272"/>
+<end position="275"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="281"/>
+<end position="284"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="290"/>
+<end position="294"/>
+</location>
+</feature>
+<feature type="turn" evidence="1">
+<location>
+<begin position="295"/>
+<end position="297"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="299"/>
+<end position="302"/>
+</location>
+</feature>
+<feature type="strand" evidence="1">
+<location>
+<begin position="305"/>
+<end position="312"/>
+</location>
+</feature>
+<feature type="helix" evidence="1">
+<location>
+<begin position="316"/>
+<end position="330"/>
+</location>
+</feature>
+<evidence key="1" type="ECO:0000244">
+<source>
+<dbReference type="PDB" id="1J0X"/>
+</source>
+</evidence>
+<evidence key="2" type="ECO:0000250"/>
+<evidence key="3" type="ECO:0000250">
+<source>
+<dbReference type="UniProtKB" id="P04406"/>
+</source>
+</evidence>
+<evidence key="4" type="ECO:0000250">
+<source>
+<dbReference type="UniProtKB" id="P04797"/>
+</source>
+</evidence>
+<evidence key="5" type="ECO:0000255">
+<source>
+<dbReference type="PROSITE-ProRule" id="PRU10009"/>
+</source>
+</evidence>
+<evidence key="6" type="ECO:0000269">
+<source>
+<dbReference type="PubMed" id="14646080"/>
+</source>
+</evidence>
+<evidence key="7" type="ECO:0000305"/>
+<sequence length="333" mass="35780" checksum="346DB9B59DF3C1DF" modified="2007-11-13" version="3">
+MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA
+ENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS
+APSADAPMFVMGVNHEKYDNSLKIVSNASCTTNCLAPLAKVIHDHFGIVEGLMTTVHAIT
+ATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV
+VDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA
+LNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE
+</sequence>
+</entry>
+<copyright>
+Copyrighted by the UniProt Consortium, see https://www.uniprot.org/terms
+Distributed under the Creative Commons Attribution (CC BY 4.0) License
+</copyright>
+</uniprot>

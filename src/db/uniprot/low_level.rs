@@ -10,6 +10,10 @@
 //! typically < 16 KB required for internal buffers, and < 1 KB for each
 //! individual item.
 
+#[cfg(feature = "csv")]
 pub use super::csv::*;
+
+#[cfg(feature = "fasta")]
 pub use super::fasta::*;
+
 pub use super::re::*;

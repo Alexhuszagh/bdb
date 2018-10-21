@@ -239,7 +239,7 @@ const CSV_HEADER_SIZE: usize = 144;
 
 /// Estimate the size of a CSV row from a record.
 #[inline]
-pub fn estimate_record_size(record: &Record) -> usize {
+fn estimate_record_size(record: &Record) -> usize {
     // The vocabulary size is actually 11, overestimate to adjust for number export.
     const CSV_VOCABULARY_SIZE: usize = 31;
     CSV_VOCABULARY_SIZE +
@@ -253,7 +253,7 @@ pub fn estimate_record_size(record: &Record) -> usize {
 
 /// Estimate the size of a CSV export from list.
 #[inline]
-pub fn estimate_list_size(list: &RecordList) -> usize {
+fn estimate_list_size(list: &RecordList) -> usize {
     list.iter().fold(0, |sum, x| sum + estimate_record_size(x))
 }
 

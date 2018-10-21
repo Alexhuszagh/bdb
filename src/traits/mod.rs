@@ -1,18 +1,27 @@
 //! Shared traits.
 
 mod complete;
-mod csv;
-mod fasta;
-mod text;
 mod valid;
-mod xml;
 
-// Serialization Traits
-pub use self::csv::{Csv, CsvCollection};
-pub use self::fasta::{Fasta, FastaCollection};
-pub use self::text::{Text, TextCollection};
-pub use self::xml::{Xml};
+#[cfg(feature = "csv")]
+mod csv;
+
+#[cfg(feature = "fasta")]
+mod fasta;
+
+#[cfg(feature = "xml")]
+mod xml;
 
 // Record validation traits
 pub use self::complete::{Complete};
 pub use self::valid::{Valid};
+
+// Serialization Traits
+#[cfg(feature = "csv")]
+pub use self::csv::{Csv, CsvCollection};
+
+#[cfg(feature = "fasta")]
+pub use self::fasta::{Fasta, FastaCollection};
+
+#[cfg(feature = "xml")]
+pub use self::xml::{Xml, XmlCollection};

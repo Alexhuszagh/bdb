@@ -363,6 +363,7 @@ mod tests {
         g2.sequence = g1.sequence.clone();
     }
 
+    #[cfg(feature = "fasta")]
     #[test]
     fn fasta_record() {
         // gapdh
@@ -387,6 +388,7 @@ mod tests {
         assert_eq!(p, y);
     }
 
+    #[cfg(feature = "csv")]
     #[test]
     fn csv_record() {
         // gapdh

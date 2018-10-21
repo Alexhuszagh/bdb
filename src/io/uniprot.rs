@@ -3,7 +3,10 @@
 // RE-EXPORTS
 
 // Use re-exports to avoid name collisions with traits.
+#[cfg(feature = "csv")]
 pub use self::private::UniProtCsv as Csv;
+
+#[cfg(feature = "fasta")]
 pub use self::private::UniProtFasta as Fasta;
 
 // PRIVATE
@@ -19,8 +22,10 @@ use traits::*;
 use util::ResultType;
 
 /// Reader/writer for UniProt FASTA records.
+#[cfg(feature = "fasta")]
 pub struct UniProtFasta;
 
+#[cfg(feature = "fasta")]
 impl UniProtFasta {
     /// Save UniProt records to string.
     #[inline(always)]
@@ -48,8 +53,10 @@ impl UniProtFasta {
 }
 
 /// Reader/writer for UniProt CSV (as tab-delimited text) records.
+#[cfg(feature = "csv")]
 pub struct UniProtCsv;
 
+#[cfg(feature = "csv")]
 impl UniProtCsv {
     /// Save UniProt records to string.
     #[inline(always)]
@@ -85,12 +92,14 @@ mod tests {
     use test::testdata_dir;
     use super::*;
 
+    #[cfg(feature = "fasta")]
     fn fasta_dir() -> PathBuf {
         let mut dir = testdata_dir();
         dir.push("uniprot/fasta");
         dir
     }
 
+    #[cfg(feature = "fasta")]
     #[test]
     #[ignore]
     fn fasta_test() {
@@ -104,4 +113,26 @@ mod tests {
         assert_eq!(expected.lines().nth(1), actual.lines().nth(1));
         assert_eq!(expected.lines().nth(2), actual.lines().nth(2));
     }
+
+    #[cfg(feature = "csv")]
+    fn csv_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/csv");
+        dir
+    }
+
+    #[cfg(feature = "csv")]
+    #[test]
+    #[ignore]
+    fn csv_test() {
+        let mut path = csv_dir();
+        path.push("list.csv");
+
+        let expected = read_to_string(&path).unwrap();
+        let actual = Csv::to_string(&Csv::from_file(&path).unwrap()).unwrap();
+        assert_eq!(expected, actual.trim_right());
+    }
+
+    // TODO(ahuszagh)
+    //  Implement the XML unittests.
 }
