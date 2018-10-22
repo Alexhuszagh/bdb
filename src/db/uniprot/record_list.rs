@@ -223,8 +223,82 @@ mod tests {
         assert_eq!(z.len(), 1);
     }
 
-    // TODO(ahuszagh)
-    //  Add XML
+    #[cfg(feature = "xml")]
+    #[test]
+    fn xml_list() {
+        let v: RecordList = vec![gapdh(), bsa()];
+
+        // to_xml (valid, 2 items)
+        let x = v.to_xml_string().unwrap();
+
+        let mut buf: BufferType = vec![];
+        v.to_xml_strict(&mut Cursor::new(&mut buf)).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), x);
+
+        let mut buf: BufferType = vec![];
+        v.to_xml_lenient(&mut Cursor::new(&mut buf)).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), x);
+
+        // from_xml (valid, 2 items)
+        let y = RecordList::from_xml_string(&x).unwrap();
+        assert_eq!(y, RecordList::from_xml_strict(&mut Cursor::new(&x)).unwrap());
+        assert_eq!(y, RecordList::from_xml_lenient(&mut Cursor::new(&x)).unwrap());
+
+        // completeness check
+        assert_eq!(v, y);
+
+        // to_xml (empty)
+        let v: RecordList = vec![];
+        let x = v.to_xml_string().unwrap();
+
+        let mut buf: BufferType = vec![];
+        v.to_xml_strict(&mut Cursor::new(&mut buf)).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), x);
+
+        let mut buf: BufferType = vec![];
+        v.to_xml_lenient(&mut Cursor::new(&mut buf)).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), x);
+
+        // from_xml (empty)
+        let y = RecordList::from_xml_string(&x).unwrap();
+        assert_eq!(y, RecordList::from_xml_strict(&mut Cursor::new(&x)).unwrap());
+        assert_eq!(y, RecordList::from_xml_lenient(&mut Cursor::new(&x)).unwrap());
+        assert_eq!(y.len(), 0);
+
+        // to_xml (1 empty)
+        let v: RecordList = vec![Record::new()];
+        let x = v.to_xml_string().unwrap();
+
+        let mut buf: BufferType = vec![];
+        assert!(v.to_xml_strict(&mut Cursor::new(&mut buf)).is_err());
+        buf.clear();
+        assert!(v.to_xml_lenient(&mut Cursor::new(&mut buf)).is_ok());
+        assert_ne!(String::from_utf8(buf).unwrap(), x);
+
+        // from_xml (1 empty)
+        let y = RecordList::from_xml_string(&x).unwrap();
+        assert!(RecordList::from_xml_strict(&mut Cursor::new(&x)).is_err());
+        assert!(RecordList::from_xml_lenient(&mut Cursor::new(&x)).is_ok());
+        assert_eq!(v, y);
+
+        // to_xml (1 valid, 1 empty)
+        let v: RecordList = vec![gapdh(), Record::new()];
+        let x = v.to_xml_string().unwrap();
+
+        let mut buf: BufferType = vec![];
+        assert!(v.to_xml_strict(&mut Cursor::new(&mut buf)).is_err());
+        v.to_xml_lenient(&mut Cursor::new(&mut buf)).unwrap();
+        assert_ne!(String::from_utf8(buf).unwrap(), x);
+
+        // from_xml (1 valid, 1 empty)
+        let y = RecordList::from_xml_string(&x).unwrap();
+        assert!(RecordList::from_xml_strict(&mut Cursor::new(&x)).is_err());
+        let z = RecordList::from_xml_lenient(&mut Cursor::new(&x)).unwrap();
+        assert_eq!(&v[0], &y[0]);
+        assert_eq!(&v[0], &z[0]);
+        assert_eq!(v[1], y[1]);
+        assert_eq!(z.len(), 1);
+    }
 
     #[cfg(feature = "fasta")]
     fn fasta_dir() -> PathBuf {
@@ -268,6 +342,26 @@ mod tests {
         assert_eq!(expected, actual);
     }
 
-    // TODO(ahuszagh)
-    //  Implement the XML unittests.
+    #[cfg(feature = "xml")]
+    fn xml_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/xml");
+        dir
+    }
+
+    #[cfg(feature = "csv")]
+    #[test]
+    #[ignore]
+    fn list_xml_test() {
+        let mut path = xml_dir();
+        path.push("list.xml");
+        let mut reader = BufReader::new(File::open(path).unwrap());
+
+        // TODO(ahuszagh)
+        //      So it fails for 2 of them.... Why?
+        let expected = vec!["A0A2U8RNL1", "P02769", "P46406", "Q53FP0"];
+        let v = RecordList::from_xml(&mut reader).unwrap();
+        let actual: Vec<String> = v.iter().map(|r| r.id.clone()).collect();
+        assert_eq!(expected, actual);
+    }
 }

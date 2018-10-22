@@ -938,6 +938,126 @@ mod tests {
     use super::*;
     use super::super::test::*;
 
+    #[test]
+    fn estimate_size_test() {
+        let g = gapdh();
+        let b = bsa();
+        let v = vec![gapdh(), bsa()];
+        assert_eq!(estimate_record_size(&g), 1024);
+        assert_eq!(estimate_record_size(&b), 1259);
+        assert_eq!(estimate_list_size(&v), 2283);
+    }
+
+//    macro_rules! by_value {
+//        ($x:expr) => ($x.iter().map(|x| { Ok(x.clone()) }))
+//    }
+//
+//    #[test]
+//    fn iterator_to_fasta_test() {
+//        let v = vec![gapdh(), bsa()];
+//        let u = vec![gapdh(), bsa(), Record::new()];
+//
+//        // reference -- default
+//        let mut w = Cursor::new(vec![]);
+//        reference_iterator_to_fasta(v.iter(), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        // value -- default
+//        let mut w = Cursor::new(vec![]);
+//        value_iterator_to_fasta(by_value!(v), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        // reference -- strict
+//        let mut w = Cursor::new(vec![]);
+//        reference_iterator_to_fasta_strict(v.iter(), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        let mut w = Cursor::new(vec![]);
+//        let r = reference_iterator_to_fasta_strict(u.iter(), &mut w);
+//        assert!(r.is_err());
+//
+//        // value -- strict
+//        let mut w = Cursor::new(vec![]);
+//        value_iterator_to_fasta_strict(by_value!(v), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        let mut w = Cursor::new(vec![]);
+//        let r = value_iterator_to_fasta_strict(by_value!(u), &mut w);
+//        assert!(r.is_err());
+//
+//        // reference -- lenient
+//        let mut w = Cursor::new(vec![]);
+//        reference_iterator_to_fasta_lenient(v.iter(), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        let mut w = Cursor::new(vec![]);
+//        reference_iterator_to_fasta_lenient(u.iter(), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        // value -- lenient
+//        let mut w = Cursor::new(vec![]);
+//        value_iterator_to_fasta_lenient(by_value!(v), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//
+//        let mut w = Cursor::new(vec![]);
+//        value_iterator_to_fasta_lenient(by_value!(u), &mut w).unwrap();
+//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+//    }
+//
+//    #[test]
+//    fn iterator_from_fasta_test() {
+//        // VALID
+//        let text = GAPDH_BSA_FASTA;
+//        let expected = vec![gapdh(), bsa()];
+//
+//        // record iterator -- default
+//        let iter = FastaRecordIter::new(Cursor::new(text));
+//        let v: ResultType<RecordList> = iter.collect();
+//        incomplete_list_eq(&expected, &v.unwrap());
+//
+//        // Compile check only
+//        iterator_from_fasta(&mut Cursor::new(text));
+//
+//        // record iterator -- strict
+//        let iter = FastaRecordStrictIter::new(Cursor::new(text));
+//        let v: ResultType<RecordList> = iter.collect();
+//        incomplete_list_eq(&expected, &v.unwrap());
+//
+//        // Compile check only
+//        iterator_from_fasta_strict(&mut Cursor::new(text));
+//
+//        // record iterator -- lenient
+//        let iter = FastaRecordLenientIter::new(Cursor::new(text));
+//        let v: ResultType<RecordList> = iter.collect();
+//        incomplete_list_eq(&expected, &v.unwrap());
+//
+//        // Compile check only
+//        iterator_from_fasta_lenient(&mut Cursor::new(text));
+//
+//        // INVALID
+//        let text = GAPDH_EMPTY_FASTA;
+//        let expected1 = vec![gapdh(), Record::new()];
+//        let expected2 = vec![gapdh()];
+//
+//        // record iterator -- default
+//        let iter = iterator_from_fasta(Cursor::new(text));
+//        let v: ResultType<RecordList> = iter.collect();
+//        let v = v.unwrap();
+//        assert_eq!(expected1.len(), v.len());
+//        incomplete_eq(&expected1[0], &v[0]);
+//        assert_eq!(expected1[1], v[1]);
+//
+//        // record iterator -- strict
+//        let iter = iterator_from_fasta_strict(Cursor::new(text));
+//        let v: ResultType<RecordList> = iter.collect();
+//        assert!(v.is_err());
+//
+//        // record iterator -- lenient
+//        let iter = iterator_from_fasta_lenient(Cursor::new(text));
+//        let v: ResultType<RecordList> = iter.collect();
+//        incomplete_list_eq(&expected2, &v.unwrap());
+//    }
+
     fn xml_dir() -> PathBuf {
         let mut dir = testdata_dir();
         dir.push("uniprot/xml");
@@ -957,5 +1077,17 @@ mod tests {
     }
 
     // TODO(ahuszagh)
-    //  Implement...
+    //  Restore
+//    #[test]
+//    #[ignore]
+//    fn human_xml_test() {
+//        let mut path = xml_dir();
+//        path.push("human.xml");
+//        let reader = BufReader::new(File::open(path).unwrap());
+//        let iter = XmlRecordIter::new(reader);
+//
+//        // do nothing, just check it parses.
+//        for _ in iter {
+//        }
+//    }
 }

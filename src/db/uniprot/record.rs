@@ -428,10 +428,16 @@ mod tests {
         let y = Record::from_xml_string(&x).unwrap();
         assert_eq!(p, y);
 
-        // TODO(ahuszagh)
-        //  Implement...
+        // bsa
+        let p = bsa();
+        let x = p.to_xml_string().unwrap();
+        let y = Record::from_xml_string(&x).unwrap();
+        assert_eq!(p, y);
 
-        // TODO(ahuszagh)
-        //      Implement...
+        // empty
+        let p = Record::new();
+        let x = p.to_xml_string().unwrap();
+        let y = Record::from_xml_string(&x).unwrap();
+        assert_eq!(p, y);
     }
 }
