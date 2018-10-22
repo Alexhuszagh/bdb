@@ -147,6 +147,9 @@ pub struct Record {
     /// UniProt proteome identifier.
     pub proteome: String,
     /// Protein aminoacid sequence.
+    // TODO(ahuszagh)
+    //      Change to Vec<u8>
+    //      Not an actual string, it's an ASCII byte array.
     pub sequence: String,
     /// Taxonomic identifier.
     pub taxonomy: String,

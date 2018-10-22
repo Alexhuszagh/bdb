@@ -33,3 +33,19 @@ pub enum RecordField {
     // TODO(ahuszagh)
     //  Implement...
 }
+
+
+/// Model for a single record from a sequence read.
+#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
+pub struct Record {
+    /// Sequence identifier for the read.
+    pub seq_id: String,
+    /// Description for the sequence identifier.
+    pub description: String,
+    /// Read length.
+    pub length: u32,
+    /// Nucleotide sequence.
+    pub sequence: Vec<u8>,
+    /// Nucleotide sequence quality scores.
+    pub quality: Vec<u8>,
+}

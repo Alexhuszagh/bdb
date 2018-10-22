@@ -1,4 +1,9 @@
 //! Regular expression utilities for UniProt services.
+//!
+//! Disable Unicode for all but the generic header formats, which may
+//! accept arbitrary Unicode input. The rest should only be valid ASCII,
+//! and therefore we should disable matching to Unicode characters
+//! explicitly.
 
 use regex::{Captures, Regex};
 
@@ -32,7 +37,7 @@ pub struct AccessionRegex;
 
 impl FieldRegex for AccessionRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             (?:
                 [OPQ][0-9][A-Z0-9]{3}[0-9]|
@@ -44,7 +49,7 @@ impl FieldRegex for AccessionRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             # Group 1, Accession Number
             (
@@ -64,7 +69,7 @@ pub struct MnemonicRegex;
 
 impl FieldRegex for MnemonicRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             (?:
                 (?:
@@ -87,7 +92,7 @@ impl FieldRegex for MnemonicRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             # Group 1, Mnemonic Identifier
             (
@@ -122,7 +127,7 @@ pub struct GeneRegex;
 
 impl FieldRegex for GeneRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             (?:
                 [[:alnum:]-_\x20/*.@:();'$+]+
@@ -133,7 +138,7 @@ impl FieldRegex for GeneRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             # Group 1, Gene Name
             (
@@ -152,7 +157,7 @@ pub struct AminoacidRegex;
 
 impl FieldRegex for AminoacidRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             (?:
                 [ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnpqrstuvwxyz]+
@@ -163,7 +168,7 @@ impl FieldRegex for AminoacidRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             # Group 1, Aminoacid Sequence
             (
@@ -182,7 +187,7 @@ pub struct ProteomeRegex;
 
 impl FieldRegex for ProteomeRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             (?:
                 UP[0-9]{9}
@@ -196,7 +201,7 @@ impl FieldRegex for ProteomeRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             # Group 1, Proteome ID
             (
@@ -214,7 +219,7 @@ pub struct TaxonomyRegex;
 
 impl FieldRegex for TaxonomyRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             (?:
                 \d+
@@ -225,7 +230,7 @@ impl FieldRegex for TaxonomyRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)
+        lazy_regex!(r"(?-u)(?x)
             \A
             # Group 1, Taxonomy ID
             (
