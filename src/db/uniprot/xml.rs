@@ -18,14 +18,14 @@ use super::record_list::RecordList;
 // SIZE
 
 /// Estimated size of the XML shared properties/attributes.
-const XML_SHARED_SIZE: usize = 0;
+const XML_SHARED_SIZE: usize = 244;
 
 /// Estimate the size of an XML record.
 #[inline]
 fn estimate_record_size(record: &Record) -> usize {
-    // TODO(ahuszagh)
-    //      Need to calculate the actual vocabulary size...
-    const XML_RECORD_SIZE: usize = 0;
+    // The actual size is ~590, but give ourselves some wiggle room
+    // for the numbers.
+    const XML_RECORD_SIZE: usize = 610;
     XML_RECORD_SIZE +
         record.gene.len() +
         record.id.len() +

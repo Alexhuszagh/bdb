@@ -11,13 +11,26 @@ version = "0.1.0"
 maintenance = { status = "experimental" }
 
 [features]
-default = ["csv", "fasta", "http", "text", "xml"]
+default = [
+    # Format features.
+    "csv", "fasta", "http", "text", "xml",
+    # Datatype features.
+    "uniprot", "mass_spectrometry", "pdb"
+]
+
 # TODO(ahuszagh)
 #   Add hdf5 and sqlite
+
+# Format features.
 fasta = []
 http = ["reqwest", "url"]
 text = []
 xml = ["quick-xml"]
+
+# Datatype features.
+uniprot = []
+mass_spectrometry = []
+pdb = []
 
 [dependencies]
 assert_approx_eq = "1"
