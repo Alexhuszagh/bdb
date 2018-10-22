@@ -400,8 +400,9 @@ impl<T: BufRead> XmlRecordIter<T> {
                 match self.reader.read_text(b"sequence") {
                     Err(e)  => Err(e),
                     Ok(v)   => {
-                        record.sequence = String::with_capacity(v.len());
-                        v.split("\n").for_each(|s| record.sequence += s);
+                        let mut sequence = Vec::with_capacity(v.len());
+                        v.split("\n").for_each(|s| sequence.append(&mut s.as_bytes().to_vec()));
+                        record.sequence = sequence;
                         Ok(())
                     },
                 }
@@ -593,13 +594,13 @@ impl<T: Write> XmlUniProtWriter<T> {
     /// Write the accession element.
     #[inline]
     fn write_id(&mut self, record: &Record) -> ResultType<()> {
-        self.writer.write_text_element(b"accession", &record.id, &[])
+        self.writer.write_text_element(b"accession", record.id.as_bytes(), &[])
     }
 
     /// Write the mnemonic element.
     #[inline]
     fn write_mnemonic(&mut self, record: &Record) -> ResultType<()> {
-        self.writer.write_text_element(b"name", &record.mnemonic, &[])
+        self.writer.write_text_element(b"name", record.mnemonic.as_bytes(), &[])
     }
 
     /// Write the protein element.
@@ -622,13 +623,13 @@ impl<T: Write> XmlUniProtWriter<T> {
     /// Write the name element.
     #[inline]
     fn write_full_name(&mut self, record: &Record) -> ResultType<()> {
-        self.writer.write_text_element(b"fullName", &record.name, &[])
+        self.writer.write_text_element(b"fullName", record.name.as_bytes(), &[])
     }
 
     /// Write the gene element.
     #[inline]
     fn write_gene_name(&mut self, record: &Record) -> ResultType<()> {
-        self.writer.write_text_element(b"shortName", &record.gene, &[])
+        self.writer.write_text_element(b"shortName", record.gene.as_bytes(), &[])
     }
 
     /// Write the gene information element.
@@ -642,7 +643,7 @@ impl<T: Write> XmlUniProtWriter<T> {
     /// Write the primary gene name element.
     #[inline]
     fn write_primary_name(&mut self, record: &Record) -> ResultType<()> {
-        self.writer.write_text_element(b"name", &record.gene, &[
+        self.writer.write_text_element(b"name", record.gene.as_bytes(), &[
             (b"type", b"primary")
         ])
     }
@@ -660,7 +661,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     #[inline]
     fn write_scientific_name(&mut self, record: &Record) -> ResultType<()> {
-        self.writer.write_text_element(b"name", &record.organism, &[
+        self.writer.write_text_element(b"name", record.organism.as_bytes(), &[
             (b"type", b"scientific")
         ])
     }
@@ -701,7 +702,7 @@ impl<T: Write> XmlUniProtWriter<T> {
         let mass = record.mass.to_string();
         let version = record.sequence_version.to_string();
 
-        self.writer.write_text_element(b"sequence", &record.sequence, &[
+        self.writer.write_text_element(b"sequence", record.sequence.as_slice(), &[
             (b"length", length.as_bytes()),
             (b"mass", mass.as_bytes()),
             (b"version", version.as_bytes())

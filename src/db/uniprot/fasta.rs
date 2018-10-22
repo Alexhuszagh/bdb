@@ -206,7 +206,7 @@ pub fn record_to_fasta<T: Write>(record: &Record, writer: &mut T)
     // Write SwissProt sequence, formatted at 60 characters.
     // Write the initial, 60 character lines
     const SEQUENCE_LINE_LENGTH: usize = 60;
-    let mut bytes = record.sequence.as_bytes();
+    let mut bytes = record.sequence.as_slice();
     while bytes.len() > SEQUENCE_LINE_LENGTH {
         let prefix = &bytes[0..SEQUENCE_LINE_LENGTH];
         bytes = &bytes[SEQUENCE_LINE_LENGTH..];
@@ -381,7 +381,7 @@ fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
 
         // unused fields in header
         proteome: String::new(),
-        sequence: String::new(),
+        sequence: vec![],
     })
 }
 
@@ -414,7 +414,7 @@ fn record_header_from_trembl(header: &str) -> ResultType<Record> {
 
         // unused fields in header
         proteome: String::new(),
-        sequence: String::new(),
+        sequence: vec![],
     })
 }
 
@@ -444,13 +444,13 @@ pub fn record_from_fasta<T: BufRead>(reader: &mut T)
 
     // add sequence data to the FASTA sequence
     for line in lines {
-        record.sequence.push_str(&line?);
+        record.sequence.append(&mut line?.into_bytes());
     }
 
     // calculate the protein length and mass
     if record.sequence.len() > 0 {
         record.length = record.sequence.len() as u32;
-        let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
+        let mass = AverageMass::protein_sequence_mass(record.sequence.as_slice());
         record.mass = mass.round() as u64;
     }
 

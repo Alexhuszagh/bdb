@@ -402,8 +402,8 @@ impl<T: Write> XmlWriter<T> {
 
     /// Create text element.
     #[inline(always)]
-    fn new_text_element<'a>(text: &str) -> BytesText {
-        BytesText::from_plain_str(text)
+    fn new_text_element<'a>(text: &[u8]) -> BytesText {
+        BytesText::from_plain(text)
     }
 
     /// Create end element.
@@ -441,7 +441,7 @@ impl<T: Write> XmlWriter<T> {
     }
 
     /// Write text element (with start and end elements).
-    pub fn write_text_element(&mut self, name: &[u8], text: &str, attributes: &[(&[u8], &[u8])])
+    pub fn write_text_element(&mut self, name: &[u8], text: &[u8], attributes: &[(&[u8], &[u8])])
         -> ResultType<()>
     {
         self.write_start_element(name, attributes)?;

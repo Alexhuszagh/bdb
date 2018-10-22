@@ -76,19 +76,19 @@ fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
     let sv = nonzero_to_commas!(record.sequence_version);
     let mass = nonzero_to_commas!(record.mass);
     let length = nonzero_to_commas!(record.length);
-    let array: [&str; 12] = [
-        &sv,
-        record.protein_evidence.verbose(),
-        &mass,
-        &length,
-        &record.gene,
-        &record.id,
-        &record.mnemonic,
-        &record.name,
-        &record.organism,
-        &record.proteome,
-        &record.sequence,
-        &record.taxonomy,
+    let array: [&[u8]; 12] = [
+        sv.as_bytes(),
+        record.protein_evidence.verbose().as_bytes(),
+        mass.as_bytes(),
+        length.as_bytes(),
+        record.gene.as_bytes(),
+        record.id.as_bytes(),
+        record.mnemonic.as_bytes(),
+        record.name.as_bytes(),
+        record.organism.as_bytes(),
+        record.proteome.as_bytes(),
+        record.sequence.as_slice(),
+        record.taxonomy.as_bytes(),
     ];
 
     match writer.write_record(&array) {
@@ -212,14 +212,14 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
             RecordField::Name     => record.name = String::from(value),
             RecordField::Organism => record.organism = String::from(value),
             RecordField::Proteome => record.proteome = String::from(value),
-            RecordField::Sequence => record.sequence = String::from(value),
+            RecordField::Sequence => record.sequence = value.as_bytes().to_vec(),
             RecordField::Taxonomy => record.taxonomy = String::from(value),
         }
     }
 
     // fix the mass if not present
     if record.mass == 0 && !record.sequence.is_empty() {
-        let mass = AverageMass::protein_sequence_mass(record.sequence.as_bytes());
+        let mass = AverageMass::protein_sequence_mass(record.sequence.as_slice());
         record.mass = mass.round() as u64;
     }
 

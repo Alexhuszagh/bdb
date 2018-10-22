@@ -6,25 +6,20 @@
 //! explicitly.
 
 use regex::{Captures, Regex};
+use regex::bytes::Regex as BytesRegex;
 
 /// Regular expressions for UniProt record fields.
-pub trait FieldRegex {
+pub trait FieldRegex<Re> {
     /// Validate a field.
-    fn validate() -> &'static Regex;
+    fn validate() -> &'static Re;
     /// Extract a field from external data.
-    fn extract() -> &'static Regex;
-}
-
-/// Construct new regex from pattern.
-#[inline(always)]
-fn new_regex(pattern: &'static str) -> Regex {
-    Regex::new(pattern).unwrap()
+    fn extract() -> &'static Re;
 }
 
 /// Construct static-like regex lazily at runtime.
 macro_rules! lazy_regex {
-    ($str:expr) => (lazy_static! {
-        static ref REGEX: Regex = new_regex($str);
+    ($re:tt, $str:expr) => (lazy_static! {
+        static ref REGEX: $re = $re::new($str).unwrap();
     })
 }
 
@@ -35,9 +30,9 @@ macro_rules! lazy_regex {
 /// Derived from [here](https://www.uniprot.org/help/accession_numbers).
 pub struct AccessionRegex;
 
-impl FieldRegex for AccessionRegex {
+impl FieldRegex<Regex> for AccessionRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             (?:
                 [OPQ][0-9][A-Z0-9]{3}[0-9]|
@@ -49,7 +44,7 @@ impl FieldRegex for AccessionRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             # Group 1, Accession Number
             (
@@ -67,9 +62,9 @@ impl FieldRegex for AccessionRegex {
 /// Regular expression to validate mnemonic identifiers.
 pub struct MnemonicRegex;
 
-impl FieldRegex for MnemonicRegex {
+impl FieldRegex<Regex> for MnemonicRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             (?:
                 (?:
@@ -92,7 +87,7 @@ impl FieldRegex for MnemonicRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             # Group 1, Mnemonic Identifier
             (
@@ -125,9 +120,9 @@ impl FieldRegex for MnemonicRegex {
 /// Regular expression to validate gene names.
 pub struct GeneRegex;
 
-impl FieldRegex for GeneRegex {
+impl FieldRegex<Regex> for GeneRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             (?:
                 [[:alnum:]-_\x20/*.@:();'$+]+
@@ -138,7 +133,7 @@ impl FieldRegex for GeneRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             # Group 1, Gene Name
             (
@@ -155,9 +150,9 @@ impl FieldRegex for GeneRegex {
 /// Regular expression to validate aminoacid sequences.
 pub struct AminoacidRegex;
 
-impl FieldRegex for AminoacidRegex {
-    fn validate() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+impl FieldRegex<BytesRegex> for AminoacidRegex {
+    fn validate() -> &'static BytesRegex {
+        lazy_regex!(BytesRegex, r"(?-u)(?x)
             \A
             (?:
                 [ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnpqrstuvwxyz]+
@@ -167,8 +162,8 @@ impl FieldRegex for AminoacidRegex {
         &REGEX
     }
 
-    fn extract() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+    fn extract() -> &'static BytesRegex {
+        lazy_regex!(BytesRegex, r"(?-u)(?x)
             \A
             # Group 1, Aminoacid Sequence
             (
@@ -185,9 +180,9 @@ impl FieldRegex for AminoacidRegex {
 /// Regular expression to validate proteome identifiers.
 pub struct ProteomeRegex;
 
-impl FieldRegex for ProteomeRegex {
+impl FieldRegex<Regex> for ProteomeRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             (?:
                 UP[0-9]{9}
@@ -201,7 +196,7 @@ impl FieldRegex for ProteomeRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             # Group 1, Proteome ID
             (
@@ -217,9 +212,9 @@ impl FieldRegex for ProteomeRegex {
 /// Regular expression to validate taxonomic identifiers.
 pub struct TaxonomyRegex;
 
-impl FieldRegex for TaxonomyRegex {
+impl FieldRegex<Regex> for TaxonomyRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             (?:
                 \d+
@@ -230,7 +225,7 @@ impl FieldRegex for TaxonomyRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?-u)(?x)
+        lazy_regex!(Regex, r"(?-u)(?x)
             \A
             # Group 1, Taxonomy ID
             (
@@ -259,9 +254,9 @@ impl SwissProtHeaderRegex {
     pub const SV_INDEX: usize = 9;
 }
 
-impl FieldRegex for SwissProtHeaderRegex {
+impl FieldRegex<Regex> for SwissProtHeaderRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)(?m)
+        lazy_regex!(Regex, r"(?x)(?m)
              \A
             (?:
                 >sp\|
@@ -307,7 +302,7 @@ impl FieldRegex for SwissProtHeaderRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)(?m)
+        lazy_regex!(Regex, r"(?x)(?m)
             \A
             # Group 1, the entire header.
             (
@@ -377,9 +372,9 @@ impl TrEMBLHeaderRegex {
     pub const SV_INDEX: usize = 9;
 }
 
-impl FieldRegex for TrEMBLHeaderRegex {
+impl FieldRegex<Regex> for TrEMBLHeaderRegex {
     fn validate() -> &'static Regex {
-        lazy_regex!(r"(?x)(?m)
+        lazy_regex!(Regex, r"(?x)(?m)
              \A
             (?:
                 >tr\|
@@ -439,7 +434,7 @@ impl FieldRegex for TrEMBLHeaderRegex {
     }
 
     fn extract() -> &'static Regex {
-        lazy_regex!(r"(?x)(?m)
+        lazy_regex!(Regex, r"(?x)(?m)
             \A
             # Group 1, the entire header.
             (
@@ -548,21 +543,34 @@ mod tests {
     use super::*;
 
     /// Check regex validates or does not validate text.
-    fn validate_regex<T: FieldRegex>(text: &str, result: bool) {
+    fn validate_regex<T: FieldRegex<Regex>>(text: &str, result: bool) {
         assert_eq!(T::validate().is_match(text), result);
     }
 
     /// Check regex matches or does not match text.
-    fn check_regex<T: FieldRegex>(text: &str, result: bool) {
+    fn check_regex<T: FieldRegex<Regex>>(text: &str, result: bool) {
+        assert_eq!(T::validate().is_match(text), result);
+        assert_eq!(T::extract().is_match(text), result);
+    }
+
+    /// Check bytes regex matches or does not match text.
+    fn check_bytes_regex<T: FieldRegex<BytesRegex>>(text: &[u8], result: bool) {
         assert_eq!(T::validate().is_match(text), result);
         assert_eq!(T::extract().is_match(text), result);
     }
 
     /// Check regex extracts the desired subgroup.
-    fn extract_regex<T: FieldRegex>(text: &str, index: usize, result: &str) {
+    fn extract_regex<T: FieldRegex<Regex>>(text: &str, index: usize, result: &str) {
         let re = T::extract();
         let caps = re.captures(text).unwrap();
         assert_eq!(caps.get(index).unwrap().as_str(), result);
+    }
+
+    /// Check bytes regex extracts the desired subgroup.
+    fn extract_bytes_regex<T: FieldRegex<BytesRegex>>(text: &[u8], index: usize, result: &[u8]) {
+        let re = T::extract();
+        let caps = re.captures(text).unwrap();
+        assert_eq!(caps.get(index).unwrap().as_bytes(), result);
     }
 
     #[test]
@@ -671,22 +679,22 @@ mod tests {
         type T = AminoacidRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_bytes_regex::<T>(b"", false);
 
         // valid
-        check_regex::<T>("SAMPLER", true);
-        check_regex::<T>("sampler", true);
-        check_regex::<T>("sAmpLer", true);
+        check_bytes_regex::<T>(b"SAMPLER", true);
+        check_bytes_regex::<T>(b"sampler", true);
+        check_bytes_regex::<T>(b"sAmpLer", true);
 
         // Add "U", which is a non-standard aminoacid (selenocysteine)
-        check_regex::<T>("USAMPLER", true);
+        check_bytes_regex::<T>(b"USAMPLER", true);
 
         // invalid aminoacid
-        check_regex::<T>("ORANGE", false);
-        check_regex::<T>("oRANGE", false);
+        check_bytes_regex::<T>(b"ORANGE", false);
+        check_bytes_regex::<T>(b"oRANGE", false);
 
         // extract
-        extract_regex::<T>("SAMPLER", 1, "SAMPLER");
+        extract_bytes_regex::<T>(b"SAMPLER", 1, b"SAMPLER");
     }
 
     #[test]
@@ -872,7 +880,7 @@ mod tests {
         let reader = BufReader::new(File::open(path).unwrap());
 
         for sequence in reader.lines() {
-            assert!(AminoacidRegex::validate().is_match(&sequence.unwrap()));
+            assert!(AminoacidRegex::validate().is_match(sequence.unwrap().as_bytes()));
         }
     }
 
