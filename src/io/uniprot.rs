@@ -167,6 +167,21 @@ mod tests {
         assert_eq!(expected, actual.trim_right());
     }
 
-    // TODO(ahuszagh)
-    //  Implement the XML unittests.
+    #[cfg(feature = "xml")]
+    fn xml_dir() -> PathBuf {
+        let mut dir = testdata_dir();
+        dir.push("uniprot/xml");
+        dir
+    }
+
+    #[cfg(feature = "xml")]
+    #[test]
+    #[ignore]
+    fn xml_test() {
+        let mut path = xml_dir();
+        path.push("list.xml");
+
+        let actual = Xml::to_string(&Xml::from_file(&path).unwrap());
+        assert!(actual.is_ok());
+    }
 }

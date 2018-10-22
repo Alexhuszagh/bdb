@@ -118,8 +118,32 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Enter the entry element.
     #[inline]
-    fn enter_entry(&mut self) -> Option<ResultType<()>> {
-        self.reader.seek_start(b"entry", 1)
+    fn enter_entry(&mut self) -> Option<ResultType<bool>> {
+
+        //  Entry XML format.
+        //      <entry dataset="TrEMBL" ... />
+        //      <entry dataset="Swiss-Prot" ... />
+
+        // Callback to determine if we're using a reviewed database.
+        fn is_reviewed<'a>(event: BytesStart<'a>, _: &mut bool)
+            -> Option<ResultType<bool>>
+        {
+            for result in event.attributes() {
+                let attribute = parse_attribute!(result);
+                if attribute.key == b"dataset" {
+                    if &*attribute.value == b"TrEMBL" {
+                        return Some(Ok(false));
+                    } else if &*attribute.value == b"Swiss-Prot" {
+                        return Some(Ok(true));
+                    }
+                }
+            }
+            Some(Err(From::from(ErrorKind::InvalidInput)))
+        }
+
+        // Use dummy state.
+        let mut state: bool = true;
+        self.reader.seek_start_callback(b"entry", 1, &mut state, is_reviewed)
     }
 
     /// Leave the entry element.
@@ -154,9 +178,9 @@ impl<T: BufRead> XmlRecordIter<T> {
         Some(Ok(()))
     }
 
-    /// Read the protein name.
+    /// Read the SwissProt protein name.
     #[inline]
-    fn read_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_swissport_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
         // Ensure we get to the recommendedName, since "alternativeName"
         // also has the same attributes.
         try_opterr!(self.reader.seek_start(b"recommendedName", 3));
@@ -171,9 +195,33 @@ impl<T: BufRead> XmlRecordIter<T> {
         self.reader.seek_end(b"recommendedName", 3)
     }
 
+    /// Read the TrEMBL protein name.
+    #[inline]
+    fn read_trembl_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        try_opterr!(self.reader.seek_start(b"submittedName", 3));
+
+        // Read the protein name
+        try_opterr!(self.reader.seek_start(b"fullName", 4));
+        match self.reader.read_text(b"fullName") {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => record.name = v,
+        }
+
+        self.reader.seek_end(b"submittedName", 3)
+    }
+
+    /// Read the protein name.
+    #[inline]
+    fn read_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        match record.reviewed {
+            true    => self.read_swissport_protein(record),
+            false   => self.read_trembl_protein(record),
+        }
+    }
+
     /// Read the text from the name element.
     #[inline]
-    fn read_gene_impl(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_gene_name(&mut self, record: &mut Record) -> Option<ResultType<()>> {
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
             Ok(v)   => record.gene = v,
@@ -183,10 +231,9 @@ impl<T: BufRead> XmlRecordIter<T> {
     }
 
     /// Read the gene name.
+    /// Use as the callback if the seek to the "gene" start element succeededs.
     #[inline]
-    fn read_gene(&mut self, record: &mut Record) -> Option<ResultType<()>> {
-        try_opterr!(self.reader.seek_start(b"gene", 2));
-
+    fn read_gene_inside(&mut self, record: &mut Record) -> Option<ResultType<()>> {
         //  Gene XML format.
         //      <gene>
         //      <name type="primary">GAPDH</name>
@@ -212,7 +259,7 @@ impl<T: BufRead> XmlRecordIter<T> {
                 Err(e)  => return Some(Err(e)),
                 Ok(v)   => {
                     if v {
-                        try_opterr!(self.read_gene_impl(record));
+                        try_opterr!(self.read_gene_name(record));
                         return self.reader.seek_end(b"gene", 2);
                     }
                 }
@@ -253,7 +300,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the text from the name element.
     #[inline]
-    fn read_organism_impl(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_organism_value(&mut self, record: &mut Record) -> Option<ResultType<()>> {
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
             Ok(v)   => record.organism = v,
@@ -262,11 +309,10 @@ impl<T: BufRead> XmlRecordIter<T> {
         Some(Ok(()))
     }
 
-    /// Read the organism name.
+    /// Read the organism name implied.
+    /// Use as the callback if the seek to the "gene" start element fails.
     #[inline]
-    fn read_organism(&mut self, record: &mut Record) -> Option<ResultType<()>> {
-        try_opterr!(self.reader.seek_start(b"organism", 2));
-
+    fn read_organism_inside(&mut self, record: &mut Record) -> Option<ResultType<()>> {
         //  Organism XML format.
         //        <organism>
         //        <name type="scientific">Oryctolagus cuniculus</name>
@@ -294,13 +340,35 @@ impl<T: BufRead> XmlRecordIter<T> {
                 Err(e)  => return Some(Err(e)),
                 Ok(v)   => {
                     if v {
-                        try_opterr!(self.read_organism_impl(record));
+                        try_opterr!(self.read_organism_value(record));
                         try_opterr!(self.read_taxonomy(record));
                         // Leave organism for next element to shine.
                         return self.reader.seek_end(b"organism", 2)
                     }
                 }
             }
+        }
+    }
+
+    /// Read the gene and organism name.
+    /// The gene information may be lacking, so we must call
+    /// the organism as a fallback if so.
+    #[inline]
+    fn read_gene_or_organism(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+
+        match self.reader.seek_start_or_fallback(b"gene", 2, b"organism", 2)? {
+            Err(e)  => Some(Err(e)),
+            Ok(v)   => {
+                if v {
+                    // able to find gene, process gene then organism
+                    try_opterr!(self.read_gene_inside(record));
+                    try_opterr!(self.reader.seek_start(b"organism", 2));
+                    self.read_organism_inside(record)
+                } else {
+                    // unable to find gene, process organism
+                    self.read_organism_inside(record)
+                }
+            },
         }
     }
 
@@ -411,19 +479,18 @@ impl<T: BufRead> XmlRecordIter<T> {
     }
 
     /// Parse the UniProt record.
-    fn parse_record(&mut self) -> Option<ResultType<Record>> {
-        let mut record = Record::new();
+    fn parse_record(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+        try_opterr!(self.read_accession(record));
+        try_opterr!(self.read_mnemonic(record));
+        try_opterr!(self.read_protein(record));
+        try_opterr!(self.read_gene_or_organism(record));
+        if record.reviewed {
+            try_opterr!(self.read_proteome(record));
+        }
+        try_opterr!(self.read_evidence(record));
+        try_opterr!(self.read_sequence(record));
 
-        try_opterr!(self.read_accession(&mut record));
-        try_opterr!(self.read_mnemonic(&mut record));
-        try_opterr!(self.read_protein(&mut record));
-        try_opterr!(self.read_gene(&mut record));
-        try_opterr!(self.read_organism(&mut record));
-        try_opterr!(self.read_proteome(&mut record));
-        try_opterr!(self.read_evidence(&mut record));
-        try_opterr!(self.read_sequence(&mut record));
-
-        Some(Ok(record))
+        Some(Ok(()))
     }
 }
 
@@ -432,8 +499,13 @@ impl<T: BufRead> Iterator for XmlRecordIter<T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Enter the entry, which stores our position for the entry element.
-        try_opterr!(self.enter_entry());
-        let record = self.parse_record()?;
+        // Get whether the protein entry is reviewed or not from the query.
+        let mut record = Record::new();
+        record.reviewed = match self.enter_entry()? {
+            Err(e)  => return Some(Err(e)),
+            Ok(v)   => v,
+        };
+        try_opterr!(self.parse_record(&mut record));
 
         // Exit the entry, so we're ready for the next iteration.
         match self.leave_entry() {
@@ -444,7 +516,7 @@ impl<T: BufRead> Iterator for XmlRecordIter<T> {
             },
         }
 
-        Some(record)
+        Some(Ok(record))
     }
 }
 
@@ -578,11 +650,15 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the entry start element.
     #[inline]
-    fn write_entry_start(&mut self) -> ResultType<()> {
-        self.writer.write_start_element(b"entry", &[
-            (b"dataset", b"Swiss-Prot"),
-            (b"created", b"1995-11-01")
-        ])
+    fn write_entry_start(&mut self, record: &Record) -> ResultType<()> {
+        match record.reviewed {
+            true    => self.writer.write_start_element(b"entry", &[
+                    (b"dataset", b"Swiss-Prot"),
+                ]),
+            false   => self.writer.write_start_element(b"entry", &[
+                    (b"dataset", b"TrEMBL"),
+                ]),
+        }
     }
 
     /// Write the entry end element.
@@ -607,7 +683,10 @@ impl<T: Write> XmlUniProtWriter<T> {
     #[inline]
     fn write_protein(&mut self, record: &Record) -> ResultType<()> {
         self.writer.write_start_element(b"protein", &[])?;
-        self.write_recommended_name(record)?;
+        match record.reviewed {
+            true    => self.write_recommended_name(record)?,
+            false   => self.write_submitted_name(record)?,
+        };
         self.writer.write_end_element(b"protein")
     }
 
@@ -618,6 +697,14 @@ impl<T: Write> XmlUniProtWriter<T> {
         self.write_full_name(record)?;
         self.write_gene_name(record)?;
         self.writer.write_end_element(b"recommendedName")
+    }
+
+    /// Write the protein element.
+    #[inline]
+    fn write_submitted_name(&mut self, record: &Record) -> ResultType<()> {
+        self.writer.write_start_element(b"submittedName", &[])?;
+        self.write_full_name(record)?;
+        self.writer.write_end_element(b"submittedName")
     }
 
     /// Write the name element.
@@ -712,13 +799,15 @@ impl<T: Write> XmlUniProtWriter<T> {
     /// Write the entry element.
     #[inline]
     fn write_entry(&mut self, record: &Record) -> ResultType<()> {
-        self.write_entry_start()?;
+        self.write_entry_start(record)?;
         self.write_id(record)?;
         self.write_mnemonic(record)?;
         self.write_protein(record)?;
         self.write_gene(record)?;
         self.write_organism(record)?;
-        self.write_proteome(record)?;
+        if record.reviewed {
+            self.write_proteome(record)?;
+        }
         self.write_protein_existence(record)?;
         self.write_sequence(record)?;
 
@@ -932,7 +1021,7 @@ impl XmlCollection for RecordList {
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-    use std::io::{BufReader};
+    use std::io::{BufReader, Cursor};
     use std::path::PathBuf;
     use test::testdata_dir;
     use super::*;
@@ -948,115 +1037,115 @@ mod tests {
         assert_eq!(estimate_list_size(&v), 2283);
     }
 
-//    macro_rules! by_value {
-//        ($x:expr) => ($x.iter().map(|x| { Ok(x.clone()) }))
-//    }
-//
-//    #[test]
-//    fn iterator_to_fasta_test() {
-//        let v = vec![gapdh(), bsa()];
-//        let u = vec![gapdh(), bsa(), Record::new()];
-//
-//        // reference -- default
-//        let mut w = Cursor::new(vec![]);
-//        reference_iterator_to_fasta(v.iter(), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        // value -- default
-//        let mut w = Cursor::new(vec![]);
-//        value_iterator_to_fasta(by_value!(v), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        // reference -- strict
-//        let mut w = Cursor::new(vec![]);
-//        reference_iterator_to_fasta_strict(v.iter(), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        let mut w = Cursor::new(vec![]);
-//        let r = reference_iterator_to_fasta_strict(u.iter(), &mut w);
-//        assert!(r.is_err());
-//
-//        // value -- strict
-//        let mut w = Cursor::new(vec![]);
-//        value_iterator_to_fasta_strict(by_value!(v), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        let mut w = Cursor::new(vec![]);
-//        let r = value_iterator_to_fasta_strict(by_value!(u), &mut w);
-//        assert!(r.is_err());
-//
-//        // reference -- lenient
-//        let mut w = Cursor::new(vec![]);
-//        reference_iterator_to_fasta_lenient(v.iter(), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        let mut w = Cursor::new(vec![]);
-//        reference_iterator_to_fasta_lenient(u.iter(), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        // value -- lenient
-//        let mut w = Cursor::new(vec![]);
-//        value_iterator_to_fasta_lenient(by_value!(v), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//
-//        let mut w = Cursor::new(vec![]);
-//        value_iterator_to_fasta_lenient(by_value!(u), &mut w).unwrap();
-//        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
-//    }
-//
-//    #[test]
-//    fn iterator_from_fasta_test() {
-//        // VALID
-//        let text = GAPDH_BSA_FASTA;
-//        let expected = vec![gapdh(), bsa()];
-//
-//        // record iterator -- default
-//        let iter = FastaRecordIter::new(Cursor::new(text));
-//        let v: ResultType<RecordList> = iter.collect();
-//        incomplete_list_eq(&expected, &v.unwrap());
-//
-//        // Compile check only
-//        iterator_from_fasta(&mut Cursor::new(text));
-//
-//        // record iterator -- strict
-//        let iter = FastaRecordStrictIter::new(Cursor::new(text));
-//        let v: ResultType<RecordList> = iter.collect();
-//        incomplete_list_eq(&expected, &v.unwrap());
-//
-//        // Compile check only
-//        iterator_from_fasta_strict(&mut Cursor::new(text));
-//
-//        // record iterator -- lenient
-//        let iter = FastaRecordLenientIter::new(Cursor::new(text));
-//        let v: ResultType<RecordList> = iter.collect();
-//        incomplete_list_eq(&expected, &v.unwrap());
-//
-//        // Compile check only
-//        iterator_from_fasta_lenient(&mut Cursor::new(text));
-//
-//        // INVALID
-//        let text = GAPDH_EMPTY_FASTA;
-//        let expected1 = vec![gapdh(), Record::new()];
-//        let expected2 = vec![gapdh()];
-//
-//        // record iterator -- default
-//        let iter = iterator_from_fasta(Cursor::new(text));
-//        let v: ResultType<RecordList> = iter.collect();
-//        let v = v.unwrap();
-//        assert_eq!(expected1.len(), v.len());
-//        incomplete_eq(&expected1[0], &v[0]);
-//        assert_eq!(expected1[1], v[1]);
-//
-//        // record iterator -- strict
-//        let iter = iterator_from_fasta_strict(Cursor::new(text));
-//        let v: ResultType<RecordList> = iter.collect();
-//        assert!(v.is_err());
-//
-//        // record iterator -- lenient
-//        let iter = iterator_from_fasta_lenient(Cursor::new(text));
-//        let v: ResultType<RecordList> = iter.collect();
-//        incomplete_list_eq(&expected2, &v.unwrap());
-//    }
+    macro_rules! by_value {
+        ($x:expr) => ($x.iter().map(|x| { Ok(x.clone()) }))
+    }
+
+    #[test]
+    fn iterator_to_xml_test() {
+        let v = vec![gapdh(), bsa()];
+        let u = vec![gapdh(), bsa(), Record::new()];
+
+        // reference -- default
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_xml(v.iter(), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        // value -- default
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_xml(by_value!(v), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        // reference -- strict
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_xml_strict(v.iter(), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        let mut w = Cursor::new(vec![]);
+        let r = reference_iterator_to_xml_strict(u.iter(), &mut w);
+        assert!(r.is_err());
+
+        // value -- strict
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_xml_strict(by_value!(v), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        let mut w = Cursor::new(vec![]);
+        let r = value_iterator_to_xml_strict(by_value!(u), &mut w);
+        assert!(r.is_err());
+
+        // reference -- lenient
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_xml_lenient(v.iter(), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        let mut w = Cursor::new(vec![]);
+        reference_iterator_to_xml_lenient(u.iter(), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        // value -- lenient
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_xml_lenient(by_value!(v), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+
+        let mut w = Cursor::new(vec![]);
+        value_iterator_to_xml_lenient(by_value!(u), &mut w).unwrap();
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+    }
+
+    #[test]
+    fn iterator_from_xml_test() {
+        // VALID
+        let text = GAPDH_BSA_XML;
+        let expected = vec![gapdh(), bsa()];
+
+        // record iterator -- default
+        let iter = XmlRecordIter::new(Cursor::new(text));
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(&expected, &v.unwrap());
+
+        // Compile check only
+        iterator_from_xml(&mut Cursor::new(text));
+
+        // record iterator -- strict
+        let iter = XmlRecordStrictIter::new(Cursor::new(text));
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(&expected, &v.unwrap());
+
+        // Compile check only
+        iterator_from_xml_strict(&mut Cursor::new(text));
+
+        // record iterator -- lenient
+        let iter = XmlRecordLenientIter::new(Cursor::new(text));
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(&expected, &v.unwrap());
+
+        // Compile check only
+        iterator_from_xml_lenient(&mut Cursor::new(text));
+
+        // INVALID
+        let text = GAPDH_EMPTY_XML;
+        let expected1 = vec![gapdh(), Record::new()];
+        let expected2 = vec![gapdh()];
+
+        // record iterator -- default
+        let iter = iterator_from_xml(Cursor::new(text));
+        let v: ResultType<RecordList> = iter.collect();
+        let v = v.unwrap();
+        assert_eq!(expected1.len(), v.len());
+        assert_eq!(&expected1[0], &v[0]);
+        assert_eq!(expected1[1], v[1]);
+
+        // record iterator -- strict
+        let iter = iterator_from_xml_strict(Cursor::new(text));
+        let v: ResultType<RecordList> = iter.collect();
+        assert!(v.is_err());
+
+        // record iterator -- lenient
+        let iter = iterator_from_xml_lenient(Cursor::new(text));
+        let v: ResultType<RecordList> = iter.collect();
+        assert_eq!(&expected2, &v.unwrap());
+    }
 
     fn xml_dir() -> PathBuf {
         let mut dir = testdata_dir();
@@ -1076,18 +1165,51 @@ mod tests {
         assert_eq!(p, record);
     }
 
-    // TODO(ahuszagh)
-    //  Restore
-//    #[test]
-//    #[ignore]
-//    fn human_xml_test() {
-//        let mut path = xml_dir();
-//        path.push("human.xml");
-//        let reader = BufReader::new(File::open(path).unwrap());
-//        let iter = XmlRecordIter::new(reader);
-//
-//        // do nothing, just check it parses.
-//        for _ in iter {
-//        }
-//    }
+    #[test]
+    #[ignore]
+    fn bsa_test() {
+        let mut path = xml_dir();
+        path.push("P02769.xml");
+        let mut reader = BufReader::new(File::open(path).unwrap());
+
+        let p = bsa();
+        let record = record_from_xml(&mut reader).unwrap();
+        assert_eq!(p, record);
+    }
+
+    #[test]
+    #[ignore]
+    fn dpb1_test() {
+        let mut path = xml_dir();
+        path.push("A0A2U8RNL1.xml");
+        let mut reader = BufReader::new(File::open(path).unwrap());
+
+        let record = record_from_xml(&mut reader).unwrap();
+        assert_eq!(record.sequence_version, 1);
+        assert_eq!(record.protein_evidence, ProteinEvidence::Predicted);
+        assert_eq!(record.mass, 10636);
+        assert_eq!(record.length, 87);
+        assert_eq!(record.gene, "DPB1");
+        assert_eq!(record.id, "A0A2U8RNL1");
+        assert_eq!(record.mnemonic, "A0A2U8RNL1_HUMAN");
+        assert_eq!(record.name, "MHC class II antigen");
+        assert_eq!(record.organism, "Homo sapiens");
+        assert_eq!(record.proteome, "");
+        assert_eq!(record.sequence, b"NYLFQGRQECYAFNGTQRFLERYIYNREEFVRFDSDVGEFRAVTELGRPDEEYWNSQKDILEEKRAVPDRMCRHNYELGGPMTLQRR".to_vec());
+        assert_eq!(record.taxonomy, "9606");
+        assert_eq!(record.reviewed, false);
+    }
+
+    #[test]
+    #[ignore]
+    fn atcc_xml_test() {
+        let mut path = xml_dir();
+        path.push("ATCC.xml");
+        let reader = BufReader::new(File::open(path).unwrap());
+        let iter = XmlRecordIter::new(reader);
+
+        // do nothing, just check it parses.
+        for _ in iter {
+        }
+    }
 }

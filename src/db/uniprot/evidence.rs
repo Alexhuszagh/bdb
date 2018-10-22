@@ -22,10 +22,16 @@ use std::mem;
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ProteinEvidence {
+    /// Protein evidence at the protein level.
     ProteinLevel = 1,
+    /// Protein evidence at the transcript (mRNA) level.
     TranscriptLevel = 2,
+    /// Protein is inferred from homology.
     Inferred = 3,
+    /// Protein is predicted bioinformatically.
     Predicted = 4,
+    /// Internal implementation detail.
+    #[doc(hidden)]
     Unknown = 5,
 }
 

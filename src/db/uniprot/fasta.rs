@@ -108,6 +108,7 @@ fn estimate_record_size(record: &Record) -> usize {
         record.mnemonic.len() +
         record.name.len() +
         record.organism.len() +
+        record.taxonomy.len() +
         record.sequence.len()
 }
 
@@ -187,21 +188,80 @@ impl<'r, T: 'r + Write> WriterState<'r, T> {
 
 // WRITER
 
-/// Export record to FASTA.
-pub fn record_to_fasta<T: Write>(record: &Record, writer: &mut T)
+
+/// Export the SwissProt header to FASTA.
+pub fn write_swissprot_header<T: Write>(record: &Record, writer: &mut T)
     -> ResultType<()>
 {
-    // Write SwissProt header
     write_alls!(
         writer,
         b">sp|",     record.id.as_bytes(),
         b"|",        record.mnemonic.as_bytes(),
         b" ",        record.name.as_bytes(),
-        b" OS=",     record.organism.as_bytes(),
-        b" GN=",     record.gene.as_bytes(),
+        b" OS=",     record.organism.as_bytes()
+    )?;
+
+    // Write the taxonomy ID, if not empty.
+    if !record.taxonomy.is_empty() {
+        write_alls!(writer, b" OX=", record.taxonomy.as_bytes())?;
+    }
+
+    // Write the taxonomy ID, if not empty.
+    if !record.gene.is_empty() {
+        write_alls!(writer, b" GN=", record.gene.as_bytes())?;
+    }
+
+    write_alls!(
+        writer,
         b" PE=",     record.protein_evidence.to_string().as_bytes(),
         b" SV=",     record.sequence_version.to_string().as_bytes()
     )?;
+    Ok(())
+}
+
+/// Export the TrEMBL header to FASTA.
+///
+/// Don't deduplicate this with SwissProt, they're very different
+/// formats and we need to differentiate the two.
+pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
+    -> ResultType<()>
+{
+    write_alls!(
+        writer,
+        b">tr|",     record.id.as_bytes(),
+        b"|",        record.mnemonic.as_bytes(),
+        b" ",        record.name.as_bytes(),
+        b" OS=",     record.organism.as_bytes()
+    )?;
+
+    // Write the taxonomy ID, if not empty.
+    if !record.taxonomy.is_empty() {
+        write_alls!(writer, b" OX=", record.taxonomy.as_bytes())?;
+    }
+
+    // Write the taxonomy ID, if not empty.
+    if !record.gene.is_empty() {
+        write_alls!(writer, b" GN=", record.gene.as_bytes())?;
+    }
+
+    write_alls!(
+        writer,
+        b" PE=",     record.protein_evidence.to_string().as_bytes(),
+        b" SV=",     record.sequence_version.to_string().as_bytes()
+    )?;
+    Ok(())
+}
+
+/// Export record to FASTA.
+pub fn record_to_fasta<T: Write>(record: &Record, writer: &mut T)
+    -> ResultType<()>
+{
+    // Write header
+    if record.reviewed {
+        write_swissprot_header(record, writer)?;
+    } else {
+        write_trembl_header(record, writer)?;
+    }
 
     // Write SwissProt sequence, formatted at 60 characters.
     // Write the initial, 60 character lines
@@ -378,6 +438,7 @@ fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
         name: capture_as_string(&captures, R::NAME_INDEX),
         organism: capture_as_string(&captures, R::ORGANISM_INDEX),
         taxonomy: optional_capture_as_string(&captures, R::TAXONOMY_INDEX),
+        reviewed: true,
 
         // unused fields in header
         proteome: String::new(),
@@ -411,6 +472,7 @@ fn record_header_from_trembl(header: &str) -> ResultType<Record> {
         name: capture_as_string(&captures, R::NAME_INDEX),
         organism: capture_as_string(&captures, R::ORGANISM_INDEX),
         taxonomy: optional_capture_as_string(&captures, R::TAXONOMY_INDEX),
+        reviewed: false,
 
         // unused fields in header
         proteome: String::new(),
@@ -665,10 +727,11 @@ mod tests {
         let g = gapdh();
         let b = bsa();
         let v = vec![gapdh(), bsa()];
-        assert_eq!(estimate_record_size(&g), 454);
-        assert_eq!(estimate_record_size(&b), 689);
-        assert_eq!(estimate_list_size(&v), 1143);
+        assert_eq!(estimate_record_size(&g), 458);
+        assert_eq!(estimate_record_size(&b), 693);
+        assert_eq!(estimate_list_size(&v), 1151);
     }
+
 
     macro_rules! by_value {
         ($x:expr) => ($x.iter().map(|x| { Ok(x.clone()) }))

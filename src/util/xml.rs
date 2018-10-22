@@ -236,6 +236,53 @@ impl<T: BufRead> XmlState<T> {
         buffer.clear();
         result
     }
+
+    /// Implied function to seek a start element or fail if another is found.
+    fn seek_start_or_fallback_impl(
+        &mut self,
+        buffer: &mut BufferType,
+        name1: &[u8],
+        depth1: usize,
+        name2: &[u8],
+        depth2: usize,
+    )
+        -> Option<ResultType<bool>>
+    {
+        loop {
+            match self.read_event(buffer) {
+                Err(e) => return Some(Err(e)),
+                Ok(v)  => match v {
+                    Event::Start(e) => {
+                        if self.found_depth(depth1) && self.found_name(name1, e.name()) {
+                            return Some(Ok(true));
+                        } else if self.found_depth(depth2) && self.found_name(name2, e.name()) {
+                            return Some(Ok(false));
+                        }
+                    },
+                    Event::Eof => return None,
+                    _ => (),
+                }
+            }
+            buffer.clear();
+        }
+    }
+
+    /// Seek start element based off name and depth, with a fallback element.
+    #[inline]
+    pub fn seek_start_or_fallback(
+        &mut self,
+        buffer: &mut BufferType,
+        name1: &[u8],
+        depth1: usize,
+        name2: &[u8],
+        depth2: usize,
+    )
+        -> Option<ResultType<bool>>
+    {
+        let result = self.seek_start_or_fallback_impl(buffer, name1, depth1, name2, depth2);
+        buffer.clear();
+        result
+    }
 }
 
 /// Public API for the XML reader.
@@ -257,9 +304,17 @@ impl<T: BufRead> XmlReader<T> {
     }
 
     /// Read an XML event.
+    ///
+    /// You must clear the buffer after this.
     #[inline(always)]
     pub fn read_event(&mut self) -> ResultType<Event> {
         self.state.read_event(&mut self.buffer)
+    }
+
+    /// Clear internal buffer.
+    #[inline(always)]
+    pub fn reset_buffer(&mut self) {
+        self.buffer.clear();
     }
 
     /// Read until the matching XML end element.
@@ -364,6 +419,26 @@ impl<T: BufRead> XmlReader<T> {
     pub fn seek_end_depth(&mut self, depth: usize) -> Option<ResultType<()>> {
         self.seek_end(b"", depth)
     }
+
+    /// Seek start element based off name and depth, with a fallback element.
+    ///
+    /// Two valid identifiers are provided for the seek operation,
+    /// if the second element is found before the former, `false`
+    /// is returned, however, if the former is found first, we return
+    /// `true`. This is useful to map logic with optional elements,
+    /// without loading the entire DOM into memory.
+    #[inline]
+    pub fn seek_start_or_fallback(
+        &mut self,
+        name1: &[u8],
+        depth1: usize,
+        name2: &[u8],
+        depth2: usize,
+    )
+        -> Option<ResultType<bool>>
+    {
+        self.state.seek_start_or_fallback(&mut self.buffer, name1, depth1, name2, depth2)
+    }
 }
 
 }   // reader
@@ -392,6 +467,12 @@ impl<T: Write> XmlWriter<T> {
         XmlWriter {
             writer: Writer::new(writer)
         }
+    }
+
+    /// Consume and return inner writer.
+    #[inline(always)]
+    pub fn into_inner(self) -> T {
+        self.writer.into_inner()
     }
 
     /// Create start element
@@ -471,6 +552,53 @@ impl<T: Write> XmlWriter<T> {
 
 #[cfg(test)]
 mod tests {
-    // TODO(ahuszagh)
-    // Implement...
+    use quick_xml::events::Event;
+    use std::io::Cursor;
+    use super::*;
+
+    #[test]
+    fn xml_declaration_test() {
+        let mut w = XmlWriter::new(Cursor::new(vec![]));
+        w.write_declaration().unwrap();
+
+        let text = String::from_utf8(w.into_inner().into_inner()).unwrap();
+        assert_eq!(text, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+    }
+
+    #[test]
+    fn xml_write_test() {
+        let mut w = XmlWriter::new(Cursor::new(vec![]));
+
+        w.write_declaration().unwrap();
+        w.write_start_element(b"t1", &[(b"k1", b"v1")]).unwrap();
+        w.write_text_element(b"t2", b"Text", &[(b"k2", b"v2")]).unwrap();
+        w.write_empty_element(b"t3", &[(b"k3", b"v3")]).unwrap();
+        w.write_end_element(b"t1").unwrap();
+
+        let text = String::from_utf8(w.into_inner().into_inner()).unwrap();
+        assert_eq!(text, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"></t3></t1>");
+    }
+
+    #[test]
+    fn xml_read_test() {
+        let text = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"></t3></t1>";
+        let mut r = XmlReader::new(Cursor::new(text));
+
+        let mut tags: Vec<String> = vec![];
+
+        loop {
+            match r.read_event() {
+                Err(_)              => break,
+                Ok(Event::Eof)      => break,
+                Ok(Event::Start(e)) => {
+                    let string = String::from_utf8(e.name().to_vec()).unwrap();
+                    tags.push(string);
+                },
+                _ => continue,
+            }
+            r.reset_buffer();
+        }
+
+        assert_eq!(tags, &["t1", "t2", "t3"]);
+    }
 }

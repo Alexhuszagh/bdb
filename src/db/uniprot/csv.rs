@@ -50,10 +50,13 @@ const SEQUENCE: &'static str = "Sequence";
 /// Header `taxonomy`.
 const TAXONOMY: &'static str = "Organism ID";
 
+/// Header `reviewed`.
+const REVIEWED: &'static str = "Status";
+
 // TO CSV HELPERS
 
 //// Header columns for UniProt CSV export format.
-const CSV_HEADER: [&'static str; 12] = [
+const CSV_HEADER: [&'static str; 13] = [
     SEQUENCE_VERSION,
     PROTEIN_EVIDENCE,
     MASS,
@@ -65,7 +68,8 @@ const CSV_HEADER: [&'static str; 12] = [
     ORGANISM,
     PROTEOME,
     SEQUENCE,
-    TAXONOMY
+    TAXONOMY,
+    REVIEWED
 ];
 
 /// Convert a record to an array of strings for CSV serialization.
@@ -76,7 +80,11 @@ fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
     let sv = nonzero_to_commas!(record.sequence_version);
     let mass = nonzero_to_commas!(record.mass);
     let length = nonzero_to_commas!(record.length);
-    let array: [&[u8]; 12] = [
+    let reviewed = match record.reviewed {
+        true    => "reviewed",
+        false   => "unreviewed",
+    };
+    let array: [&[u8]; 13] = [
         sv.as_bytes(),
         record.protein_evidence.verbose().as_bytes(),
         mass.as_bytes(),
@@ -89,6 +97,7 @@ fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
         record.proteome.as_bytes(),
         record.sequence.as_slice(),
         record.taxonomy.as_bytes(),
+        reviewed.as_bytes(),
     ];
 
     match writer.write_record(&array) {
@@ -153,6 +162,7 @@ fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
             PROTEOME            => RecordField::Proteome,
             SEQUENCE            => RecordField::Sequence,
             TAXONOMY            => RecordField::Taxonomy,
+            REVIEWED            => RecordField::Reviewed,
             _   => continue,
         };
         map.insert(key, index);
@@ -214,6 +224,14 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
             RecordField::Proteome => record.proteome = String::from(value),
             RecordField::Sequence => record.sequence = value.as_bytes().to_vec(),
             RecordField::Taxonomy => record.taxonomy = String::from(value),
+
+            RecordField::Reviewed => {
+                match value {
+                    "reviewed"      => record.reviewed = true,
+                    "unreviewed"    => record.reviewed = false,
+                    _               => return Some(Err(From::from(ErrorKind::InvalidEnumeration))),
+                }
+            }
         }
     }
 
@@ -239,14 +257,16 @@ const CSV_HEADER_SIZE: usize = 144;
 /// Estimate the size of a CSV row from a record.
 #[inline]
 fn estimate_record_size(record: &Record) -> usize {
-    // The vocabulary size is actually 11, overestimate to adjust for number export.
-    const CSV_VOCABULARY_SIZE: usize = 31;
+    // The vocabulary size is actually 11, overestimate to adjust for
+    // number export and enumeration exports.
+    const CSV_VOCABULARY_SIZE: usize = 61;
     CSV_VOCABULARY_SIZE +
         record.gene.len() +
         record.id.len() +
         record.mnemonic.len() +
         record.name.len() +
         record.organism.len() +
+        record.taxonomy.len() +
         record.sequence.len()
 }
 
@@ -588,9 +608,9 @@ mod tests {
         let g = gapdh();
         let b = bsa();
         let v = vec![gapdh(), bsa()];
-        assert_eq!(estimate_record_size(&g), 445);
-        assert_eq!(estimate_record_size(&b), 680);
-        assert_eq!(estimate_list_size(&v), 1125);
+        assert_eq!(estimate_record_size(&g), 479);
+        assert_eq!(estimate_record_size(&b), 714);
+        assert_eq!(estimate_list_size(&v), 1193);
     }
 
     macro_rules! by_value {

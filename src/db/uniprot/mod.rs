@@ -13,7 +13,7 @@ mod evidence;
 mod re;
 mod record;
 mod record_list;
-mod test;
+mod section;
 mod valid;
 
 #[cfg(feature = "csv")]
@@ -25,7 +25,11 @@ mod fasta;
 #[cfg(feature = "xml")]
 mod xml;
 
+#[cfg(test)]
+mod test;
+
 // Re-export the models into the parent module.
 pub use self::evidence::ProteinEvidence;
 pub use self::record::{Record, RecordField};
 pub use self::record_list::RecordList;
+pub use self::section::Section;
