@@ -375,11 +375,11 @@ pub fn value_iterator_to_csv_lenient<Iter, T>(iter: Iter, writer: &mut T, delimi
 // READER
 
 /// Import record from CSV.
+#[inline(always)]
 pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
     -> ResultType<Record>
 {
-    let mut iter = CsvRecordIter::new(reader, delimiter);
-    match iter.next() {
+    match iterator_from_csv(reader, delimiter).next() {
         None    => Err(From::from(ErrorKind::InvalidInput)),
         Some(v) => Ok(v?)
     }

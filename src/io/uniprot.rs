@@ -9,6 +9,9 @@ pub use self::private::UniProtCsv as Csv;
 #[cfg(feature = "fasta")]
 pub use self::private::UniProtFasta as Fasta;
 
+#[cfg(feature = "xml")]
+pub use self::private::UniProtXml as Xml;
+
 // PRIVATE
 // -------
 
@@ -80,6 +83,37 @@ impl UniProtCsv {
     #[inline(always)]
     pub fn from_file<P: AsRef<Path>>(path: P) -> ResultType<RecordList> {
         RecordList::from_csv_file(path, b'\t')
+    }
+}
+
+/// Reader/writer for UniProt XML records.
+#[cfg(feature = "xml")]
+pub struct UniProtXml;
+
+#[cfg(feature = "xml")]
+impl UniProtXml {
+    /// Save UniProt records to string.
+    #[inline(always)]
+    pub fn to_string(list: &RecordList) -> ResultType<String> {
+        list.to_xml_string()
+    }
+
+    /// Save UniProt records to file.
+    #[inline(always)]
+    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> ResultType<()> {
+        list.to_xml_file(path)
+    }
+
+    /// Load UniProt records from string.
+    #[inline(always)]
+    pub fn from_string(text: &str) -> ResultType<RecordList> {
+        RecordList::from_xml_string(text)
+    }
+
+    /// Load UniProt records from file.
+    #[inline(always)]
+    pub fn from_file<P: AsRef<Path>>(path: P) -> ResultType<RecordList> {
+        RecordList::from_xml_file(path)
     }
 }
 

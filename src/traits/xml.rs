@@ -6,9 +6,6 @@ use std::path::Path;
 use util::ResultType;
 
 /// Serialize to and from XML.
-/// TODO(ahuszagh)
-///     Document!!!
-#[doc(hidden)]
 pub trait Xml: Sized {
     /// Estimate the size of the resulting XML output to avoid reallocations.
     #[inline(always)]
@@ -31,7 +28,7 @@ pub trait Xml: Sized {
         }
     }
 
-    /// Export model to FASTA output file.
+    /// Export model to XML output file.
     #[inline]
     fn to_xml_file<P: AsRef<Path>>(&self, path: P) -> ResultType<()> {
         let file = File::create(path)?;
@@ -61,8 +58,28 @@ pub trait Xml: Sized {
 }
 
 /// Specialization of the `Xml` trait for collections.
-#[doc(hidden)]
 pub trait XmlCollection: Xml {
-    // TODO(ahuszagh) Implement
-    fn noop(self);
+    /// Export collection to XML.
+    ///
+    /// Returns an error if any of the items within the collection
+    /// are invalid.
+    fn to_xml_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+
+    /// Export collection to XML.
+    ///
+    /// Returns only errors due to serialization issues, otherwise,
+    /// exports as many items as possible.
+    fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+
+    /// Import collection from XML.
+    ///
+    /// Returns an error if any of the items within the XML document
+    /// are invalid.
+    fn from_xml_strict<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+
+    /// Import collection from XML.
+    ///
+    /// Returns only errors due to deserialization errors, otherwise,
+    /// imports as many items as possible.
+    fn from_xml_lenient<T: BufRead>(reader: &mut T) -> ResultType<Self>;
 }

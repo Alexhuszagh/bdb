@@ -223,6 +223,9 @@ mod tests {
         assert_eq!(z.len(), 1);
     }
 
+    // TODO(ahuszagh)
+    //  Add XML
+
     #[cfg(feature = "fasta")]
     fn fasta_dir() -> PathBuf {
         let mut dir = testdata_dir();

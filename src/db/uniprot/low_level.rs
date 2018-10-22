@@ -16,4 +16,7 @@ pub use super::csv::*;
 #[cfg(feature = "fasta")]
 pub use super::fasta::*;
 
+#[cfg(feature = "xml")]
+pub use super::xml::*;
+
 pub use super::re::*;

@@ -15,4 +15,4 @@ pub use self::alias::{BufferType, ErrorType, ResultType};
 pub use self::error::{Error, ErrorKind};
 
 #[cfg(feature = "xml")]
-pub use self::xml::{XmlReader};
+pub use self::xml::{XmlReader, XmlWriter};

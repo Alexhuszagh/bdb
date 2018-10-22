@@ -3,7 +3,7 @@
 // RE-EXPORTS
 
 pub use self::reader::{XmlReader};
-pub use self::writer::{};
+pub use self::writer::{XmlWriter};
 
 // READER
 
@@ -12,7 +12,7 @@ mod reader {
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
 use std::io::BufRead;
-use super::super::alias::{BufferType, ErrorType, ResultType};
+use super::super::alias::{BufferType, ResultType};
 use super::super::error::ErrorKind;
 
 /// Macro to seek another element within the tree.
@@ -81,7 +81,7 @@ impl<T: BufRead> XmlState<T> {
     /// Start nodes will always be the same as the end node + 1.
     #[inline]
     pub fn read_event<'a>(&mut self, buffer: &'a mut BufferType)
-        -> Result<Event<'a>, ErrorType>
+        -> ResultType<Event<'a>>
     {
         match self.reader.read_event(buffer) {
             Ok(Event::Start(e)) => {
@@ -371,8 +371,101 @@ impl<T: BufRead> XmlReader<T> {
 // WRITER
 
 mod writer {
-    // TODO(ahuszagh)
-    //      Implement...
+
+use quick_xml::Writer;
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
+use std::io::Write;
+
+use super::super::alias::ResultType;
+use super::super::error::ErrorKind;
+
+/// Public API for the XML writer.
+pub struct XmlWriter<T: Write> {
+    /// Internal XML writer.
+    writer: Writer<T>,
+}
+
+impl<T: Write> XmlWriter<T> {
+    /// Create new XmlWriter.
+    #[inline]
+    pub fn new(writer: T) -> Self {
+        XmlWriter {
+            writer: Writer::new(writer)
+        }
+    }
+
+    /// Create start element
+    #[inline(always)]
+    fn new_start_element(bytes: &[u8]) -> BytesStart {
+        BytesStart::borrowed(bytes, bytes.len())
+    }
+
+    /// Create text element.
+    #[inline(always)]
+    fn new_text_element<'a>(text: &str) -> BytesText {
+        BytesText::from_plain_str(text)
+    }
+
+    /// Create end element.
+    #[inline(always)]
+    fn new_end_element(bytes: &[u8]) -> BytesEnd {
+        BytesEnd::borrowed(bytes)
+    }
+
+    /// Process a write event.
+    #[inline(always)]
+    fn write_event(&mut self, event: Event) -> ResultType<()> {
+        match self.writer.write_event(event) {
+            Err(e)  => Err(From::from(ErrorKind::Xml(e))),
+            _       => Ok(()),
+        }
+    }
+
+    /// Write the XML declaration.
+    #[inline(always)]
+    pub fn write_declaration(&mut self) -> ResultType<()> {
+        let decl = BytesDecl::new(b"1.0", Some(b"UTF-8"), None);
+        self.write_event(Event::Decl(decl))
+    }
+
+    /// Write start element.
+    #[inline(always)]
+    pub fn write_start_element(&mut self, name: &[u8], attributes: &[(&[u8], &[u8])])
+        -> ResultType<()>
+    {
+        let mut elem = Self::new_start_element(name);
+        for attribute in attributes {
+            elem.push_attribute(*attribute);
+        }
+        self.write_event(Event::Start(elem))
+    }
+
+    /// Write text element (with start and end elements).
+    pub fn write_text_element(&mut self, name: &[u8], text: &str, attributes: &[(&[u8], &[u8])])
+        -> ResultType<()>
+    {
+        self.write_start_element(name, attributes)?;
+        self.write_event(Event::Text(Self::new_text_element(text)))?;
+        self.write_end_element(name)
+    }
+
+    /// Write start element.
+    #[inline(always)]
+    pub fn write_empty_element(&mut self, name: &[u8], attributes: &[(&[u8], &[u8])])
+        -> ResultType<()>
+    {
+        self.write_start_element(name, attributes)?;
+        self.write_end_element(name)
+    }
+
+    /// Write start element.
+    #[inline(always)]
+    pub fn write_end_element(&mut self, name: &[u8])
+        -> ResultType<()>
+    {
+        self.write_event(Event::End(Self::new_end_element(name)))
+    }
+}
 
 }   // writer
 

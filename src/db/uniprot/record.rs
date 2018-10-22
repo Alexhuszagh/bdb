@@ -421,11 +421,13 @@ mod tests {
 
     #[cfg(feature = "xml")]
     #[test]
-    #[allow(unused_variables)]   // TODO(ahuszagh)    Remove
     fn xml_record() {
         // gapdh
         let p = gapdh();
         let x = p.to_xml_string().unwrap();
+        let y = Record::from_xml_string(&x).unwrap();
+        assert_eq!(p, y);
+
         // TODO(ahuszagh)
         //  Implement...
 
