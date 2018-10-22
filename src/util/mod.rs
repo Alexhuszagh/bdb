@@ -5,11 +5,16 @@
 #[macro_use]
 mod macros;
 
+#[macro_use]
+mod re;
+
 mod alias;
 mod error;
 
 #[cfg(feature = "xml")]
 mod xml;
+
+pub use self::re::{ExtractionRegex, ValidationRegex};
 
 pub use self::alias::{BufferType, ErrorType, ResultType};
 pub use self::error::{Error, ErrorKind};

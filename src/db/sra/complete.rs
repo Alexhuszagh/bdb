@@ -10,8 +10,7 @@ impl Complete for Record {
     fn is_complete(&self) -> bool {
         (
             self.is_valid() &&
-            !self.proteome.is_empty() &&
-            !self.taxonomy.is_empty()
+            !self.description.is_empty()
         )
     }
 }

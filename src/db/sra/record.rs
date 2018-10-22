@@ -27,11 +27,13 @@
 /// Enumerated values for Record fields.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[allow(dead_code)]     // TODO(ahuszagh)       Remove
 pub enum RecordField {
-    // TODO(ahuszagh)   Remove
-    Unknown
-    // TODO(ahuszagh)
-    //  Implement...
+    SeqId,
+    Description,
+    Length,
+    Sequence,
+    Quality,
 }
 
 
@@ -49,3 +51,6 @@ pub struct Record {
     /// Nucleotide sequence quality scores.
     pub quality: Vec<u8>,
 }
+
+// TODO(ahuszagh)
+//  Implement re, valid, and complete models for this.

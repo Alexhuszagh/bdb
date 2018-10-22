@@ -1,4 +1,4 @@
-//! Client to post queries to the UniProt KB service.
+//! Client to request resources from the UniProt KB service.
 
 use reqwest::{self, Response};
 use url;

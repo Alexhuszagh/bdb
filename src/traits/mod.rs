@@ -9,6 +9,9 @@ mod csv;
 #[cfg(feature = "fasta")]
 mod fasta;
 
+#[cfg(feature = "fastq")]
+mod fastq;
+
 #[cfg(feature = "xml")]
 mod xml;
 
@@ -22,6 +25,9 @@ pub use self::csv::{Csv, CsvCollection};
 
 #[cfg(feature = "fasta")]
 pub use self::fasta::{Fasta, FastaCollection};
+
+// TODO(ahuszagh)
+//  Add FASTQ definitions
 
 #[cfg(feature = "xml")]
 pub use self::xml::{Xml, XmlCollection};
