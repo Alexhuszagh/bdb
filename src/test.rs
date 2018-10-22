@@ -3,8 +3,9 @@
 use std::env;
 use std::path::PathBuf;
 
+// PATH
+
 /// Return the `target/debug` directory path.
-#[cfg(test)]
 pub fn debug_dir() -> PathBuf {
     env::current_exe()
         .expect("unittest executable path")
@@ -16,7 +17,6 @@ pub fn debug_dir() -> PathBuf {
 }
 
 /// Return the `target` directory path.
-#[cfg(test)]
 pub fn target_dir() -> PathBuf {
     debug_dir()
         .parent()
@@ -25,7 +25,6 @@ pub fn target_dir() -> PathBuf {
 }
 
 /// Return the project directory path.
-#[cfg(test)]
 pub fn project_dir() -> PathBuf {
     target_dir()
         .parent()
@@ -34,7 +33,6 @@ pub fn project_dir() -> PathBuf {
 }
 
 /// Return the `test` directory path.
-#[cfg(test)]
 pub fn test_dir() -> PathBuf {
     let mut dir = project_dir();
     dir.push("test");
@@ -42,9 +40,35 @@ pub fn test_dir() -> PathBuf {
 }
 
 /// Return the `test/data` directory path.
-#[cfg(test)]
 pub fn testdata_dir() -> PathBuf {
     let mut dir = test_dir();
     dir.push("data");
     dir
+}
+
+// REGEX
+
+/// Check regex validates or does not validate text.
+macro_rules! validate_regex {
+    ($t:tt, $input:expr, $expected:expr) => ({
+        assert_eq!($t::validate().is_match($input), $expected)
+    })
+}
+
+/// Check regex matches or does not match text.
+macro_rules! check_regex {
+    ($t:tt, $input:expr, $expected:expr) => ({
+        assert_eq!($t::validate().is_match($input), $expected);
+        assert_eq!($t::extract().is_match($input), $expected)
+    })
+}
+
+
+/// Check regex extracts the desired subgroup.
+macro_rules! extract_regex {
+    ($t:tt, $input:expr, $index:expr, $expected:expr, $meth:ident) => ({
+        let re = $t::extract();
+        let caps = re.captures($input).unwrap();
+        assert_eq!(caps.get($index).unwrap().$meth(), $expected);
+    })
 }

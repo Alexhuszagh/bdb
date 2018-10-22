@@ -546,77 +546,40 @@ mod tests {
     use test::testdata_dir;
     use super::*;
 
-    /// Check regex validates or does not validate text.
-    fn validate_regex<T: ValidationRegex<Regex>>(text: &str, result: bool) {
-        assert_eq!(T::validate().is_match(text), result);
-    }
-
-    /// Check regex matches or does not match text.
-    fn check_regex<T>(text: &str, result: bool)
-        where T: ExtractionRegex<Regex> + ValidationRegex<Regex>
-    {
-        assert_eq!(T::validate().is_match(text), result);
-        assert_eq!(T::extract().is_match(text), result);
-    }
-
-    /// Check bytes regex matches or does not match text.
-    fn check_bytes_regex<T>(text: &[u8], result: bool)
-        where T: ExtractionRegex<BytesRegex> + ValidationRegex<BytesRegex>
-    {
-        assert_eq!(T::validate().is_match(text), result);
-        assert_eq!(T::extract().is_match(text), result);
-    }
-
-    /// Check regex extracts the desired subgroup.
-    fn extract_regex<T: ExtractionRegex<Regex>>(text: &str, index: usize, result: &str)
-    {
-        let re = T::extract();
-        let caps = re.captures(text).unwrap();
-        assert_eq!(caps.get(index).unwrap().as_str(), result);
-    }
-
-    /// Check bytes regex extracts the desired subgroup.
-    fn extract_bytes_regex<T: ExtractionRegex<BytesRegex>>(text: &[u8], index: usize, result: &[u8])
-    {
-        let re = T::extract();
-        let caps = re.captures(text).unwrap();
-        assert_eq!(caps.get(index).unwrap().as_bytes(), result);
-    }
-
     #[test]
     fn accession_regex() {
         type T = AccessionRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>("A2BC19", true);
-        check_regex::<T>("P12345", true);
-        check_regex::<T>("A0A022YWF9", true);
+        check_regex!(T, "A2BC19", true);
+        check_regex!(T, "P12345", true);
+        check_regex!(T, "A0A022YWF9", true);
 
         // valid - 1 letter
-        check_regex::<T>("2BC19", false);
-        check_regex::<T>("A2BC1", false);
-        check_regex::<T>("0A022YWF9", false);
-        check_regex::<T>("A0A022YWF", false);
+        check_regex!(T, "2BC19", false);
+        check_regex!(T, "A2BC1", false);
+        check_regex!(T, "0A022YWF9", false);
+        check_regex!(T, "A0A022YWF", false);
 
         // valid + 1 letter
-        check_regex::<T>("XA2BC19", false);
-        check_regex::<T>("A2BC19X", false);
-        check_regex::<T>("XA0A022YWF9", false);
-        check_regex::<T>("A0A022YWF9X", false);
+        check_regex!(T, "XA2BC19", false);
+        check_regex!(T, "A2BC19X", false);
+        check_regex!(T, "XA0A022YWF9", false);
+        check_regex!(T, "A0A022YWF9X", false);
 
         // valid + space
-        check_regex::<T>(" A2BC19", false);
-        check_regex::<T>("A2BC19 ", false);
-        check_regex::<T>(" A0A022YWF9", false);
-        check_regex::<T>("A0A022YWF9 ", false);
+        check_regex!(T, " A2BC19", false);
+        check_regex!(T, "A2BC19 ", false);
+        check_regex!(T, " A0A022YWF9", false);
+        check_regex!(T, "A0A022YWF9 ", false);
 
         // extract
-        extract_regex::<T>("A2BC19", 1, "A2BC19");
-        extract_regex::<T>("P12345", 1, "P12345");
-        extract_regex::<T>("A0A022YWF9", 1, "A0A022YWF9");
+        extract_regex!(T, "A2BC19", 1, "A2BC19", as_str);
+        extract_regex!(T, "P12345", 1, "P12345", as_str);
+        extract_regex!(T, "A0A022YWF9", 1, "A0A022YWF9", as_str);
     }
 
     #[test]
@@ -624,35 +587,35 @@ mod tests {
         type T = MnemonicRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>("G3P_RABIT", true);
-        check_regex::<T>("1433B_HUMAN", true);
-        check_regex::<T>("ENO_ACTSZ", true);
-        check_regex::<T>("A0A024R832_HUMAN", true);
+        check_regex!(T, "G3P_RABIT", true);
+        check_regex!(T, "1433B_HUMAN", true);
+        check_regex!(T, "ENO_ACTSZ", true);
+        check_regex!(T, "A0A024R832_HUMAN", true);
 
         // valid + 1 letter
-        check_regex::<T>("G3P_RABITX", false);
-        check_regex::<T>("1433B_HUMANX", false);
-        check_regex::<T>("A0A024R832_HUMANX", false);
+        check_regex!(T, "G3P_RABITX", false);
+        check_regex!(T, "1433B_HUMANX", false);
+        check_regex!(T, "A0A024R832_HUMANX", false);
 
         // valid - group
-        check_regex::<T>("_RABIT", false);
-        check_regex::<T>("G3P_", false);
-        check_regex::<T>("_HUMAN", false);
-        check_regex::<T>("1433B_", false);
-        check_regex::<T>("A0A024R832_", false);
+        check_regex!(T, "_RABIT", false);
+        check_regex!(T, "G3P_", false);
+        check_regex!(T, "_HUMAN", false);
+        check_regex!(T, "1433B_", false);
+        check_regex!(T, "A0A024R832_", false);
 
-        check_regex::<T>(" G3P_RABIT", false);
-        check_regex::<T>("G3P_RABIT ", false);
-        check_regex::<T>(" ENO_ACTSZ", false);
-        check_regex::<T>("ENO_ACTSZ ", false);
+        check_regex!(T, " G3P_RABIT", false);
+        check_regex!(T, "G3P_RABIT ", false);
+        check_regex!(T, " ENO_ACTSZ", false);
+        check_regex!(T, "ENO_ACTSZ ", false);
 
         // extract
-        extract_regex::<T>("G3P_RABIT", 1, "G3P_RABIT");
-        extract_regex::<T>("G3P_RABIT", 2, "G3P");
-        extract_regex::<T>("G3P_RABIT", 3, "RABIT");
+        extract_regex!(T, "G3P_RABIT", 1, "G3P_RABIT", as_str);
+        extract_regex!(T, "G3P_RABIT", 2, "G3P", as_str);
+        extract_regex!(T, "G3P_RABIT", 3, "RABIT", as_str);
     }
 
     #[test]
@@ -660,28 +623,28 @@ mod tests {
         type T = GeneRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>("ND3", true);
-        check_regex::<T>("KIF5B-RET(NM_020975)_K15;R12", true);
-        check_regex::<T>("TRA@", true);
-        check_regex::<T>("HLA-DRB5", true);
-        check_regex::<T>("NOD2/CARD15", true);
-        check_regex::<T>("Hosa(Biaka)-T2R50", true);
-        check_regex::<T>("cytb", true);
-        check_regex::<T>("dopamine D4 receptor/ DRD4", true);
+        check_regex!(T, "ND3", true);
+        check_regex!(T, "KIF5B-RET(NM_020975)_K15;R12", true);
+        check_regex!(T, "TRA@", true);
+        check_regex!(T, "HLA-DRB5", true);
+        check_regex!(T, "NOD2/CARD15", true);
+        check_regex!(T, "Hosa(Biaka)-T2R50", true);
+        check_regex!(T, "cytb", true);
+        check_regex!(T, "dopamine D4 receptor/ DRD4", true);
 
         // valid + 1 letter
-        check_regex::<T>("ND3[", false);
-        check_regex::<T>("ND3`", false);
+        check_regex!(T, "ND3[", false);
+        check_regex!(T, "ND3`", false);
 
         // extract
-        extract_regex::<T>("ND3", 1, "ND3");
-        extract_regex::<T>("KIF5B-RET(NM_020975)_K15;R12", 1, "KIF5B-RET(NM_020975)_K15;R12");
-        extract_regex::<T>("TRA@", 1, "TRA@");
-        extract_regex::<T>("Hosa(Biaka)-T2R50", 1, "Hosa(Biaka)-T2R50");
-        extract_regex::<T>("dopamine D4 receptor/ DRD4", 1, "dopamine D4 receptor/ DRD4");
+        extract_regex!(T, "ND3", 1, "ND3", as_str);
+        extract_regex!(T, "KIF5B-RET(NM_020975)_K15;R12", 1, "KIF5B-RET(NM_020975)_K15;R12", as_str);
+        extract_regex!(T, "TRA@", 1, "TRA@", as_str);
+        extract_regex!(T, "Hosa(Biaka)-T2R50", 1, "Hosa(Biaka)-T2R50", as_str);
+        extract_regex!(T, "dopamine D4 receptor/ DRD4", 1, "dopamine D4 receptor/ DRD4", as_str);
     }
 
     #[test]
@@ -689,22 +652,22 @@ mod tests {
         type T = AminoacidRegex;
 
         // empty
-        check_bytes_regex::<T>(b"", false);
+        check_regex!(T, b"", false);
 
         // valid
-        check_bytes_regex::<T>(b"SAMPLER", true);
-        check_bytes_regex::<T>(b"sampler", true);
-        check_bytes_regex::<T>(b"sAmpLer", true);
+        check_regex!(T, b"SAMPLER", true);
+        check_regex!(T, b"sampler", true);
+        check_regex!(T, b"sAmpLer", true);
 
         // Add "U", which is a non-standard aminoacid (selenocysteine)
-        check_bytes_regex::<T>(b"USAMPLER", true);
+        check_regex!(T, b"USAMPLER", true);
 
         // invalid aminoacid
-        check_bytes_regex::<T>(b"ORANGE", false);
-        check_bytes_regex::<T>(b"oRANGE", false);
+        check_regex!(T, b"ORANGE", false);
+        check_regex!(T, b"oRANGE", false);
 
         // extract
-        extract_bytes_regex::<T>(b"SAMPLER", 1, b"SAMPLER");
+        extract_regex!(T, b"SAMPLER", 1, b"SAMPLER", as_bytes);
     }
 
     #[test]
@@ -712,27 +675,27 @@ mod tests {
         type T = ProteomeRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>("UP000001811", true);
-        check_regex::<T>("UP000001114", true);
+        check_regex!(T, "UP000001811", true);
+        check_regex!(T, "UP000001114", true);
 
         // mutated valid
-        check_regex::<T>("UX000001811", false);
-        check_regex::<T>("UPX00001114", false);
+        check_regex!(T, "UX000001811", false);
+        check_regex!(T, "UPX00001114", false);
 
         // valid + 1 number
-        validate_regex::<T>("UP0000018113", false);
-        validate_regex::<T>("UP0000011144", false);
+        validate_regex!(T, "UP0000018113", false);
+        validate_regex!(T, "UP0000011144", false);
 
         // valid + trailing
-        validate_regex::<T>("UP000001811: Unplaced", true);
-        validate_regex::<T>("UP000001114: Chromosome", true);
+        validate_regex!(T, "UP000001811: Unplaced", true);
+        validate_regex!(T, "UP000001114: Chromosome", true);
 
         // extract
-        extract_regex::<T>("UP000001811: Unplaced", 1, "UP000001811");
-        extract_regex::<T>("UP000001114: Chromosome", 1, "UP000001114");
+        extract_regex!(T, "UP000001811: Unplaced", 1, "UP000001811", as_str);
+        extract_regex!(T, "UP000001114: Chromosome", 1, "UP000001114", as_str);
     }
 
     #[test]
@@ -740,20 +703,20 @@ mod tests {
         type T = TaxonomyRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>("9606", true);
-        check_regex::<T>("731", true);
+        check_regex!(T, "9606", true);
+        check_regex!(T, "731", true);
 
         // invalid
-        check_regex::<T>("965X", false);
-        check_regex::<T>("965 ", false);
-        check_regex::<T>(" 965", false);
-        check_regex::<T>("X965", false);
+        check_regex!(T, "965X", false);
+        check_regex!(T, "965 ", false);
+        check_regex!(T, " 965", false);
+        check_regex!(T, "X965", false);
 
         // extract
-       extract_regex::<T>("9606", 1, "9606");
+       extract_regex!(T, "9606", 1, "9606", as_str);
     }
 
     #[test]
@@ -761,44 +724,44 @@ mod tests {
         type T = SwissProtHeaderRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", true);
-        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\n", true);
-        check_regex::<T>(">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4", true);
-        check_regex::<T>(">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\n", true);
-        check_regex::<T>(">sp|Q9N2K0|ENH1_HUMAN HERV-H_2q24.3 provirus ancestral Env polyprotein OS=Homo sapiens OX=9606 PE=2 SV=1", true);
-        check_regex::<T>(">sp|Q6ZN92|DUTL_HUMAN Putative inactive deoxyuridine 5\'-triphosphate nucleotidohydrolase-like protein FLJ16323 OS=Homo sapiens OX=9606 PE=5 SV=1", true);
+        check_regex!(T, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", true);
+        check_regex!(T, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3\n", true);
+        check_regex!(T, ">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4", true);
+        check_regex!(T, ">sp|P02769|ALBU_BOVIN Serum albumin OS=Bos taurus GN=ALB PE=1 SV=4\n", true);
+        check_regex!(T, ">sp|Q9N2K0|ENH1_HUMAN HERV-H_2q24.3 provirus ancestral Env polyprotein OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex!(T, ">sp|Q6ZN92|DUTL_HUMAN Putative inactive deoxyuridine 5\'-triphosphate nucleotidohydrolase-like protein FLJ16323 OS=Homo sapiens OX=9606 PE=5 SV=1", true);
 
         // invalid
-        check_regex::<T>(">up|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
-        check_regex::<T>(">sp|PX6406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
-        check_regex::<T>(">sp|P46406|G3P_RABITS Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
-        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1X SV=3", false);
-        check_regex::<T>(">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=X3", false);
+        check_regex!(T, ">up|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
+        check_regex!(T, ">sp|PX6406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
+        check_regex!(T, ">sp|P46406|G3P_RABITS Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3", false);
+        check_regex!(T, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1X SV=3", false);
+        check_regex!(T, ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=X3", false);
 
         // extract
         static GAPDH: &'static str = ">sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3";
-        extract_regex::<T>(GAPDH, 1, GAPDH);
-        extract_regex::<T>(GAPDH, T::ACCESSION_INDEX, "P46406");
-        extract_regex::<T>(GAPDH, T::MNEMONIC_INDEX, "G3P_RABIT");
-        extract_regex::<T>(GAPDH, T::NAME_INDEX, "Glyceraldehyde-3-phosphate dehydrogenase");
-        extract_regex::<T>(GAPDH, T::ORGANISM_INDEX, "Oryctolagus cuniculus");
-        extract_regex::<T>(GAPDH, T::GENE_INDEX, "GAPDH");
-        extract_regex::<T>(GAPDH, T::PE_INDEX, "1");
-        extract_regex::<T>(GAPDH, T::SV_INDEX, "3");
+        extract_regex!(T, GAPDH, 1, GAPDH, as_str);
+        extract_regex!(T, GAPDH, T::ACCESSION_INDEX, "P46406", as_str);
+        extract_regex!(T, GAPDH, T::MNEMONIC_INDEX, "G3P_RABIT", as_str);
+        extract_regex!(T, GAPDH, T::NAME_INDEX, "Glyceraldehyde-3-phosphate dehydrogenase", as_str);
+        extract_regex!(T, GAPDH, T::ORGANISM_INDEX, "Oryctolagus cuniculus", as_str);
+        extract_regex!(T, GAPDH, T::GENE_INDEX, "GAPDH", as_str);
+        extract_regex!(T, GAPDH, T::PE_INDEX, "1", as_str);
+        extract_regex!(T, GAPDH, T::SV_INDEX, "3", as_str);
 
         // extract (no gene name)
         static ENH1: &'static str = ">sp|Q9N2K0|ENH1_HUMAN HERV-H_2q24.3 provirus ancestral Env polyprotein OS=Homo sapiens OX=9606 PE=2 SV=1";
-        extract_regex::<T>(ENH1, 1, ENH1);
-        extract_regex::<T>(ENH1, T::ACCESSION_INDEX, "Q9N2K0");
-        extract_regex::<T>(ENH1, T::MNEMONIC_INDEX, "ENH1_HUMAN");
-        extract_regex::<T>(ENH1, T::NAME_INDEX, "HERV-H_2q24.3 provirus ancestral Env polyprotein");
-        extract_regex::<T>(ENH1, T::ORGANISM_INDEX, "Homo sapiens");
-        extract_regex::<T>(ENH1, T::TAXONOMY_INDEX, "9606");
-        extract_regex::<T>(ENH1, T::PE_INDEX, "2");
-        extract_regex::<T>(ENH1, T::SV_INDEX, "1");
+        extract_regex!(T, ENH1, 1, ENH1, as_str);
+        extract_regex!(T, ENH1, T::ACCESSION_INDEX, "Q9N2K0", as_str);
+        extract_regex!(T, ENH1, T::MNEMONIC_INDEX, "ENH1_HUMAN", as_str);
+        extract_regex!(T, ENH1, T::NAME_INDEX, "HERV-H_2q24.3 provirus ancestral Env polyprotein", as_str);
+        extract_regex!(T, ENH1, T::ORGANISM_INDEX, "Homo sapiens", as_str);
+        extract_regex!(T, ENH1, T::TAXONOMY_INDEX, "9606", as_str);
+        extract_regex!(T, ENH1, T::PE_INDEX, "2", as_str);
+        extract_regex!(T, ENH1, T::SV_INDEX, "1", as_str);
     }
 
     #[test]
@@ -806,32 +769,32 @@ mod tests {
         type T = TrEMBLHeaderRegex;
 
         // empty
-        check_regex::<T>("", false);
+        check_regex!(T, "", false);
 
         // valid
-        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", true);
-        check_regex::<T>(">tr|O14861|O14861_HUMAN Zinc finger protein (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
-        check_regex::<T>(">tr|Q53FP0|Q53FP0_HUMAN Pyridoxine 5\'-phosphate oxidase variant (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
-        check_regex::<T>(">tr|B7ZKX2|B7ZKX2_HUMAN Uncharacterized protein OS=Homo sapiens OX=9606 PE=2 SV=1", true);
-        check_regex::<T>(">tr|Q59FB0|Q59FB0_HUMAN PREDICTED: KRAB domain only 2 variant (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex!(T, ">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", true);
+        check_regex!(T, ">tr|O14861|O14861_HUMAN Zinc finger protein (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex!(T, ">tr|Q53FP0|Q53FP0_HUMAN Pyridoxine 5\'-phosphate oxidase variant (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex!(T, ">tr|B7ZKX2|B7ZKX2_HUMAN Uncharacterized protein OS=Homo sapiens OX=9606 PE=2 SV=1", true);
+        check_regex!(T, ">tr|Q59FB0|Q59FB0_HUMAN PREDICTED: KRAB domain only 2 variant (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1", true);
 
         // invalid
-        check_regex::<T>(">ur|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
-        check_regex::<T>(">tr|AXA2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
-        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMANS MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
-        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4X SV=1", false);
-        check_regex::<T>(">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=X1", false);
+        check_regex!(T, ">ur|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
+        check_regex!(T, ">tr|AXA2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
+        check_regex!(T, ">tr|A0A2U8RNL1|A0A2U8RNL1_HUMANS MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=1", false);
+        check_regex!(T, ">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4X SV=1", false);
+        check_regex!(T, ">tr|A0A2U8RNL1|A0A2U8RNL1_HUMAN MHC class II antigen (Fragment) OS=Homo sapiens OX=9606 GN=DPB1 PE=4 SV=X1", false);
 
         // extract
         static O14861: &'static str = ">tr|O14861|O14861_HUMAN Zinc finger protein (Fragment) OS=Homo sapiens OX=9606 PE=2 SV=1";
-        extract_regex::<T>(O14861, 1, O14861);
-        extract_regex::<T>(O14861, T::ACCESSION_INDEX, "O14861");
-        extract_regex::<T>(O14861, T::MNEMONIC_INDEX, "O14861_HUMAN");
-        extract_regex::<T>(O14861, T::NAME_INDEX, "Zinc finger protein (Fragment)");
-        extract_regex::<T>(O14861, T::ORGANISM_INDEX, "Homo sapiens");
-        extract_regex::<T>(O14861, T::TAXONOMY_INDEX, "9606");
-        extract_regex::<T>(O14861, T::PE_INDEX, "2");
-        extract_regex::<T>(O14861, T::SV_INDEX, "1");
+        extract_regex!(T, O14861, 1, O14861, as_str);
+        extract_regex!(T, O14861, T::ACCESSION_INDEX, "O14861", as_str);
+        extract_regex!(T, O14861, T::MNEMONIC_INDEX, "O14861_HUMAN", as_str);
+        extract_regex!(T, O14861, T::NAME_INDEX, "Zinc finger protein (Fragment)", as_str);
+        extract_regex!(T, O14861, T::ORGANISM_INDEX, "Homo sapiens", as_str);
+        extract_regex!(T, O14861, T::TAXONOMY_INDEX, "9606", as_str);
+        extract_regex!(T, O14861, T::PE_INDEX, "2", as_str);
+        extract_regex!(T, O14861, T::SV_INDEX, "1", as_str);
     }
 
     fn all_dir() -> PathBuf {

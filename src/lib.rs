@@ -19,12 +19,13 @@ extern crate url;
 #[macro_use]
 pub mod util;
 
+// Testing modules
+#[cfg(test)]
+#[macro_use]
+pub mod test;
+
 // Public modules
 pub mod bio;
 pub mod db;
 pub mod io;
 pub mod traits;
-
-// Testing modules
-#[cfg(test)]
-pub mod test;

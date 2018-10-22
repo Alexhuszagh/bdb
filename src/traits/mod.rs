@@ -26,8 +26,8 @@ pub use self::csv::{Csv, CsvCollection};
 #[cfg(feature = "fasta")]
 pub use self::fasta::{Fasta, FastaCollection};
 
-// TODO(ahuszagh)
-//  Add FASTQ definitions
+#[cfg(feature = "fastq")]
+pub use self::fastq::{Fastq, FastqCollection};
 
 #[cfg(feature = "xml")]
 pub use self::xml::{Xml, XmlCollection};
