@@ -17,5 +17,8 @@ pub mod peptide_search_matches;
 #[cfg(feature = "pdb")]
 pub mod pdb;
 
+#[cfg(feature = "sra")]
+pub mod sra;
+
 #[cfg(feature = "uniprot")]
 pub mod uniprot;

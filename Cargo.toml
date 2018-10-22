@@ -15,7 +15,7 @@ default = [
     # Format features.
     "csv", "fasta", "http", "text", "xml",
     # Datatype features.
-    "uniprot", "mass_spectrometry", "pdb"
+    "uniprot", "mass_spectrometry", "pdb", "sra"
 ]
 
 # TODO(ahuszagh)
@@ -28,9 +28,10 @@ text = []
 xml = ["quick-xml"]
 
 # Datatype features.
-uniprot = []
 mass_spectrometry = []
 pdb = []
+sra = []
+uniprot = []
 
 [dependencies]
 assert_approx_eq = "1"
