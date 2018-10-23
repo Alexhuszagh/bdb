@@ -55,7 +55,7 @@ impl ValidationRegex<BytesRegex> for SequenceQualityRegex {
         lazy_regex!(BytesRegex, r"(?-u)(?x)
             \A
             (?:
-                [\x20-~]+
+                [[:print:]]+
             )
             \z
         ");
@@ -69,7 +69,7 @@ impl ExtractionRegex<BytesRegex> for SequenceQualityRegex {
             \A
             # Group 1, Sequence Quality Scores
             (
-                [\x20-~]+
+                [[:print:]]+
             )
             \z
         ");
@@ -101,9 +101,15 @@ mod tests {
         check_regex!(T, b"TTAAGAAATTTTTGCTCAAACCATGCCCTAAAGGGTTCTGTAATAAATAGGGCTGGGAAAACTGGCAAGCCA", true);
 
         // rna
+        check_regex!(T, b"AAGUAGGUCUCGUCUGUGUUUUCUACGAGCUUGUGUUCCAGCUGACCCACUCCCUGGGUGGGGGGACUGGGU", false);
+        check_regex!(T, b"CCAGCCUGGCCAACAGAGUGUUACCCCGUUUUUACUUAUUUAUUAUUAUUAUUUUGAGACAGAGCAUUGGUC", false);
+        check_regex!(T, b"AUAAAAUCAGGGGUGUUGGAGAUGGGAUGCCUAUUUCUGCACACCUUGGCCUCCCAAAUUGCUGGGAUUACA", false);
+        check_regex!(T, b"UUAAGAAAUUUUUGCUCAAACCAUGCCCUAAAGGGUUCUGUAAUAAAUAGGGCUGGGAAAACUGGCAAGCCA", false);
 
         // protein
-        // TODO(ahuszagh)       Implement.
+        check_regex!(T, b"SAMPLER", false);
+        check_regex!(T, b"sampler", false);
+        check_regex!(T, b"sAmpLer", false);
     }
 
     #[test]
@@ -119,7 +125,10 @@ mod tests {
         check_regex!(T, b"1;;;;;;,;;4;3;38;8%&,,;)*;1;;,)/%4+,;1;;);;;;;;;4;(;1;;;;24;;;;41-444//0", true);
         check_regex!(T, b";;;;;;;;;;;;;;;;;;;;;;;;;;;;;9445552;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;446662", true);
 
-        // invalid (other printables)
-        // TODO(ahuszagh)       Implement.
+        // invalid (non-printables)
+        check_regex!(T, b"\r\n", false);
     }
+
+// TODO(ahuszagh)
+//      Need to match to real data.
 }

@@ -14,6 +14,9 @@ mod record;
 mod record_list;
 mod valid;
 
+#[cfg(test)]
+mod test;
+
 #[cfg(feature = "fastq")]
 mod fastq;
 
