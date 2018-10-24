@@ -18,7 +18,7 @@ mod xml;
 
 pub use self::alias::{BufferType, ErrorType, ResultType};
 pub use self::error::{Error, ErrorKind};
-pub use self::iterator::{LenientIter, StrictIter};
+pub use self::iterator::*;
 pub use self::re::{ExtractionRegex, ValidationRegex};
 pub use self::writer::TextWriterState;
 

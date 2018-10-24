@@ -760,7 +760,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 // WRITER
 
 /// Export record data to XML.
-fn item_to_xml<T: Write>(record: &Record, writer: &mut XmlUniProtWriter<T>)
+fn item_to_xml<T: Write>(writer: &mut XmlUniProtWriter<T>, record: &Record)
     -> ResultType<()>
 {
     writer.write_uniprot_start()?;
@@ -774,129 +774,104 @@ pub fn record_to_xml<T: Write>(record: &Record, writer: &mut T)
 {
     let mut writer = XmlUniProtWriter::new(writer);
     writer.write_declaration()?;
-    item_to_xml(record, &mut writer)
+    item_to_xml(&mut writer, record)
 }
 
 // WRITER -- DEFAULT
 
+#[inline(always)]
+fn to_xml<'a, T: Write>(writer: &mut XmlUniProtWriter<T>, record: &'a Record)
+    -> ResultType<()>
+{
+    writer.write_entry(record)
+}
+
+#[inline(always)]
+fn init_cb<T: Write>(writer: T, _: u8)
+    -> ResultType<XmlUniProtWriter<T>>
+{
+    let mut writer = XmlUniProtWriter::new(writer);
+    writer.write_declaration()?;
+    writer.write_uniprot_start()?;
+    Ok(writer)
+}
+
+#[inline(always)]
+fn export_cb<'a, T: Write>(writer: &mut XmlUniProtWriter<T>, record: &'a Record)
+    -> ResultType<()>
+{
+    to_xml(writer, record)
+}
+
+#[inline(always)]
+fn dest_cb<T: Write>(writer: &mut XmlUniProtWriter<T>)
+    -> ResultType<()>
+{
+    writer.write_uniprot_end()
+}
+
 /// Default exporter from a non-owning iterator to XML.
+#[inline(always)]
 pub fn reference_iterator_to_xml<'a, Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut writer = XmlUniProtWriter::new(writer);
-    writer.write_declaration()?;
-    writer.write_uniprot_start()?;
-
-    for record in iter {
-        writer.write_entry(record)?;
-    }
-
-    writer.write_uniprot_end()
+    reference_iterator_export(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
 
 /// Default exporter from an owning iterator to XML.
+#[inline(always)]
 pub fn value_iterator_to_xml<Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut writer = XmlUniProtWriter::new(writer);
-    writer.write_declaration()?;
-    writer.write_uniprot_start()?;
-
-    for record in iter {
-        writer.write_entry(&record?)?;
-    }
-
-    writer.write_uniprot_end()
+    value_iterator_export(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
 
 // WRITER -- STRICT
 
 /// Strict exporter from a non-owning iterator to XML.
+#[inline(always)]
 pub fn reference_iterator_to_xml_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut writer = XmlUniProtWriter::new(writer);
-    writer.write_declaration()?;
-    writer.write_uniprot_start()?;
-
-    for record in iter {
-        if record.is_valid() {
-            writer.write_entry(record)?;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
-    }
-
-    writer.write_uniprot_end()
+    reference_iterator_export_strict(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
 
 /// Strict exporter from an owning iterator to XML.
+#[inline(always)]
 pub fn value_iterator_to_xml_strict<Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut writer = XmlUniProtWriter::new(writer);
-    writer.write_declaration()?;
-    writer.write_uniprot_start()?;
-
-    for result in iter {
-        let record = result?;
-        if record.is_valid() {
-            writer.write_entry(&record)?;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
-    }
-
-    writer.write_uniprot_end()
+    value_iterator_export_strict(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
 
 // WRITER -- LENIENT
 
 /// Lenient exporter from a non-owning iterator to XML.
+#[inline(always)]
 pub fn reference_iterator_to_xml_lenient<'a, Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut writer = XmlUniProtWriter::new(writer);
-    writer.write_declaration()?;
-    writer.write_uniprot_start()?;
-
-    for record in iter {
-        if record.is_valid() {
-            writer.write_entry(record)?;
-        }
-    }
-
-    writer.write_uniprot_end()
+    reference_iterator_export_lenient(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
 
 /// Lenient exporter from an owning iterator to XML.
+#[inline(always)]
 pub fn value_iterator_to_xml_lenient<Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut writer = XmlUniProtWriter::new(writer);
-    writer.write_declaration()?;
-    writer.write_uniprot_start()?;
-
-    for result in iter {
-        let record = result?;
-        if record.is_valid() {
-            writer.write_entry(&record)?;
-        }
-    }
-
-    writer.write_uniprot_end()
+    value_iterator_export_lenient(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
 
 // TRAITS

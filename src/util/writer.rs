@@ -26,9 +26,9 @@ impl<'r, T: 'r + Write> TextWriterState<'r, T> {
     }
 
     /// Export record to FASTA.
-    pub fn export<Value, Callback>(&mut self, value: &Value, callback: Callback)
+    pub fn export<'a, Value, Callback>(&mut self, value: &'a Value, callback: &Callback)
         -> ResultType<()>
-        where Callback: Fn(&mut T, &Value) -> ResultType<()>
+        where Callback: Fn(&mut T, &'a Value) -> ResultType<()>
     {
         if self.previous {
             self.writer.write_all(ref_slice(&self.delimiter))?;

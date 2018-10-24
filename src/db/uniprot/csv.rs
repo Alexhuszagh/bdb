@@ -73,7 +73,7 @@ const CSV_HEADER: [&'static str; 13] = [
 ];
 
 /// Convert a record to an array of strings for CSV serialization.
-fn item_to_csv<T: Write>(writer: &mut csv::Writer<&mut T>, record: &Record)
+fn to_csv<T: Write>(writer: &mut csv::Writer<T>, record: &Record)
     -> ResultType<()>
 {
     // Export values with the thousands separator.
@@ -284,112 +284,97 @@ pub fn record_to_csv<T: Write>(record: &Record, writer: &mut T, delimiter: u8)
 {
     let mut writer = new_writer(writer, delimiter);
     writer.write_record(&CSV_HEADER)?;
-    item_to_csv(&mut writer, record)?;
+    to_csv(&mut writer, record)?;
     Ok(())
 }
 
 // WRITER -- DEFAULT
 
+#[inline(always)]
+fn init_cb<T: Write>(writer: T, delimiter: u8)
+    -> ResultType<csv::Writer<T>>
+{
+    let mut writer = new_writer(writer, delimiter);
+    writer.write_record(&CSV_HEADER)?;
+    Ok(writer)
+}
+
+#[inline(always)]
+fn export_cb<'a, T: Write>(writer: &mut csv::Writer<T>, record: &'a Record)
+    -> ResultType<()>
+{
+    to_csv(writer, record)
+}
+
+#[inline(always)]
+fn dest_cb<T: Write>(_: &mut csv::Writer<T>)
+    -> ResultType<()>
+{
+    Ok(())
+}
+
 /// Default export from a non-owning iterator to CSV.
+#[inline(always)]
 pub fn reference_iterator_to_csv<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut writer = new_writer(writer, delimiter);
-    writer.write_record(&CSV_HEADER)?;
-    for record in iter {
-        item_to_csv(&mut writer, record)?;
-    }
-    Ok(())
+    reference_iterator_export(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
 
 /// Default exporter from an owning iterator to FASTA.
+#[inline(always)]
 pub fn value_iterator_to_csv<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut writer = new_writer(writer, delimiter);
-    writer.write_record(&CSV_HEADER)?;
-    for record in iter {
-        item_to_csv(&mut writer, &record?)?;
-    }
-    Ok(())
+    value_iterator_export(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
 
 // WRITER -- STRICT
 
 /// Strict export from a non-owning iterator to CSV.
+#[inline(always)]
 pub fn reference_iterator_to_csv_strict<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut writer = new_writer(writer, delimiter);
-    writer.write_record(&CSV_HEADER)?;
-    for record in iter {
-        if record.is_valid() {
-            item_to_csv(&mut writer, record)?;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
-    }
-    Ok(())
+    reference_iterator_export_strict(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
 
 /// Strict exporter from an owning iterator to FASTA.
+#[inline(always)]
 pub fn value_iterator_to_csv_strict<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut writer = new_writer(writer, delimiter);
-    writer.write_record(&CSV_HEADER)?;
-    for result in iter {
-        let record = result?;
-        if record.is_valid() {
-            item_to_csv(&mut writer, &record)?;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
-    }
-    Ok(())
+    value_iterator_export_strict(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
 
 // WRITER -- LENIENT
 
 /// Lenient export from a non-owning iterator to CSV.
+#[inline(always)]
 pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut writer = new_writer(writer, delimiter);
-    writer.write_record(&CSV_HEADER)?;
-    for record in iter {
-        if record.is_valid() {
-            item_to_csv(&mut writer, record)?;
-        }
-    }
-    Ok(())
+    reference_iterator_export_lenient(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
 
 /// Lenient exporter from an owning iterator to FASTA.
+#[inline(always)]
 pub fn value_iterator_to_csv_lenient<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut writer = new_writer(writer, delimiter);
-    writer.write_record(&CSV_HEADER)?;
-    for result in iter {
-        let record = result?;
-        if record.is_valid() {
-            item_to_csv(&mut writer, &record)?;
-        }
-    }
-    Ok(())
+    value_iterator_export_lenient(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
 
 // READER

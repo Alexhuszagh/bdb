@@ -182,7 +182,7 @@ pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
 }
 
 #[inline(always)]
-fn to_fasta<T: Write>(writer: &mut T, record: &Record) ->ResultType<()> {
+fn to_fasta<'a, T: Write>(writer: &mut T, record: &'a Record) -> ResultType<()> {
     record.to_fasta(writer)
 }
 
@@ -219,129 +219,90 @@ pub fn record_to_fasta<T: Write>(record: &Record, writer: &mut T)
 
 // WRITER -- DEFAULT
 
+#[inline(always)]
+fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
+    -> ResultType<TextWriterState<T>>
+{
+    Ok(TextWriterState::new(writer, delimiter))
+}
+
+#[inline(always)]
+fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
+    -> ResultType<()>
+{
+    writer.export(record, &to_fasta)
+}
+
+#[inline(always)]
+fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
+    -> ResultType<()>
+{
+    Ok(())
+}
+
 /// Default exporter from a non-owning iterator to FASTA.
+#[inline(always)]
 pub fn reference_iterator_to_fasta<'a, Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut state = TextWriterState::new(writer, b'\n');
-
-    // Write all records
-    // Error only raised for write error, which should percolate.
-    for record in iter {
-        state.export(record, to_fasta)?;
-    }
-
-    Ok(())
+    reference_iterator_export(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
 }
 
 
 /// Default exporter from an owning iterator to FASTA.
+#[inline(always)]
 pub fn value_iterator_to_fasta<Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut state = TextWriterState::new(writer, b'\n');
-
-    // Write all records
-    // Error only raised for read or write errors, which should percolate.
-    for record in iter {
-        state.export(&record?, to_fasta)?;
-    }
-
-    Ok(())
+    value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
 }
 
 // WRITER -- STRICT
 
 /// Strict exporter from a non-owning iterator to FASTA.
+#[inline(always)]
 pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    // Write all records, prepending "\n" after the first record
-    let mut previous = false;
-    for record in iter {
-        if record.is_valid() {
-            if previous {
-                writer.write_all(b"\n")?;
-            }
-            record.to_fasta(writer)?;
-            previous = true;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
-    }
-
-    Ok(())
+    reference_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
 /// Strict exporter from an owning iterator to FASTA.
+#[inline(always)]
 pub fn value_iterator_to_fasta_strict<Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    // Write all records, prepending "\n" after the first record
-    let mut previous = false;
-    for result in iter {
-        let record = result?;
-        if record.is_valid() {
-            if previous {
-                writer.write_all(b"\n")?;
-            }
-            record.to_fasta(writer)?;
-            previous = true;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
-    }
-
-    Ok(())
+    value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
 }
 
 // WRITER -- LENIENT
 
 /// Lenient exporter from a non-owning iterator to FASTA.
+#[inline(always)]
 pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut state = TextWriterState::new(writer, b'\n');
-
-    // Write all records
-    // Error only raised for write error, which should percolate.
-    for record in iter {
-        if record.is_valid() {
-            state.export(record, to_fasta)?;
-        }
-    }
-
-    Ok(())
+    reference_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
 }
 
 /// Lenient exporter from an owning iterator to FASTA.
+#[inline(always)]
 pub fn value_iterator_to_fasta_lenient<Iter, T>(iter: Iter, writer: &mut T)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut state = TextWriterState::new(writer, b'\n');
-
-    // Write all records
-    // Error only raised for write error, which should percolate.
-    for result in iter {
-        let record = result?;
-        if record.is_valid() {
-            state.export(&record, to_fasta)?;
-        }
-    }
-
-    Ok(())
+    value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
 }
 
 // READER
