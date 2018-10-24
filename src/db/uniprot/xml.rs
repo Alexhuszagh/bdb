@@ -937,6 +937,7 @@ impl XmlCollection for RecordList {
 
 #[cfg(test)]
 mod tests {
+    use bencher;
     use std::fs::File;
     use std::io::{BufReader, Cursor};
     use std::path::PathBuf;
@@ -1126,7 +1127,8 @@ mod tests {
         let iter = XmlRecordIter::new(reader);
 
         // do nothing, just check it parses.
-        for _ in iter {
+        for item in iter {
+            bencher::black_box(item).unwrap();
         }
     }
 }

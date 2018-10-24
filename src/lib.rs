@@ -1,4 +1,5 @@
 #[cfg_attr(test, macro_use)] extern crate assert_approx_eq;
+extern crate bencher;
 extern crate digit_group;
 #[macro_use] extern crate lazy_static;
 extern crate ref_slice;

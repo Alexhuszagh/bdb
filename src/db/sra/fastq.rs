@@ -117,13 +117,28 @@ fn to_fastq<T: Write>(writer: &mut T, record: &Record) -> ResultType<()> {
 }
 
 /// Export record to FASTQ.
-#[allow(unused_variables)]
 pub fn record_to_fastq<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
-    // TODO(ahuszagh)
-    //  Implement...
-    Err(From::from(""))
+    write_alls!(writer, b"@", record.seq_id.as_bytes())?;
+
+    if !record.description.is_empty() {
+        write_alls!(writer, b" ", record.description.as_bytes())?;
+    }
+
+    write_alls!(
+        writer,
+        b"\n", record.sequence.as_slice(),
+        b"\n+", record.seq_id.as_bytes()
+    )?;
+
+    if !record.description.is_empty() {
+        write_alls!(writer, b" ", record.description.as_bytes())?;
+    }
+
+    write_alls!(writer, record.quality.as_slice())?;
+
+    Ok(())
 }
 
 // WRITER -- DEFAULT

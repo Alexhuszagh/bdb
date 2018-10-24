@@ -1,0 +1,29 @@
+#[macro_use]
+extern crate bencher;
+extern crate bdb;
+
+use bencher::Bencher;
+use bdb::db::uniprot::low_level::*;
+
+
+fn accession_regex(bench: &mut Bencher) {
+    bench.iter(|| {
+        AccessionRegex::validate().is_match("A2BC19") &&
+        AccessionRegex::validate().is_match("P12345") &&
+        AccessionRegex::validate().is_match("A0A022YWF9")
+    })
+}
+
+fn mnemonic_regex(bench: &m)
+fn gene_regex(bench: &m)
+fn aminoacid_regex(bench: &m)
+fn proteome_regex(bench: &m)
+fn taxonomy_regex(bench: &m)
+fn swissprot_header_regex(bench: &m)
+fn trembl_header_regex(bench: &m)
+
+benchmark_group!(
+    benches,
+    accession_regex
+);
+benchmark_main!(benches);

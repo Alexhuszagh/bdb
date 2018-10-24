@@ -215,7 +215,7 @@ impl ValidationRegex<Regex> for TaxonomyRegex {
         lazy_regex!(Regex, r"(?-u)(?x)
             \A
             (?:
-                \d+
+                [[:digit:]]+
             )
             \z
         ");
@@ -229,7 +229,7 @@ impl ExtractionRegex<Regex> for TaxonomyRegex {
             \A
             # Group 1, Taxonomy ID
             (
-                \d+
+                [[:digit:]]+
             )
             \z
         ");
@@ -278,7 +278,7 @@ impl ValidationRegex<Regex> for SwissProtHeaderRegex {
                 (?:
                     \sOX=
                     (?:
-                        \d*
+                        [[:digit:]]*
                     )
                 )?
                 (?:
@@ -333,7 +333,7 @@ impl ExtractionRegex<Regex> for SwissProtHeaderRegex {
                     \sOX=
                     # Group 6, Taxonomy ID
                     (
-                        \d*
+                        [[:digit:]]*
                     )
                 )?
                 (?:
@@ -403,16 +403,16 @@ impl ValidationRegex<Regex> for TrEMBLHeaderRegex {
                 )
                 \s
                 (?:
-                    .*??
+                    .*?
                 )
                 \sOS=
                 (?:
-                    .*??
+                    .*?
                 )
                 (?:
                     \sOX=
                     (?:
-                        \d*
+                        [[:digit:]]*
                     )
                 )?
                 (?:
@@ -480,7 +480,7 @@ impl ExtractionRegex<Regex> for TrEMBLHeaderRegex {
                     \sOX=
                     # Group 6, Taxonomy ID
                     (
-                        \d*
+                        [[:digit:]]*
                     )
                 )?
                 (?:
