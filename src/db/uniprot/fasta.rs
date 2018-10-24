@@ -37,13 +37,16 @@ impl<T: BufRead> FastaIter<T> {
     /// Export the buffer to a string without affecting the buffer.
     #[inline]
     fn to_string_impl(&self) -> Option<ResultType<String>> {
-        Some(match stdstr::from_utf8(&self.buf) {
-            Err(e)  => Err(From::from(e)),
-            Ok(v)   => Ok(String::from(v)),
-        })
+        match self.buf.len() {
+            0   => None,
+            _   => Some(match stdstr::from_utf8(&self.buf) {
+                Err(e)  => Err(From::from(e)),
+                Ok(v)   => Ok(String::from(v)),
+            }),
+        }
     }
 
-    /// Export the buffer to a string.
+    /// Export the buffer to a string (or none if the buffer is empty.)
     #[inline]
     fn to_string(&mut self) -> Option<ResultType<String>> {
         let result = self.to_string_impl();
@@ -62,12 +65,7 @@ impl<T: BufRead> Iterator for FastaIter<T> {
                 Err(e)      => return Some(Err(From::from(e))),
                 Ok(size)    => match size {
                     // Reached EOF
-                    0   => {
-                        return match self.buf.len() {
-                            0   => None,
-                            _   => self.to_string(),
-                        };
-                    },
+                    0   => return self.to_string(),
                     // Read bytes, process them.
                     _   => unsafe {
                         // Ignore whitespace.

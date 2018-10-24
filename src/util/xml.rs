@@ -535,8 +535,11 @@ impl<T: Write> XmlWriter<T> {
     pub fn write_empty_element(&mut self, name: &[u8], attributes: &[(&[u8], &[u8])])
         -> ResultType<()>
     {
-        self.write_start_element(name, attributes)?;
-        self.write_end_element(name)
+        let mut elem = Self::new_start_element(name);
+        for attribute in attributes {
+            elem.push_attribute(*attribute);
+        }
+        self.write_event(Event::Empty(elem))
     }
 
     /// Write start element.
@@ -576,7 +579,7 @@ mod tests {
         w.write_end_element(b"t1").unwrap();
 
         let text = String::from_utf8(w.into_inner().into_inner()).unwrap();
-        assert_eq!(text, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"></t3></t1>");
+        assert_eq!(text, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"/></t1>");
     }
 
     #[test]
