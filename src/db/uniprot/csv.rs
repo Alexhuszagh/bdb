@@ -279,7 +279,7 @@ fn estimate_list_size(list: &RecordList) -> usize {
 // WRITER
 
 /// Export record to CSV.
-pub fn record_to_csv<T: Write>(record: &Record, writer: &mut T, delimiter: u8)
+pub fn record_to_csv<T: Write>(writer: &mut T, record: &Record, delimiter: u8)
     -> ResultType<()>
 {
     let mut writer = new_writer(writer, delimiter);
@@ -315,7 +315,7 @@ fn dest_cb<T: Write>(_: &mut csv::Writer<T>)
 
 /// Default export from a non-owning iterator to CSV.
 #[inline(always)]
-pub fn reference_iterator_to_csv<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+pub fn reference_iterator_to_csv<'a, Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -325,7 +325,7 @@ pub fn reference_iterator_to_csv<'a, Iter, T>(iter: Iter, writer: &mut T, delimi
 
 /// Default exporter from an owning iterator to FASTA.
 #[inline(always)]
-pub fn value_iterator_to_csv<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+pub fn value_iterator_to_csv<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -337,7 +337,7 @@ pub fn value_iterator_to_csv<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
 
 /// Strict export from a non-owning iterator to CSV.
 #[inline(always)]
-pub fn reference_iterator_to_csv_strict<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+pub fn reference_iterator_to_csv_strict<'a, Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -347,7 +347,7 @@ pub fn reference_iterator_to_csv_strict<'a, Iter, T>(iter: Iter, writer: &mut T,
 
 /// Strict exporter from an owning iterator to FASTA.
 #[inline(always)]
-pub fn value_iterator_to_csv_strict<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+pub fn value_iterator_to_csv_strict<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -359,7 +359,7 @@ pub fn value_iterator_to_csv_strict<Iter, T>(iter: Iter, writer: &mut T, delimit
 
 /// Lenient export from a non-owning iterator to CSV.
 #[inline(always)]
-pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -369,7 +369,7 @@ pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(iter: Iter, writer: &mut T
 
 /// Lenient exporter from an owning iterator to FASTA.
 #[inline(always)]
-pub fn value_iterator_to_csv_lenient<Iter, T>(iter: Iter, writer: &mut T, delimiter: u8)
+pub fn value_iterator_to_csv_lenient<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -473,7 +473,7 @@ impl Csv for Record {
 
     #[inline(always)]
     fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
-        record_to_csv(self, writer, delimiter)
+        record_to_csv(writer, self, delimiter)
     }
 
     #[inline(always)]
@@ -490,7 +490,7 @@ impl Csv for RecordList {
 
     #[inline(always)]
     fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
-        reference_iterator_to_csv(self.iter(), writer, delimiter)
+        reference_iterator_to_csv(writer, self.iter(), delimiter)
     }
 
     #[inline(always)]
@@ -502,12 +502,12 @@ impl Csv for RecordList {
 impl CsvCollection for RecordList {
     #[inline(always)]
     fn to_csv_strict<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
-        reference_iterator_to_csv_strict(self.iter(), writer, delimiter)
+        reference_iterator_to_csv_strict(writer, self.iter(), delimiter)
     }
 
     #[inline(always)]
     fn to_csv_lenient<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
-        reference_iterator_to_csv_lenient(self.iter(), writer, delimiter)
+        reference_iterator_to_csv_lenient(writer, self.iter(), delimiter)
     }
 
     #[inline(always)]
@@ -551,48 +551,48 @@ mod tests {
 
         // reference -- default
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_csv(v.iter(), &mut w, b'\t').unwrap();
+        reference_iterator_to_csv(&mut w, v.iter(), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv(by_value!(v), &mut w, b'\t').unwrap();
+        value_iterator_to_csv(&mut w, by_value!(v), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_csv_strict(v.iter(), &mut w, b'\t').unwrap();
+        reference_iterator_to_csv_strict(&mut w, v.iter(), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
-        let r = reference_iterator_to_csv_strict(u.iter(), &mut w, b'\t');
+        let r = reference_iterator_to_csv_strict(&mut w, u.iter(), b'\t');
         assert!(r.is_err());
 
         // value -- strict
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv_strict(by_value!(v), &mut w, b'\t').unwrap();
+        value_iterator_to_csv_strict(&mut w, by_value!(v), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
-        let r = value_iterator_to_csv_strict(by_value!(u), &mut w, b'\t');
+        let r = value_iterator_to_csv_strict(&mut w, by_value!(u), b'\t');
         assert!(r.is_err());
 
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_csv_lenient(v.iter(), &mut w, b'\t').unwrap();
+        reference_iterator_to_csv_lenient(&mut w, v.iter(), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_csv_lenient(u.iter(), &mut w, b'\t').unwrap();
+        reference_iterator_to_csv_lenient(&mut w, u.iter(), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv_lenient(by_value!(v), &mut w, b'\t').unwrap();
+        value_iterator_to_csv_lenient(&mut w, by_value!(v), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv_lenient(by_value!(u), &mut w, b'\t').unwrap();
+        value_iterator_to_csv_lenient(&mut w, by_value!(u), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
     }
 

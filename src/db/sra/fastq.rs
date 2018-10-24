@@ -118,7 +118,7 @@ fn to_fastq<T: Write>(writer: &mut T, record: &Record) -> ResultType<()> {
 
 /// Export record to FASTQ.
 #[allow(unused_variables)]
-pub fn record_to_fastq<T: Write>(record: &Record, writer: &mut T)
+pub fn record_to_fastq<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
     Err(From::from(""))
@@ -134,10 +134,10 @@ fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
 }
 
 #[inline(always)]
-fn export_cb<'a, T: Write>(state: &mut TextWriterState<T>, record: &'a Record)
+fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
     -> ResultType<()>
 {
-    state.export(record, &to_fastq)
+    writer.export(record, &to_fastq)
 }
 
 #[inline(always)]
@@ -149,7 +149,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 
 /// Default exporter from a non-owning iterator to FASTQ.
 #[inline(always)]
-pub fn reference_iterator_to_fastq<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_fastq<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -160,7 +160,7 @@ pub fn reference_iterator_to_fastq<'a, Iter, T>(iter: Iter, writer: &mut T)
 
 /// Default exporter from an owning iterator to FASTQ.
 #[inline(always)]
-pub fn value_iterator_to_fastq<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_fastq<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -172,7 +172,7 @@ pub fn value_iterator_to_fastq<Iter, T>(iter: Iter, writer: &mut T)
 
 /// Strict exporter from a non-owning iterator to FASTQ.
 #[inline(always)]
-pub fn reference_iterator_to_fastq_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_fastq_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -182,7 +182,7 @@ pub fn reference_iterator_to_fastq_strict<'a, Iter, T>(iter: Iter, writer: &mut 
 
 /// Strict exporter from an owning iterator to FASTQ.
 #[inline(always)]
-pub fn value_iterator_to_fastq_strict<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_fastq_strict<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -194,7 +194,7 @@ pub fn value_iterator_to_fastq_strict<Iter, T>(iter: Iter, writer: &mut T)
 
 /// Lenient exporter from a non-owning iterator to FASTQ.
 #[inline(always)]
-pub fn reference_iterator_to_fastq_lenient<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_fastq_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -204,7 +204,7 @@ pub fn reference_iterator_to_fastq_lenient<'a, Iter, T>(iter: Iter, writer: &mut
 
 /// Lenient exporter from an owning iterator to FASTQ.
 #[inline(always)]
-pub fn value_iterator_to_fastq_lenient<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_fastq_lenient<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -299,7 +299,7 @@ impl Fastq for Record {
 
     #[inline(always)]
     fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        record_to_fastq(self, writer)
+        record_to_fastq(writer, self)
     }
 
     fn from_fastq<T: BufRead>(reader: &mut T) -> ResultType<Self> {
@@ -315,7 +315,7 @@ impl Fastq for RecordList {
 
     #[inline(always)]
     fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_fastq(self.iter(), writer)
+        reference_iterator_to_fastq(writer, self.iter())
     }
 
     #[inline(always)]

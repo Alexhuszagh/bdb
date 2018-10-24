@@ -187,7 +187,7 @@ fn to_fasta<'a, T: Write>(writer: &mut T, record: &'a Record) -> ResultType<()> 
 }
 
 /// Export record to FASTA.
-pub fn record_to_fasta<T: Write>(record: &Record, writer: &mut T)
+pub fn record_to_fasta<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
     // Write header
@@ -242,7 +242,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 
 /// Default exporter from a non-owning iterator to FASTA.
 #[inline(always)]
-pub fn reference_iterator_to_fasta<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_fasta<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -253,7 +253,7 @@ pub fn reference_iterator_to_fasta<'a, Iter, T>(iter: Iter, writer: &mut T)
 
 /// Default exporter from an owning iterator to FASTA.
 #[inline(always)]
-pub fn value_iterator_to_fasta<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_fasta<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -265,7 +265,7 @@ pub fn value_iterator_to_fasta<Iter, T>(iter: Iter, writer: &mut T)
 
 /// Strict exporter from a non-owning iterator to FASTA.
 #[inline(always)]
-pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -275,7 +275,7 @@ pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(iter: Iter, writer: &mut 
 
 /// Strict exporter from an owning iterator to FASTA.
 #[inline(always)]
-pub fn value_iterator_to_fasta_strict<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_fasta_strict<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -287,7 +287,7 @@ pub fn value_iterator_to_fasta_strict<Iter, T>(iter: Iter, writer: &mut T)
 
 /// Lenient exporter from a non-owning iterator to FASTA.
 #[inline(always)]
-pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -297,7 +297,7 @@ pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(iter: Iter, writer: &mut
 
 /// Lenient exporter from an owning iterator to FASTA.
 #[inline(always)]
-pub fn value_iterator_to_fasta_lenient<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_fasta_lenient<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -489,7 +489,7 @@ impl Fasta for Record {
 
     #[inline(always)]
     fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        record_to_fasta(self, writer)
+        record_to_fasta(writer, self)
     }
 
     fn from_fasta<T: BufRead>(reader: &mut T) -> ResultType<Self> {
@@ -505,7 +505,7 @@ impl Fasta for RecordList {
 
     #[inline(always)]
     fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_fasta(self.iter(), writer)
+        reference_iterator_to_fasta(writer, self.iter())
     }
 
     #[inline(always)]
@@ -517,12 +517,12 @@ impl Fasta for RecordList {
 impl FastaCollection for RecordList {
     #[inline(always)]
     fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_fasta_strict(self.iter(), writer)
+        reference_iterator_to_fasta_strict(writer, self.iter())
     }
 
     #[inline(always)]
     fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_fasta_lenient(self.iter(), writer)
+        reference_iterator_to_fasta_lenient(writer, self.iter())
     }
 
     #[inline(always)]
@@ -585,48 +585,48 @@ mod tests {
 
         // reference -- default
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_fasta(v.iter(), &mut w).unwrap();
+        reference_iterator_to_fasta(&mut w, v.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_fasta(by_value!(v), &mut w).unwrap();
+        value_iterator_to_fasta(&mut w, by_value!(v)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_fasta_strict(v.iter(), &mut w).unwrap();
+        reference_iterator_to_fasta_strict(&mut w, v.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
-        let r = reference_iterator_to_fasta_strict(u.iter(), &mut w);
+        let r = reference_iterator_to_fasta_strict(&mut w, u.iter());
         assert!(r.is_err());
 
         // value -- strict
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_fasta_strict(by_value!(v), &mut w).unwrap();
+        value_iterator_to_fasta_strict(&mut w, by_value!(v)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
-        let r = value_iterator_to_fasta_strict(by_value!(u), &mut w);
+        let r = value_iterator_to_fasta_strict(&mut w, by_value!(u));
         assert!(r.is_err());
 
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_fasta_lenient(v.iter(), &mut w).unwrap();
+        reference_iterator_to_fasta_lenient(&mut w, v.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_fasta_lenient(u.iter(), &mut w).unwrap();
+        reference_iterator_to_fasta_lenient(&mut w, u.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_fasta_lenient(by_value!(v), &mut w).unwrap();
+        value_iterator_to_fasta_lenient(&mut w, by_value!(v)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_fasta_lenient(by_value!(u), &mut w).unwrap();
+        value_iterator_to_fasta_lenient(&mut w, by_value!(u)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
     }
 

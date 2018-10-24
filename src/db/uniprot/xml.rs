@@ -769,7 +769,7 @@ fn item_to_xml<T: Write>(writer: &mut XmlUniProtWriter<T>, record: &Record)
 }
 
 /// Export record to XML.
-pub fn record_to_xml<T: Write>(record: &Record, writer: &mut T)
+pub fn record_to_xml<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
     let mut writer = XmlUniProtWriter::new(writer);
@@ -812,7 +812,7 @@ fn dest_cb<T: Write>(writer: &mut XmlUniProtWriter<T>)
 
 /// Default exporter from a non-owning iterator to XML.
 #[inline(always)]
-pub fn reference_iterator_to_xml<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_xml<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -822,7 +822,7 @@ pub fn reference_iterator_to_xml<'a, Iter, T>(iter: Iter, writer: &mut T)
 
 /// Default exporter from an owning iterator to XML.
 #[inline(always)]
-pub fn value_iterator_to_xml<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_xml<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -834,7 +834,7 @@ pub fn value_iterator_to_xml<Iter, T>(iter: Iter, writer: &mut T)
 
 /// Strict exporter from a non-owning iterator to XML.
 #[inline(always)]
-pub fn reference_iterator_to_xml_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_xml_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -844,7 +844,7 @@ pub fn reference_iterator_to_xml_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
 
 /// Strict exporter from an owning iterator to XML.
 #[inline(always)]
-pub fn value_iterator_to_xml_strict<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_xml_strict<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -856,7 +856,7 @@ pub fn value_iterator_to_xml_strict<Iter, T>(iter: Iter, writer: &mut T)
 
 /// Lenient exporter from a non-owning iterator to XML.
 #[inline(always)]
-pub fn reference_iterator_to_xml_lenient<'a, Iter, T>(iter: Iter, writer: &mut T)
+pub fn reference_iterator_to_xml_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
@@ -866,7 +866,7 @@ pub fn reference_iterator_to_xml_lenient<'a, Iter, T>(iter: Iter, writer: &mut T
 
 /// Lenient exporter from an owning iterator to XML.
 #[inline(always)]
-pub fn value_iterator_to_xml_lenient<Iter, T>(iter: Iter, writer: &mut T)
+pub fn value_iterator_to_xml_lenient<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
@@ -884,7 +884,7 @@ impl Xml for Record {
 
     #[inline(always)]
     fn to_xml<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        record_to_xml(self, writer)
+        record_to_xml(writer, self)
     }
 
     #[inline(always)]
@@ -901,7 +901,7 @@ impl Xml for RecordList {
 
     #[inline(always)]
     fn to_xml<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_xml(self.iter(), writer)
+        reference_iterator_to_xml(writer, self.iter())
     }
 
     #[inline(always)]
@@ -913,12 +913,12 @@ impl Xml for RecordList {
 impl XmlCollection for RecordList {
     #[inline(always)]
     fn to_xml_strict<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_xml_strict(self.iter(), writer)
+        reference_iterator_to_xml_strict(writer, self.iter())
     }
 
     #[inline(always)]
     fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()> {
-        reference_iterator_to_xml_lenient(self.iter(), writer)
+        reference_iterator_to_xml_lenient(writer, self.iter())
     }
 
     #[inline(always)]
@@ -965,48 +965,48 @@ mod tests {
 
         // reference -- default
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_xml(v.iter(), &mut w).unwrap();
+        reference_iterator_to_xml(&mut w, v.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_xml(by_value!(v), &mut w).unwrap();
+        value_iterator_to_xml(&mut w, by_value!(v)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_xml_strict(v.iter(), &mut w).unwrap();
+        reference_iterator_to_xml_strict(&mut w, v.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
-        let r = reference_iterator_to_xml_strict(u.iter(), &mut w);
+        let r = reference_iterator_to_xml_strict(&mut w, u.iter());
         assert!(r.is_err());
 
         // value -- strict
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_xml_strict(by_value!(v), &mut w).unwrap();
+        value_iterator_to_xml_strict(&mut w, by_value!(v)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
-        let r = value_iterator_to_xml_strict(by_value!(u), &mut w);
+        let r = value_iterator_to_xml_strict(&mut w, by_value!(u));
         assert!(r.is_err());
 
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_xml_lenient(v.iter(), &mut w).unwrap();
+        reference_iterator_to_xml_lenient(&mut w, v.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
-        reference_iterator_to_xml_lenient(u.iter(), &mut w).unwrap();
+        reference_iterator_to_xml_lenient(&mut w, u.iter()).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_xml_lenient(by_value!(v), &mut w).unwrap();
+        value_iterator_to_xml_lenient(&mut w, by_value!(v)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_xml_lenient(by_value!(u), &mut w).unwrap();
+        value_iterator_to_xml_lenient(&mut w, by_value!(u)).unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
     }
 
