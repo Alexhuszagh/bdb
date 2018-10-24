@@ -58,6 +58,16 @@ path = "benches/uniprot/complete.rs"
 harness = false
 
 [[bench]]
+name = "uniprot-csv"
+path = "benches/uniprot/csv.rs"
+harness = false
+
+[[bench]]
+name = "uniprot-fasta"
+path = "benches/uniprot/fasta.rs"
+harness = false
+
+[[bench]]
 name = "uniprot-re"
 path = "benches/uniprot/re.rs"
 harness = false
@@ -65,4 +75,9 @@ harness = false
 [[bench]]
 name = "uniprot-valid"
 path = "benches/uniprot/valid.rs"
+harness = false
+
+[[bench]]
+name = "uniprot-xml"
+path = "benches/uniprot/xml.rs"
 harness = false
