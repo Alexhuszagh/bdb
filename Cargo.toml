@@ -50,7 +50,19 @@ url = { version = "1", optional = true }
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
+# Benchmarks
+
 [[bench]]
-name = "uniprot_re"
+name = "uniprot-complete"
+path = "benches/uniprot/complete.rs"
+harness = false
+
+[[bench]]
+name = "uniprot-re"
 path = "benches/uniprot/re.rs"
+harness = false
+
+[[bench]]
+name = "uniprot-valid"
+path = "benches/uniprot/valid.rs"
 harness = false
