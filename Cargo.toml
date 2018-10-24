@@ -51,5 +51,6 @@ url = { version = "1", optional = true }
 openssl = { version = "0.10", features = ["vendored"] }
 
 [[bench]]
-name = "re"
+name = "uniprot_re"
+path = "benches/uniprot/re.rs"
 harness = false

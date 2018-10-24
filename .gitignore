@@ -2,4 +2,4 @@
 **/*.rs.bk
 Cargo.lock
 src/**/tmp*
-benches/tmp*
+benches/**/tmp*
