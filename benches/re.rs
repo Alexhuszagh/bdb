@@ -2,15 +2,23 @@
 extern crate bencher;
 extern crate bdb;
 
-use bencher::Bencher;
+use bencher::{black_box, Bencher};
 use bdb::db::uniprot::low_level::*;
 
+// HELPERS
+
+#[inline(always)]
+fn accession_regex_impl() -> bool {
+    AccessionRegex::validate().is_match("A2BC19") &&
+    AccessionRegex::validate().is_match("P12345") &&
+    AccessionRegex::validate().is_match("A0A022YWF9")
+}
+
+// BENCHES
 
 fn accession_regex(bench: &mut Bencher) {
     bench.iter(|| {
-        AccessionRegex::validate().is_match("A2BC19") &&
-        AccessionRegex::validate().is_match("P12345") &&
-        AccessionRegex::validate().is_match("A0A022YWF9")
+        black_box(accession_regex_impl())
     })
 }
 
