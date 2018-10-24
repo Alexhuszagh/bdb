@@ -12,3 +12,5 @@
 
 #[cfg(feature = "fastq")]
 pub use super::fastq::*;
+
+pub use super::re::*;

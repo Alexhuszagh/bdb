@@ -121,6 +121,8 @@ fn to_fastq<T: Write>(writer: &mut T, record: &Record) -> ResultType<()> {
 pub fn record_to_fastq<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
+    // TODO(ahuszagh)
+    //  Implement...
     Err(From::from(""))
 }
 
@@ -214,13 +216,13 @@ pub fn value_iterator_to_fastq_lenient<Iter, T>(writer: &mut T, iter: Iter)
 
 // READER
 
-// TODO(ahuszagh)
-//  Implement the reader....
-
 /// Import record from FASTQ.
+#[allow(unused_variables)]
 pub fn record_from_fastq<T: BufRead>(reader: &mut T)
     -> ResultType<Record>
 {
+    // TODO(ahuszagh)
+    //  Implement...
     Err(From::from(""))
 }
 
@@ -321,6 +323,28 @@ impl Fastq for RecordList {
     #[inline(always)]
     fn from_fastq<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
         iterator_from_fastq(reader).collect()
+    }
+}
+
+impl FastqCollection for RecordList {
+    #[inline(always)]
+    fn to_fastq_strict<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+        reference_iterator_to_fastq_strict(writer, self.iter())
+    }
+
+    #[inline(always)]
+    fn to_fastq_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+        reference_iterator_to_fastq_lenient(writer, self.iter())
+    }
+
+    #[inline(always)]
+    fn from_fastq_strict<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+        iterator_from_fastq_strict(reader).collect()
+    }
+
+    #[inline(always)]
+    fn from_fastq_lenient<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+        Ok(iterator_from_fastq_lenient(reader).filter_map(Result::ok).collect())
     }
 }
 
