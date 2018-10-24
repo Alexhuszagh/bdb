@@ -6,11 +6,11 @@
 //! commented to try to facilitate maintainability.
 
 use quick_xml::events::BytesStart;
-use std::io::{BufRead, Write};
+use std::io::prelude::*;
 use std::str as stdstr;
 
 use traits::*;
-use util::{ErrorKind, ResultType, XmlReader, XmlWriter};
+use util::*;
 use super::evidence::ProteinEvidence;
 use super::record::Record;
 use super::record_list::RecordList;
@@ -533,81 +533,23 @@ fn iterator_from_xml<T: BufRead>(reader: T)
 // READER -- STRICT
 
 /// Iterator to lazily load `Record`s from a document.
-pub struct XmlRecordStrictIter<T: BufRead> {
-    iter: XmlRecordIter<T>,
-}
-
-impl<T: BufRead> XmlRecordStrictIter<T> {
-     /// Create new XmlRecordStrictIter from a reader.
-    #[inline]
-    pub fn new(reader: T) -> Self {
-        XmlRecordStrictIter {
-            iter: XmlRecordIter::new(reader),
-        }
-    }
-}
-
-impl<T: BufRead> Iterator for XmlRecordStrictIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next()? {
-            Err(e)  => Some(Err(e)),
-            Ok(r)   => {
-                if r.is_valid() {
-                    Some(Ok(r))
-                } else {
-                    Some(Err(From::from(ErrorKind::InvalidRecord)))
-                }
-            }
-        }
-    }
-}
+pub type XmlRecordStrictIter<T> = StrictIter<Record, XmlRecordIter<T>>;
 
 /// Create strict record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_xml_strict<T: BufRead>(reader: T) -> XmlRecordStrictIter<T> {
-    XmlRecordStrictIter::new(reader)
+    XmlRecordStrictIter::new(XmlRecordIter::new(reader))
 }
 
 // READER -- LENIENT
 
 /// Iterator to lazily load `Record`s from a document.
-pub struct XmlRecordLenientIter<T: BufRead> {
-    iter: XmlRecordIter<T>,
-}
-
-impl<T: BufRead> XmlRecordLenientIter<T> {
-     /// Create new XmlRecordLenientIter from a reader.
-    #[inline]
-    pub fn new(reader: T) -> Self {
-        XmlRecordLenientIter {
-            iter: XmlRecordIter::new(reader),
-        }
-    }
-}
-
-impl<T: BufRead> Iterator for XmlRecordLenientIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.iter.next()? {
-                Err(e)  => return Some(Err(e)),
-                Ok(r)   => {
-                    if r.is_valid() {
-                        return Some(Ok(r));
-                    }
-                },
-            }
-        }
-    }
-}
+pub type XmlRecordLenientIter<T> = LenientIter<Record, XmlRecordIter<T>>;
 
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_xml_lenient<T: BufRead>(reader: T) -> XmlRecordLenientIter<T> {
-    XmlRecordLenientIter::new(reader)
+    XmlRecordLenientIter::new(XmlRecordIter::new(reader))
 }
 
 // XML UNIPROT WRITER
@@ -1108,7 +1050,7 @@ mod tests {
         iterator_from_xml(&mut Cursor::new(text));
 
         // record iterator -- strict
-        let iter = XmlRecordStrictIter::new(Cursor::new(text));
+        let iter = iterator_from_xml_strict(Cursor::new(text));
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(&expected, &v.unwrap());
 
@@ -1116,7 +1058,7 @@ mod tests {
         iterator_from_xml_strict(&mut Cursor::new(text));
 
         // record iterator -- lenient
-        let iter = XmlRecordLenientIter::new(Cursor::new(text));
+        let iter = iterator_from_xml_lenient(Cursor::new(text));
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(&expected, &v.unwrap());
 

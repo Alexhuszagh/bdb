@@ -3,11 +3,11 @@
 use csv;
 use digit_group::FormatGroup;
 use std::collections::BTreeMap;
-use std::io::{Read, Write};
+use std::io::prelude::*;
 
 use bio::proteins::{AverageMass, ProteinMass};
 use traits::*;
-use util::{ErrorKind, ResultType};
+use util::*;
 use super::evidence::ProteinEvidence;
 use super::record::{Record, RecordField};
 use super::record_list::RecordList;
@@ -459,81 +459,23 @@ pub fn iterator_from_csv<T: Read>(reader: T, delimiter: u8) -> CsvRecordIter<T> 
 // READER -- STRICT
 
 /// Iterator to lazily load `Record`s from a document.
-pub struct CsvRecordStrictIter<T: Read> {
-    iter: CsvRecordIter<T>,
-}
-
-impl<T: Read> CsvRecordStrictIter<T> {
-     /// Create new CsvRecordStrictIter from a reader.
-    #[inline]
-    pub fn new(reader: T, delimiter: u8) -> Self {
-        CsvRecordStrictIter {
-            iter: CsvRecordIter::new(reader, delimiter),
-        }
-    }
-}
-
-impl<T: Read> Iterator for CsvRecordStrictIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next()? {
-            Err(e)  => Some(Err(e)),
-            Ok(r)   => {
-                if r.is_valid() {
-                    Some(Ok(r))
-                } else {
-                    Some(Err(From::from(ErrorKind::InvalidRecord)))
-                }
-            }
-        }
-    }
-}
+pub type CsvRecordStrictIter<T> = StrictIter<Record, CsvRecordIter<T>>;
 
 /// Create strict record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_csv_strict<T: Read>(reader: T, delimiter: u8) -> CsvRecordStrictIter<T> {
-    CsvRecordStrictIter::new(reader, delimiter)
+    CsvRecordStrictIter::new(CsvRecordIter::new(reader, delimiter))
 }
 
 // READER -- LENIENT
 
 /// Iterator to lazily load `Record`s from a document.
-pub struct CsvRecordLenientIter<T: Read> {
-    iter: CsvRecordIter<T>,
-}
-
-impl<T: Read> CsvRecordLenientIter<T> {
-     /// Create new CsvRecordLenientIter from a reader.
-    #[inline]
-    pub fn new(reader: T, delimiter: u8) -> Self {
-        CsvRecordLenientIter {
-            iter: CsvRecordIter::new(reader, delimiter),
-        }
-    }
-}
-
-impl<T: Read> Iterator for CsvRecordLenientIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.iter.next()? {
-                Err(e)  => return Some(Err(e)),
-                Ok(r)   => {
-                    if r.is_valid() {
-                        return Some(Ok(r));
-                    }
-                },
-            }
-        }
-    }
-}
+pub type CsvRecordLenientIter<T> = LenientIter<Record, CsvRecordIter<T>>;
 
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_csv_lenient<T: Read>(reader: T, delimiter: u8) -> CsvRecordLenientIter<T> {
-    CsvRecordLenientIter::new(reader, delimiter)
+    CsvRecordLenientIter::new(CsvRecordIter::new(reader, delimiter))
 }
 
 // TRAITS
@@ -684,7 +626,7 @@ mod tests {
         iterator_from_csv(&mut Cursor::new(text), b'\t');
 
         // record iterator -- strict
-        let iter = CsvRecordStrictIter::new(Cursor::new(text), b'\t');
+        let iter = iterator_from_csv_strict(Cursor::new(text), b'\t');
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
@@ -692,7 +634,7 @@ mod tests {
         iterator_from_csv_strict(&mut Cursor::new(text), b'\t');
 
         // record iterator -- lenient
-        let iter = CsvRecordLenientIter::new(Cursor::new(text), b'\t');
+        let iter = iterator_from_csv_lenient(Cursor::new(text), b'\t');
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 

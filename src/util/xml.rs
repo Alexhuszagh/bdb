@@ -307,18 +307,21 @@ impl<T: BufRead> XmlReader<T> {
     ///
     /// You must clear the buffer after this.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn read_event(&mut self) -> ResultType<Event> {
         self.state.read_event(&mut self.buffer)
     }
 
     /// Clear internal buffer.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn reset_buffer(&mut self) {
         self.buffer.clear();
     }
 
     /// Read until the matching XML end element.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn read_to_end(&mut self, name: &[u8]) -> ResultType<BufferType> {
         self.state.read_to_end(&mut self.buffer, name)
     }
@@ -331,12 +334,14 @@ impl<T: BufRead> XmlReader<T> {
 
     /// Get the current depth (0-indexed) of the reader.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn depth(&self) -> usize {
         self.state.depth()
     }
 
     /// Get the current reader position in the buffer.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn buffer_position(&self) -> usize {
         self.state.reader.buffer_position()
     }
@@ -358,6 +363,7 @@ impl<T: BufRead> XmlReader<T> {
 
     /// Seek start element event by name and process event with callback.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn seek_start_name_callback<State, Callback>(
         &mut self,
         name: &[u8],
@@ -372,6 +378,7 @@ impl<T: BufRead> XmlReader<T> {
 
     /// Seek start element event by name and process event with callback.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn seek_start_depth_callback<State, Callback>(
         &mut self,
         depth: usize,
@@ -386,18 +393,21 @@ impl<T: BufRead> XmlReader<T> {
 
     /// Seek start element based off name and depth.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn seek_start(&mut self, name: &[u8], depth: usize) -> Option<ResultType<()>> {
         self.state.seek_start(&mut self.buffer, name, depth)
     }
 
     /// Seek start element based off name.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn seek_start_name(&mut self, name: &[u8]) -> Option<ResultType<()>> {
         self.seek_start(name, usize::max_value())
     }
 
     /// Seek start element based off depth.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn seek_start_depth(&mut self, depth: usize) -> Option<ResultType<()>> {
         self.seek_start(b"", depth)
     }
@@ -410,12 +420,14 @@ impl<T: BufRead> XmlReader<T> {
 
     /// Seek end element based off name.
     #[inline]
+    #[allow(dead_code)]
     pub fn seek_end_name(&mut self, name: &[u8]) -> Option<ResultType<()>> {
         self.seek_end(name, usize::max_value())
     }
 
     /// Seek end element based off depth.
     #[inline]
+    #[allow(dead_code)]
     pub fn seek_end_depth(&mut self, depth: usize) -> Option<ResultType<()>> {
         self.seek_end(b"", depth)
     }
@@ -471,6 +483,7 @@ impl<T: Write> XmlWriter<T> {
 
     /// Consume and return inner writer.
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn into_inner(self) -> T {
         self.writer.into_inner()
     }

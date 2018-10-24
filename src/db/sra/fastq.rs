@@ -1,8 +1,12 @@
 //! Helper utilities for FASTQ loading and saving.
 
-use std::io::{BufRead};
+use std::io::prelude::*;
+use std::str as stdstr;
 
-use util::{BufferType};
+use traits::*;
+use util::*;
+use super::record::Record;
+use super::record_list::RecordList;
 
 // FASTQ ITERATOR
 
@@ -83,5 +87,307 @@ impl<T: BufRead> Iterator for FastqIter<T> {
     }
 }
 
+// SIZE
+
+/// Estimate the size of a FASTA record.
+///
+/// Used to prevent reallocations during record exportation to string,
+/// to minimize costly library calls.
+#[inline]
+fn estimate_record_size(record: &Record) -> usize {
+    const FASTQ_VOCABULARY_SIZE: usize = 5;
+    FASTQ_VOCABULARY_SIZE +
+        record.seq_id.len() +
+        record.description.len() +
+        record.sequence.len() +
+        record.quality.len()
+}
+
+/// Estimate the size of a FASTA record list.
+#[inline]
+fn estimate_list_size(list: &RecordList) -> usize {
+    list.iter().fold(0, |sum, x| sum + estimate_record_size(x))
+}
+
+// WRITER
+
+#[inline(always)]
+fn to_fastq<T: Write>(writer: &mut T, record: &Record) ->ResultType<()> {
+    record.to_fastq(writer)
+}
+
+/// Export record to FASTQ.
+#[allow(unused_variables)]
+pub fn record_to_fastq<T: Write>(record: &Record, writer: &mut T)
+    -> ResultType<()>
+{
+    Err(From::from(""))
+}
+
+// WRITER -- DEFAULT
+
+/// Default exporter from a non-owning iterator to FASTQ.
+pub fn reference_iterator_to_fastq<'a, Iter, T>(iter: Iter, writer: &mut T)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    let mut state = TextWriterState::new(writer, b'\n');
+
+    // Write all records
+    // Error only raised for write error, which should percolate.
+    for record in iter {
+        state.export(record, to_fastq)?;
+    }
+
+    Ok(())
+}
+
+
+/// Default exporter from an owning iterator to FASTQ.
+pub fn value_iterator_to_fastq<Iter, T>(iter: Iter, writer: &mut T)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    let mut state = TextWriterState::new(writer, b'\n');
+
+    // Write all records
+    // Error only raised for read or write errors, which should percolate.
+    for record in iter {
+        state.export(&record?, to_fastq)?;
+    }
+
+    Ok(())
+}
+
+// WRITER -- STRICT
+
+/// Strict exporter from a non-owning iterator to FASTQ.
+pub fn reference_iterator_to_fastq_strict<'a, Iter, T>(iter: Iter, writer: &mut T)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    // Write all records, prepending "\n" after the first record
+    let mut previous = false;
+    for record in iter {
+        if record.is_valid() {
+            if previous {
+                writer.write_all(b"\n")?;
+            }
+            record.to_fastq(writer)?;
+            previous = true;
+        } else {
+            return Err(From::from(ErrorKind::InvalidRecord));
+        }
+    }
+
+    Ok(())
+}
+
+/// Strict exporter from an owning iterator to FASTQ.
+pub fn value_iterator_to_fastq_strict<Iter, T>(iter: Iter, writer: &mut T)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    // Write all records, prepending "\n" after the first record
+    let mut previous = false;
+    for result in iter {
+        let record = result?;
+        if record.is_valid() {
+            if previous {
+                writer.write_all(b"\n")?;
+            }
+            record.to_fastq(writer)?;
+            previous = true;
+        } else {
+            return Err(From::from(ErrorKind::InvalidRecord));
+        }
+    }
+
+    Ok(())
+}
+
+// WRITER -- LENIENT
+
+/// Lenient exporter from a non-owning iterator to FASTQ.
+pub fn reference_iterator_to_fastq_lenient<'a, Iter, T>(iter: Iter, writer: &mut T)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    let mut state = TextWriterState::new(writer, b'\n');
+
+    // Write all records
+    // Error only raised for write error, which should percolate.
+    for record in iter {
+        if record.is_valid() {
+            state.export(record, to_fastq)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Lenient exporter from an owning iterator to FASTQ.
+pub fn value_iterator_to_fastq_lenient<Iter, T>(iter: Iter, writer: &mut T)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    let mut state = TextWriterState::new(writer, b'\n');
+
+    // Write all records
+    // Error only raised for write error, which should percolate.
+    for result in iter {
+        let record = result?;
+        if record.is_valid() {
+            state.export(&record, to_fastq)?;
+        }
+    }
+
+    Ok(())
+}
+
+// READER
+
 // TODO(ahuszagh)
-//  Implement the iterator....
+//  Implement the reader....
+
+/// Import record from FASTQ.
+pub fn record_from_fastq<T: BufRead>(reader: &mut T)
+    -> ResultType<Record>
+{
+    Err(From::from(""))
+}
+
+// READER -- DEFAULT
+
+/// Iterator to lazily load `Record`s from a document.
+///
+/// Wraps `FastqIter` and converts the text to records.
+pub struct FastqRecordIter<T: BufRead> {
+    iter: FastqIter<T>
+}
+
+impl<T: BufRead> FastqRecordIter<T> {
+    /// Create new FastqRecordIter from a buffered reader.
+    #[inline]
+    pub fn new(reader: T) -> Self {
+        FastqRecordIter {
+            iter: FastqIter::new(reader)
+        }
+    }
+}
+
+impl<T: BufRead> Iterator for FastqRecordIter<T> {
+    type Item = ResultType<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let text = match self.iter.next()? {
+            Err(e)   => return Some(Err(e)),
+            Ok(text) => text,
+
+        };
+
+        Some(Record::from_fastq_string(&text))
+    }
+}
+
+/// Create default record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_fastq<T: BufRead>(reader: T) -> FastqRecordIter<T> {
+    FastqRecordIter::new(reader)
+}
+
+// READER -- STRICT
+
+/// Iterator to lazily load `Record`s from a document.
+///
+/// Wraps `FastqIter` and converts the text to records strictly.
+pub type FastqRecordStrictIter<T> = StrictIter<Record, FastqRecordIter<T>>;
+
+/// Create default record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_fastq_strict<T: BufRead>(reader: T) -> FastqRecordStrictIter<T> {
+    FastqRecordStrictIter::new(FastqRecordIter::new(reader))
+}
+
+// READER -- LENIENT
+
+/// Iterator to lazily load `Record`s from a document.
+///
+/// Wraps `FastqIter` and converts the text to records leniently.
+pub type FastqRecordLenientIter<T> = LenientIter<Record, FastqRecordIter<T>>;
+
+/// Create lenient record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_fastq_lenient<T: BufRead>(reader: T) -> FastqRecordLenientIter<T> {
+    FastqRecordLenientIter::new(FastqRecordIter::new(reader))
+}
+
+// TRAITS
+
+impl Fastq for Record {
+    #[inline]
+    fn estimate_fastq_size(&self) -> usize {
+        estimate_record_size(self)
+    }
+
+    #[inline(always)]
+    fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+        record_to_fastq(self, writer)
+    }
+
+    fn from_fastq<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+        record_from_fastq(reader)
+    }
+}
+
+impl Fastq for RecordList {
+    #[inline]
+    fn estimate_fastq_size(&self) -> usize {
+        estimate_list_size(self)
+    }
+
+    #[inline(always)]
+    fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+        reference_iterator_to_fastq(self.iter(), writer)
+    }
+
+    #[inline(always)]
+    fn from_fastq<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+        iterator_from_fastq(reader).collect()
+    }
+}
+
+// TESTS
+// -----
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Cursor};
+    use super::*;
+    //use super::super::test::*;
+
+    #[test]
+    fn fastq_iter_test() {
+        // Check iterator over data.
+
+        let s = "@tag desc\nCATTAG\n+tag desc\n;;;;;;\n@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;";
+        let i = FastqIter::new(Cursor::new(s));
+        let r: ResultType<Vec<String>> = i.collect();
+        assert_eq!(r.unwrap(), &["@tag desc\nCATTAG\n+tag desc\n;;;;;;\n", "@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;"]);
+
+        // Check iterator over empty string.
+        let s = "";
+        let i = FastqIter::new(Cursor::new(s));
+        let r: ResultType<Vec<String>> = i.collect();
+        assert_eq!(r.unwrap(), Vec::<String>::new());
+    }
+
+    // TODO(ahuszagh)
+    //  Implement the unittests.
+}

@@ -1,11 +1,11 @@
 //! Helper utilities for FASTA loading and saving.
 
-use std::io::{BufRead, Write};
+use std::io::prelude::*;
 use std::str as stdstr;
 
 use bio::proteins::{AverageMass, ProteinMass};
 use traits::*;
-use util::{BufferType, ErrorKind, ErrorType, ResultType};
+use util::*;
 use super::evidence::ProteinEvidence;
 use super::re::*;
 use super::record::Record;
@@ -116,76 +116,7 @@ fn estimate_list_size(list: &RecordList) -> usize {
     list.iter().fold(0, |sum, x| sum + estimate_record_size(x))
 }
 
-// WRITER STATE
-
-/// Internal struct to store the current writer state.
-struct WriterState<'r, T: 'r + Write> {
-    writer: &'r mut T,
-    /// Whether a record has previously been written successfully.
-    success: bool,
-    /// Whether an error has occurred loading a record.
-    has_errored: bool,
-    /// Whether the previous record exported successfully.
-    previous: bool,
-    /// Current error.
-    error: ErrorType,
-}
-
-impl<'r, T: 'r + Write> WriterState<'r, T> {
-    /// Construct new state from writer.
-    #[inline]
-    fn new(writer: &'r mut T) -> WriterState<'r, T> {
-        WriterState {
-            writer: writer,
-            success: false,
-            has_errored: false,
-            previous: false,
-            error: From::from("")
-        }
-    }
-
-    /// Mark success.
-    #[inline]
-    fn set_success(&mut self) {
-        self.previous = true;
-        self.success = true;
-    }
-
-    /// Mark failure.
-    #[inline]
-    fn set_error(&mut self, error: ErrorType) {
-        self.error = error;
-        self.previous = false;
-        self.has_errored = true;
-    }
-
-    /// Export record to FASTA.
-    fn to_fasta(&mut self, record: &Record) -> ResultType<()> {
-        // Only write the prefix if the last export worked.
-        if self.previous {
-            self.writer.write_all(b"\n")?;
-        }
-
-        match record.to_fasta(self.writer) {
-            Err(e)  => self.set_error(e),
-            _       => self.set_success(),
-        }
-
-        Ok(())
-    }
-
-    /// Consume the state and get the result.
-    #[inline]
-    fn result(self) -> ResultType<()> {
-        match self.success || !self.has_errored {
-            true    => Ok(()),
-            false   => Err(self.error),
-        }
-    }
-}
-
 // WRITER
-
 
 /// Export the SwissProt header to FASTA.
 pub fn write_swissprot_header<T: Write>(record: &Record, writer: &mut T)
@@ -250,6 +181,11 @@ pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
     Ok(())
 }
 
+#[inline(always)]
+fn to_fasta<T: Write>(writer: &mut T, record: &Record) ->ResultType<()> {
+    record.to_fasta(writer)
+}
+
 /// Export record to FASTA.
 pub fn record_to_fasta<T: Write>(record: &Record, writer: &mut T)
     -> ResultType<()>
@@ -289,15 +225,15 @@ pub fn reference_iterator_to_fasta<'a, Iter, T>(iter: Iter, writer: &mut T)
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut state = WriterState::new(writer);
+    let mut state = TextWriterState::new(writer, b'\n');
 
     // Write all records
     // Error only raised for write error, which should percolate.
     for record in iter {
-        state.to_fasta(record)?;
+        state.export(record, to_fasta)?;
     }
 
-    state.result()
+    Ok(())
 }
 
 
@@ -307,15 +243,15 @@ pub fn value_iterator_to_fasta<Iter, T>(iter: Iter, writer: &mut T)
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut state = WriterState::new(writer);
+    let mut state = TextWriterState::new(writer, b'\n');
 
     // Write all records
     // Error only raised for read or write errors, which should percolate.
     for record in iter {
-        state.to_fasta(&record?)?;
+        state.export(&record?, to_fasta)?;
     }
 
-    state.result()
+    Ok(())
 }
 
 // WRITER -- STRICT
@@ -375,13 +311,13 @@ pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(iter: Iter, writer: &mut
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    let mut state = WriterState::new(writer);
+    let mut state = TextWriterState::new(writer, b'\n');
 
     // Write all records
     // Error only raised for write error, which should percolate.
     for record in iter {
         if record.is_valid() {
-            state.to_fasta(record)?;
+            state.export(record, to_fasta)?;
         }
     }
 
@@ -394,14 +330,14 @@ pub fn value_iterator_to_fasta_lenient<Iter, T>(iter: Iter, writer: &mut T)
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    let mut state = WriterState::new(writer);
+    let mut state = TextWriterState::new(writer, b'\n');
 
     // Write all records
     // Error only raised for write error, which should percolate.
     for result in iter {
         let record = result?;
         if record.is_valid() {
-            state.to_fasta(&record)?;
+            state.export(&record, to_fasta)?;
         }
     }
 
@@ -561,37 +497,12 @@ pub fn iterator_from_fasta<T: BufRead>(reader: T) -> FastaRecordIter<T> {
 /// Iterator to lazily load `Record`s from a document.
 ///
 /// Wraps `FastaIter` and converts the text to records strictly.
-pub struct FastaRecordStrictIter<T: BufRead> {
-    iter: FastaRecordIter<T>
-}
-
-impl<T: BufRead> FastaRecordStrictIter<T> {
-    /// Create new FastaRecordStrictIter from a buffered reader.
-    #[inline]
-    pub fn new(reader: T) -> Self {
-        FastaRecordStrictIter {
-            iter: FastaRecordIter::new(reader)
-        }
-    }
-}
-
-impl<T: BufRead> Iterator for FastaRecordStrictIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.iter.next()?.and_then(|r| {
-            match r.is_valid() {
-                true    => Ok(r),
-                false   => Err(From::from(ErrorKind::InvalidRecord)),
-            }
-        }))
-    }
-}
+pub type FastaRecordStrictIter<T> = StrictIter<Record, FastaRecordIter<T>>;
 
 /// Create default record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_fasta_strict<T: BufRead>(reader: T) -> FastaRecordStrictIter<T> {
-    FastaRecordStrictIter::new(reader)
+    FastaRecordStrictIter::new(FastaRecordIter::new(reader))
 }
 
 // READER -- LENIENT
@@ -599,41 +510,12 @@ pub fn iterator_from_fasta_strict<T: BufRead>(reader: T) -> FastaRecordStrictIte
 /// Iterator to lazily load `Record`s from a document.
 ///
 /// Wraps `FastaIter` and converts the text to records leniently.
-pub struct FastaRecordLenientIter<T: BufRead> {
-    iter: FastaRecordIter<T>,
-}
-
-impl<T: BufRead> FastaRecordLenientIter<T> {
-    /// Create new FastaRecordLenientIter from a buffered reader.
-    #[inline]
-    pub fn new(reader: T) -> Self {
-        FastaRecordLenientIter {
-            iter: FastaRecordIter::new(reader),
-        }
-    }
-}
-
-impl<T: BufRead> Iterator for FastaRecordLenientIter<T> {
-    type Item = ResultType<Record>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.iter.next()? {
-                Err(e)  => return Some(Err(e)),
-                Ok(r)   => {
-                    if r.is_valid() {
-                        return Some(Ok(r));
-                    }
-                },
-            }
-        }
-    }
-}
+pub type FastaRecordLenientIter<T> = LenientIter<Record, FastaRecordIter<T>>;
 
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_fasta_lenient<T: BufRead>(reader: T) -> FastaRecordLenientIter<T> {
-    FastaRecordLenientIter::new(reader)
+    FastaRecordLenientIter::new(FastaRecordIter::new(reader))
 }
 
 // TRAITS
@@ -802,7 +684,7 @@ mod tests {
         iterator_from_fasta(&mut Cursor::new(text));
 
         // record iterator -- strict
-        let iter = FastaRecordStrictIter::new(Cursor::new(text));
+        let iter = iterator_from_fasta_strict(Cursor::new(text));
         let v: ResultType<RecordList> = iter.collect();
         incomplete_list_eq(&expected, &v.unwrap());
 
@@ -810,7 +692,7 @@ mod tests {
         iterator_from_fasta_strict(&mut Cursor::new(text));
 
         // record iterator -- lenient
-        let iter = FastaRecordLenientIter::new(Cursor::new(text));
+        let iter = iterator_from_fasta_lenient(Cursor::new(text));
         let v: ResultType<RecordList> = iter.collect();
         incomplete_list_eq(&expected, &v.unwrap());
 
