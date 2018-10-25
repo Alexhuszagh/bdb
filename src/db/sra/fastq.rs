@@ -5,6 +5,7 @@ use std::str as stdstr;
 
 use traits::*;
 use util::*;
+use super::re::*;
 use super::record::Record;
 use super::record_list::RecordList;
 
@@ -236,9 +237,57 @@ pub fn value_iterator_to_fastq_lenient<Iter, T>(writer: &mut T, iter: Iter)
 pub fn record_from_fastq<T: BufRead>(reader: &mut T)
     -> ResultType<Record>
 {
-    // TODO(ahuszagh)
-    //  Implement...
-    Err(From::from(""))
+    // Split along lines.
+    // The first line is the first header, short-circuit if it's none.
+    let mut lines = reader.lines();
+    let header = match lines.next() {
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
+        Some(v) => v?,
+    };
+
+    // process the header and match it to the FASTA record
+    let captures = match FastqHeaderRegex::extract().captures(&header) {
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
+        Some(v) => v,
+    };
+
+    // create the record from the header metadata
+    let mut record = Record {
+        seq_id: capture_as_string(&captures, FastqHeaderRegex::SEQID_INDEX),
+        description: capture_as_string(&captures, FastqHeaderRegex::DESCRIPTION_INDEX),
+        length: 0,
+        sequence: vec![],
+        quality: vec![]
+    };
+
+    // get the FASTQ sequence.
+    let sequence = match lines.next() {
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
+        Some(v) => v?,
+    };
+    record.sequence = sequence.into_bytes();
+    record.length = record.sequence.len() as u32;
+
+    // get the header quality line
+    let header = match lines.next() {
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
+        Some(v) => v?,
+    };
+    if !header.starts_with('+') {
+        return Err(From::from(ErrorKind::InvalidInput));
+    }
+
+    // get the FASTQ quality scores
+    let quality = match lines.next() {
+        None    => return Err(From::from(ErrorKind::InvalidInput)),
+        Some(v) => v?,
+    };
+    record.quality = quality.into_bytes();
+    if record.quality.len() as u32 != record.length {
+        return Err(From::from(ErrorKind::InvalidRecord));
+    }
+
+    Ok(record)
 }
 
 // READER -- DEFAULT

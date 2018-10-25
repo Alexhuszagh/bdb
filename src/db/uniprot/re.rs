@@ -5,7 +5,7 @@
 //! and therefore we should disable matching to Unicode characters
 //! explicitly.
 
-use regex::{Captures, Regex};
+use regex::Regex;
 use regex::bytes::Regex as BytesRegex;
 
 // Re-export regular-expression traits.
@@ -504,35 +504,6 @@ impl ExtractionRegex<Regex> for TrEMBLHeaderRegex {
         ");
         &REGEX
     }
-}
-
-// CAPTURES
-
-/// Convert capture group to `&str`.
-#[inline(always)]
-pub fn capture_as_str<'t>(captures: &'t Captures, index: usize) -> &'t str {
-    captures.get(index).unwrap().as_str()
-}
-
-/// Convert optional capture group to `&str`.
-#[inline(always)]
-pub fn optional_capture_as_str<'t>(captures: &'t Captures, index: usize) -> &'t str {
-    match captures.get(index) {
-        None    => "",
-        Some(v) => v.as_str(),
-    }
-}
-
-/// Convert capture group to `String`.
-#[inline(always)]
-pub fn capture_as_string(captures: &Captures, index: usize) -> String {
-    String::from(capture_as_str(captures, index))
-}
-
-/// Convert optional capture group to `String`.
-#[inline(always)]
-pub fn optional_capture_as_string(captures: &Captures, index: usize) -> String {
-    String::from(optional_capture_as_str(captures, index))
 }
 
 // TESTS

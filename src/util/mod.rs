@@ -19,7 +19,7 @@ mod xml;
 pub use self::alias::{BufferType, ErrorType, ResultType};
 pub use self::error::{Error, ErrorKind};
 pub use self::iterator::*;
-pub use self::re::{ExtractionRegex, ValidationRegex};
+pub use self::re::*;
 pub use self::writer::TextWriterState;
 
 #[cfg(feature = "xml")]

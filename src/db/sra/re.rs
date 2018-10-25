@@ -81,6 +81,12 @@ impl ExtractionRegex<BytesRegex> for SequenceQualityRegex {
 /// Regular expression to parse the sequence ID and description from FASTQ.
 pub struct FastqHeaderRegex;
 
+impl FastqHeaderRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const SEQID_INDEX: usize = 1;
+    pub const DESCRIPTION_INDEX: usize = 2;
+}
+
 impl ValidationRegex<Regex> for FastqHeaderRegex {
     fn validate() -> &'static Regex {
         lazy_regex!(Regex, r"(?x)(?m)
