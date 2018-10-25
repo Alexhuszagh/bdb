@@ -1,10 +1,7 @@
 # TODO List
 
-# Benchmarks
-    - Need to add benchmarks for UniProt serialization/deserialization
-    - CSV (small, but high-level only)
-    - Fasta (small, but high-level only)
-    - XML (small, but high-level only)
+# Fastq
+    - Finish Fastq deserialization
 
 # Formats
     - Add MGF, mzXML, mzML, etc....

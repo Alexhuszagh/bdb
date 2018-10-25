@@ -5,6 +5,7 @@
 //! and therefore we should disable matching to Unicode characters
 //! explicitly.
 
+use regex::Regex;
 use regex::bytes::Regex as BytesRegex;
 
 // Re-export regular-expression traits.
@@ -77,8 +78,53 @@ impl ExtractionRegex<BytesRegex> for SequenceQualityRegex {
     }
 }
 
-// TODO(ahuszagh)
-//      Need a header regex.
+/// Regular expression to parse the sequence ID and description from FASTQ.
+pub struct FastqHeaderRegex;
+
+impl ValidationRegex<Regex> for FastqHeaderRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)(?m)
+            \A
+            [@+]
+            (?:
+                [^[:space:]]+
+            )
+            \s
+            (?:
+                .*?
+            )
+            (?:
+                \slength=[[:digit:]]+
+            )?
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for FastqHeaderRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)(?m)
+            \A
+            [@+]        # The symbol for a header line.
+            # Group 1, Sequence ID.
+            (
+                [^[:space:]]+
+            )
+            \s
+            # Group 2, Description.
+            (
+                .*?
+            )
+            # Optional length after description.
+            (?:
+                \slength=[[:digit:]]+
+            )?
+            \z
+        ");
+        &REGEX
+    }
+}
 
 // TESTS
 // -----
@@ -129,6 +175,26 @@ mod tests {
         check_regex!(T, b"\r\n", false);
     }
 
-// TODO(ahuszagh)
-//      Need to match to real data.
+    #[test]
+    fn fastq_header_regex() {
+        type T = FastqHeaderRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "@SRR390728.2 2 length=72", true);
+        check_regex!(T, "+SRR390728.2 2 length=72", true);
+        check_regex!(T, "@EAS139:136:FC706VJ:2:2104:15343:197393 1:N:18:1", true);
+        check_regex!(T, "+EAS139:136:FC706VJ:2:2104:15343:197393 1:N:18:1", true);
+
+        // We can't really invalid the regex, since any character is valid
+        // in the second group.
+
+        //extract
+        extract_regex!(T, "@SRR390728.2 2 length=72", 1, "SRR390728.2", as_str);
+        extract_regex!(T, "@SRR390728.2 2 length=72", 2, "2", as_str);
+        extract_regex!(T, "@EAS139:136:FC706VJ:2:2104:15343:197393 1:N:18:1", 1, "EAS139:136:FC706VJ:2:2104:15343:197393", as_str);
+        extract_regex!(T, "@EAS139:136:FC706VJ:2:2104:15343:197393 1:N:18:1", 2, "1:N:18:1", as_str);
+    }
 }
