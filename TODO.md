@@ -7,7 +7,7 @@
     - Implement the MGF deserializers.
         - MSConvert (test)
     - Implement the MGF serializers
-        - MSConvert (implement and test)...
+        - MSConvert (test)
 
 # Formats
     - Add MGF, mzXML, mzML, etc....

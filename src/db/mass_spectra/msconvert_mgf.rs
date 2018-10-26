@@ -40,8 +40,65 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
         num.as_bytes(), b".", num.as_bytes(),
         b".0 File:\"", record.file.as_bytes(),
         b"\", NativeID:\"controllerType=0 controllerNumber=1 scan=",
-        num.as_bytes(), b"33450\""
+        num.as_bytes(), b"33450\"\n"
     )?;
+
+    Ok(())
+}
+
+#[inline(always)]
+fn export_rt<T: Write>(writer: &mut T, record: &Record)
+    -> ResultType<()>
+{
+    let rt = record.rt.to_string();
+    write_alls!(writer, b"RTINSECONDS=", rt.as_bytes(), b"\n")?;
+
+    Ok(())
+}
+
+#[inline(always)]
+fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
+    -> ResultType<()>
+{
+    let parent_mz = record.parent_mz.to_string();
+    write_alls!(writer, b"PEPMASS=", parent_mz.as_bytes())?;
+    if record.parent_intensity != 0.0 {
+        let parent_intensity = record.parent_intensity.to_string();
+        write_alls!(writer, b" ", parent_intensity.as_bytes())?;
+    }
+    writer.write_all(b"\n")?;
+
+    Ok(())
+}
+
+#[inline(always)]
+fn export_charge<T: Write>(writer: &mut T, record: &Record)
+    -> ResultType<()>
+{
+    if record.parent_z != 1 {
+        writer.write_all(b"CHARGE=")?;
+        if record.parent_z > 0 {
+            let parent_z = record.parent_z.to_string();
+            write_alls!(writer, parent_z.as_bytes(), b"+")?;
+        } else {
+            let z = -record.parent_z;
+            let parent_z = z.to_string();
+            write_alls!(writer, parent_z.as_bytes(), b"-")?;
+        }
+        writer.write_all(b"\n")?;
+    }
+
+    Ok(())
+}
+
+#[inline(always)]
+fn export_spectra<T: Write>(writer: &mut T, record: &Record)
+    -> ResultType<()>
+{
+    for peak in record.peaks.iter() {
+        let text = format!("{:?} {:?}\n", peak.mz, peak.intensity);
+        writer.write_all(text.as_bytes())?;
+    }
 
     Ok(())
 }
@@ -52,14 +109,12 @@ pub(crate) fn record_to_msconvert_mgf<T: Write>(writer: &mut T, record: &Record)
 {
     writer.write_all(b"BEGIN IONS\n")?;
     export_title(writer, record)?;
-
+    export_rt(writer, record)?;
+    export_pepmass(writer, record)?;
+    export_charge(writer, record)?;
+    export_spectra(writer, record)?;
     writer.write_all(b"END IONS\n")?;
-//    TITLE=QPvivo_2015_11_10_1targetmethod.33450.33450.4 File:"QPvivo_2015_11_10_1targetmethod.raw", NativeID:"controllerType=0 controllerNumber=1 scan=33450"
-    // TODO(ahuszagh)
-    //  Need to process line by line...
 
-    // TODO(ahuszagh)
-    //  Implement
     Ok(())
 }
 
