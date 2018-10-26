@@ -3,8 +3,11 @@
 // Expose the low-level API in a public submodule.
 pub mod low_level;
 
+mod mgf;
+mod msconvert_mgf;
 mod peak;
 mod peak_list;
+mod re;
 mod record;
 mod record_list;
 

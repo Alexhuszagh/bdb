@@ -21,5 +21,5 @@ mod test;
 mod fastq;
 
 // Re-export the models into the parent module.
-pub use self::record::{Record, RecordField};
+pub use self::record::Record;
 pub use self::record_list::RecordList;

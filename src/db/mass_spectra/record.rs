@@ -2,16 +2,7 @@
 
 use super::peak_list::PeakList;
 
-///// Enumerated values for Record fields.
-//#[repr(u8)]
-//#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-//#[allow(dead_code)]     // TODO(ahuszagh)       Remove
-//pub enum RecordField {
-//}
-
 /// Model for a single record from a spectral scan.
-// TODO(ahuszagh)
-//  Need a peaklist.
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct Record {
     /// Scan number for the spectrum.

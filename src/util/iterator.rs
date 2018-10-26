@@ -1,9 +1,10 @@
 //! Shared iterator templates and utilities.
 
 use std::io::prelude::*;
+use std::str as stdstr;
 
 use traits::Valid;
-use super::alias::ResultType;
+use super::alias::{BufferType, ResultType};
 use super::error::ErrorKind;
 
 // READER
@@ -319,4 +320,61 @@ pub fn value_iterator_export_lenient<
     }
 
     dest_cb(&mut inner)
+}
+
+// NEXT
+
+/// Export the buffer to a string (or none if the buffer is empty.)
+#[inline]
+fn text_next_to_string(buf: &mut BufferType)
+    -> Option<ResultType<String>>
+{
+    let result = match buf.len() {
+        0   => None,
+        _   => Some(match stdstr::from_utf8(&buf) {
+            Err(e)  => Err(From::from(e)),
+            Ok(v)   => Ok(String::from(v)),
+        }),
+    };
+    unsafe { buf.set_len(0); }
+    result
+}
+
+/// Produce the next element from a text-based iterator.
+pub fn text_next<T: BufRead>(
+    start: &str,
+    reader: &mut T,
+    buf: &mut BufferType,
+    line: &mut String
+)
+    -> Option<ResultType<String>>
+{
+    // Indefinitely loop over lines.
+    loop {
+        match reader.read_line(line) {
+            Err(e)      => return Some(Err(From::from(e))),
+            Ok(size)    => match size {
+                // Reached EOF
+                0   => return text_next_to_string(buf),
+                // Read bytes, process them.
+                _   => unsafe {
+                    // Ignore whitespace.
+                    if line == "\n" || line == "\r\n" {
+                        line.as_mut_vec().set_len(0);
+                        continue;
+                    } else if buf.len() > 0 && line.starts_with(start) {
+                        // Create result from existing buffer,
+                        // clear the existing buffer, and add
+                        // the current line to a new buffer.
+                        let result = text_next_to_string(buf);
+                        buf.append(line.as_mut_vec());
+                        return result;
+                    } else {
+                        // Move the line to the buffer.
+                        buf.append(line.as_mut_vec());
+                    }
+                },
+            }
+        }
+    }
 }

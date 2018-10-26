@@ -1,17 +1,5 @@
 //! Model for SRA (Sequence Read Archive) read definitions.
 
-/// Enumerated values for Record fields.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[allow(dead_code)]     // TODO(ahuszagh)       Remove
-pub enum RecordField {
-    SeqId,
-    Description,
-    Length,
-    Sequence,
-    Quality,
-}
-
 /// Model for a single record from a sequence read.
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Record {
