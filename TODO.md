@@ -2,6 +2,7 @@
 
 # Fastq
     - Finish Fastq deserialization
+        - Add unittests.
 
 # Mass Spectra
     - Implement the MGF deserializers.

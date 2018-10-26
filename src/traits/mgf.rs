@@ -86,5 +86,27 @@ pub trait Mgf: Sized {
 
 /// Specialization of the `Mgf` trait for collections.
 pub trait MgfCollection: Mgf {
-    // TODO(ahuszagh)   Implement...
+    /// Export collection to MGF.
+    ///
+    /// Returns an error if any of the items within the collection
+    /// are invalid.
+    fn to_mgf_strict<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
+
+    /// Export collection to MGF.
+    ///
+    /// Returns only errors due to serialization issues, otherwise,
+    /// exports as many items as possible.
+    fn to_mgf_lenient<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
+
+    /// Import collection from MGF.
+    ///
+    /// Returns an error if any of the items within the MGF document
+    /// are invalid.
+    fn from_mgf_strict<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self>;
+
+    /// Import collection from MGF.
+    ///
+    /// Returns only errors due to deserialization errors, otherwise,
+    /// imports as many items as possible.
+    fn from_mgf_lenient<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self>;
 }

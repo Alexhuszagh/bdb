@@ -23,9 +23,6 @@ impl Peak {
     }
 }
 
-// TODO(ahuszagh)
-//  Need to have an exporter with a formatter...
-
 // TESTS
 // -----
 

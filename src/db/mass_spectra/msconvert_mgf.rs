@@ -40,7 +40,7 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
         num.as_bytes(), b".", num.as_bytes(),
         b".0 File:\"", record.file.as_bytes(),
         b"\", NativeID:\"controllerType=0 controllerNumber=1 scan=",
-        num.as_bytes(), b"33450\"\n"
+        num.as_bytes(), b"\"\n"
     )?;
 
     Ok(())

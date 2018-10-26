@@ -310,3 +310,10 @@ macro_rules! bool_to_error {
         };
     )
 }
+
+
+/// Map an iterator to take items by value.
+#[cfg(test)]
+macro_rules! iterator_by_value {
+    ($x:expr) => ($x.map(|x| { Ok(x.clone()) }))
+}

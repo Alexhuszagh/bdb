@@ -10,4 +10,7 @@
 //! typically < 16 KB required for internal buffers, and < 1 KB for each
 //! individual item.
 
+#[cfg(feature = "mgf")]
+pub use super::mgf::*;
+
 pub use super::re::*;

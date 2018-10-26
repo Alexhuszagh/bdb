@@ -8,11 +8,11 @@ impl Valid for Record {
     fn is_valid(&self) -> bool {
         (
             self.num != 0 &&
-            self.ms_level != 0 &&
             self.rt >= 0.0 &&
             self.parent_mz >= 0.0 &&
             self.parent_intensity >= 0.0 &&
-            self.parent_z != 0
+            self.parent_z != 0 &&
+            !self.peaks.is_empty()
         )
     }
 }

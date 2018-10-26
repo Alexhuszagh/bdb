@@ -534,10 +534,6 @@ mod tests {
         assert_eq!(estimate_list_size(&v), 1193);
     }
 
-    macro_rules! by_value {
-        ($x:expr) => ($x.iter().map(|x| { Ok(x.clone()) }))
-    }
-
     #[test]
     fn iterator_to_csv_test() {
         let v = vec![gapdh(), bsa()];
@@ -550,7 +546,7 @@ mod tests {
 
         // value -- default
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv(&mut w, by_value!(v), b'\t').unwrap();
+        value_iterator_to_csv(&mut w, iterator_by_value!(v.iter()), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         // reference -- strict
@@ -564,11 +560,11 @@ mod tests {
 
         // value -- strict
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv_strict(&mut w, by_value!(v), b'\t').unwrap();
+        value_iterator_to_csv_strict(&mut w, iterator_by_value!(v.iter()), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
-        let r = value_iterator_to_csv_strict(&mut w, by_value!(u), b'\t');
+        let r = value_iterator_to_csv_strict(&mut w, iterator_by_value!(u.iter()), b'\t');
         assert!(r.is_err());
 
         // reference -- lenient
@@ -582,11 +578,11 @@ mod tests {
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv_lenient(&mut w, by_value!(v), b'\t').unwrap();
+        value_iterator_to_csv_lenient(&mut w, iterator_by_value!(v.iter()), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
-        value_iterator_to_csv_lenient(&mut w, by_value!(u), b'\t').unwrap();
+        value_iterator_to_csv_lenient(&mut w, iterator_by_value!(u.iter()), b'\t').unwrap();
         assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
     }
 

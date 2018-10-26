@@ -10,7 +10,7 @@ impl Complete for Record {
     fn is_complete(&self) -> bool {
         (
             self.is_valid() &&
-            !self.peaks.is_empty() &&
+            self.ms_level != 0 &&
             !self.filter.is_empty()
         )
     }

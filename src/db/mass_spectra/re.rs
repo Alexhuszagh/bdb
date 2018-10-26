@@ -156,7 +156,8 @@ impl ValidationRegex<Regex> for MsConvertMgfStartRegex {
     fn validate() -> &'static Regex {
         lazy_regex!(Regex, r"(?x)
             \A
-            BEGIN\sIONS\r?\n
+            BEGIN\sIONS
+            \z
         ");
         &REGEX
     }
@@ -166,7 +167,8 @@ impl ExtractionRegex<Regex> for MsConvertMgfStartRegex {
     fn extract() -> &'static Regex {
         lazy_regex!(Regex, r"(?x)
             \A
-            BEGIN\sIONS\r?\n
+            BEGIN\sIONS
+            \z
         ");
         &REGEX
     }
@@ -190,14 +192,15 @@ impl ValidationRegex<Regex> for MsConvertMgfTitleRegex {
                 [^.="]+
             )
             \.[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]*
-            \sFile:"[^.="]+\.[^.="]+",\sNativeID:"
+            \sFile:"[^="]+",\sNativeID:"
             controllerType=[[:digit:]]+
             \scontrollerNumber=[[:digit:]]+
             \sscan=
             (?:
                 [[:digit:]]+
             )
-            "\r?\n
+            "
+            \z
         "##);
         &REGEX
     }
@@ -213,7 +216,7 @@ impl ExtractionRegex<Regex> for MsConvertMgfTitleRegex {
                 [^.="]+
             )
             \.[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]*
-            \sFile:"[^.="]+\.[^.="]+",\sNativeID:"
+            \sFile:"[^="]+",\sNativeID:"
             controllerType=[[:digit:]]+
             \scontrollerNumber=[[:digit:]]+
             \sscan=
@@ -221,7 +224,8 @@ impl ExtractionRegex<Regex> for MsConvertMgfTitleRegex {
             (
                 [[:digit:]]+
             )
-            "\r?\n
+            "
+            \z
         "##);
         &REGEX
     }
@@ -243,7 +247,7 @@ impl ValidationRegex<Regex> for MsConvertMgfRtRegex {
             (?:
                 [[:digit:]]+(?:\.[[:digit:]]+)?
             )
-            \r?\n
+            \z
         ");
         &REGEX
     }
@@ -258,7 +262,7 @@ impl ExtractionRegex<Regex> for MsConvertMgfRtRegex {
             (
                 [[:digit:]]+(?:\.[[:digit:]]+)?
             )
-            \r?\n
+            \z
         ");
         &REGEX
     }
@@ -287,7 +291,7 @@ impl ValidationRegex<Regex> for MsConvertMgfPepMassRegex {
                     [[:digit:]]+(?:\.[[:digit:]]+)?
                 )
             )?
-            \r?\n
+            \z
         ");
         &REGEX
     }
@@ -309,7 +313,7 @@ impl ExtractionRegex<Regex> for MsConvertMgfPepMassRegex {
                     [[:digit:]]+(?:\.[[:digit:]]+)?
                 )
             )?
-            \r?\n
+            \z
         ");
         &REGEX
     }
@@ -335,7 +339,7 @@ impl ValidationRegex<Regex> for MsConvertMgfChargeRegex {
             (?:
                 [+\-]
             )
-            \r?\n
+            \z
         ");
         &REGEX
     }
@@ -354,7 +358,7 @@ impl ExtractionRegex<Regex> for MsConvertMgfChargeRegex {
             (
                 [+\-]
             )
-            \r?\n
+            \z
         ");
         &REGEX
     }
@@ -407,11 +411,10 @@ mod tests {
         check_regex!(T, "", false);
 
         // valid
-        check_regex!(T, "BEGIN IONS\n", true);
-        check_regex!(T, "BEGIN IONS\r\n", true);
+        check_regex!(T, "BEGIN IONS", true);
 
         // invalid
-        check_regex!(T, "BEGIN ION\n", false);
+        check_regex!(T, "BEGIN ION", false);
     }
 
     #[test]
@@ -422,23 +425,22 @@ mod tests {
         check_regex!(T, "", false);
 
         // valid
-        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\n", true);
-        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", true);
+        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", true);
 
         // invalid
-        check_regex!(T, "TITLE=Sample=.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sam.ple.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sam\"ple.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sample.350X.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sample.350.350X.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sample.350.350.4X File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0X controllerNumber=1 scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1X scan=350\"\r\n", false);
-        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350X\"\r\n", false);
+        check_regex!(T, "TITLE=Sample=.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sam.ple.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sam\"ple.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sample.350X.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sample.350.350X.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sample.350.350.4X File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0X controllerNumber=1 scan=350\"", false);
+        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1X scan=350\"", false);
+        check_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350X\"", false);
 
         // extract
-        extract_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\n", 1, "Sample", as_str);
-        extract_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"\n", 2, "350", as_str);
+        extract_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", 1, "Sample", as_str);
+        extract_regex!(T, "TITLE=Sample.350.350.4 File:\"Sample.raw\", NativeID:\"controllerType=0 controllerNumber=1 scan=350\"", 2, "350", as_str);
     }
 
     #[test]
@@ -449,18 +451,17 @@ mod tests {
         check_regex!(T, "", false);
 
         // valid
-        check_regex!(T, "RTINSECONDS=8692\n", true);
-        check_regex!(T, "RTINSECONDS=8692.657303\n", true);
-        check_regex!(T, "RTINSECONDS=8692.657303\r\n", true);
+        check_regex!(T, "RTINSECONDS=8692", true);
+        check_regex!(T, "RTINSECONDS=8692.657303", true);
 
         // invalid
-        check_regex!(T, "RTINSECONDS=8692.\n", false);
-        check_regex!(T, "RTINSECONDS=8692X\n", false);
-        check_regex!(T, "RTINSECONDS=8692.123X\n", false);
+        check_regex!(T, "RTINSECONDS=8692.", false);
+        check_regex!(T, "RTINSECONDS=8692X", false);
+        check_regex!(T, "RTINSECONDS=8692.123X", false);
 
         // extract
-        extract_regex!(T, "RTINSECONDS=8692\n", 1, "8692", as_str);
-        extract_regex!(T, "RTINSECONDS=8692.657303\n", 1, "8692.657303", as_str);
+        extract_regex!(T, "RTINSECONDS=8692", 1, "8692", as_str);
+        extract_regex!(T, "RTINSECONDS=8692.657303", 1, "8692.657303", as_str);
     }
 
     #[test]
@@ -471,26 +472,25 @@ mod tests {
         check_regex!(T, "", false);
 
         // valid
-        check_regex!(T, "PEPMASS=775\n", true);
-        check_regex!(T, "PEPMASS=775.15625\n", true);
-        check_regex!(T, "PEPMASS=775 170643.953125\n", true);
-        check_regex!(T, "PEPMASS=775.15625 170643\n", true);
-        check_regex!(T, "PEPMASS=775.15625 170643.953125\n", true);
-        check_regex!(T, "PEPMASS=775.15625 170643.953125\r\n", true);
+        check_regex!(T, "PEPMASS=775", true);
+        check_regex!(T, "PEPMASS=775.15625", true);
+        check_regex!(T, "PEPMASS=775 170643.953125", true);
+        check_regex!(T, "PEPMASS=775.15625 170643", true);
+        check_regex!(T, "PEPMASS=775.15625 170643.953125", true);
 
         // invalid
-        check_regex!(T, "PEPMASS=775.\n", false);
-        check_regex!(T, "PEPMASS=775.15X\n", false);
-        check_regex!(T, "PEPMASS=775. 170643.953125\n", false);
-        check_regex!(T, "PEPMASS=775.15625 170643.\n", false);
-        check_regex!(T, "PEPMASS=775.15625X 170643.953125\n", false);
-        check_regex!(T, "PEPMASS=775.15625 170643.953125X\r\n", false);
+        check_regex!(T, "PEPMASS=775.", false);
+        check_regex!(T, "PEPMASS=775.15X", false);
+        check_regex!(T, "PEPMASS=775. 170643.953125", false);
+        check_regex!(T, "PEPMASS=775.15625 170643.", false);
+        check_regex!(T, "PEPMASS=775.15625X 170643.953125", false);
+        check_regex!(T, "PEPMASS=775.15625 170643.953125X", false);
 
         // extract
-        extract_regex!(T, "PEPMASS=775\n", 1, "775", as_str);
-        extract_regex!(T, "PEPMASS=775.15625\n", 1, "775.15625", as_str);
-        extract_regex!(T, "PEPMASS=775 170643.953125\n", 1, "775", as_str);
-        extract_regex!(T, "PEPMASS=775 170643.953125\n", 2, "170643.953125", as_str);
+        extract_regex!(T, "PEPMASS=775", 1, "775", as_str);
+        extract_regex!(T, "PEPMASS=775.15625", 1, "775.15625", as_str);
+        extract_regex!(T, "PEPMASS=775 170643.953125", 1, "775", as_str);
+        extract_regex!(T, "PEPMASS=775 170643.953125", 2, "170643.953125", as_str);
     }
 
     #[test]
@@ -501,16 +501,15 @@ mod tests {
         check_regex!(T, "", false);
 
         // valid
-        check_regex!(T, "CHARGE=4+\n", true);
-        check_regex!(T, "CHARGE=4+\r\n", true);
+        check_regex!(T, "CHARGE=4+", true);
 
         // invalid
-        check_regex!(T, "CHARGE=4+X\n", false);
-        check_regex!(T, "CHARGE=4X+\n", false);
-        check_regex!(T, "CHARGE=4\r\n", false);
+        check_regex!(T, "CHARGE=4+X", false);
+        check_regex!(T, "CHARGE=4X+", false);
+        check_regex!(T, "CHARGE=4", false);
 
         // extract
-        extract_regex!(T, "CHARGE=4+\n", 1, "4", as_str);
-        extract_regex!(T, "CHARGE=4+\n", 2, "+", as_str);
+        extract_regex!(T, "CHARGE=4+", 1, "4", as_str);
+        extract_regex!(T, "CHARGE=4+", 2, "+", as_str);
     }
 }
