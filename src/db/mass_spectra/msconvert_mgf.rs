@@ -15,9 +15,16 @@ use super::record::Record;
 
 /// Estimate the size of an MSConvert MGF record.
 #[inline]
-pub(crate) fn estimate_msconvert_mgf_record_size(_: &Record) -> usize {
-    // TODO(ahuszagh)   Implement
-    0
+pub(crate) fn estimate_msconvert_mgf_record_size(record: &Record) -> usize {
+    // Actual size is ~125 with a lot of extra size for the 3x scans,
+    // and the peptide RT, m/z, and intensity.
+    const MGF_VOCABULARY_SIZE: usize = 200;
+    // Estimated average is ~20 characters per line, assume slightly above.
+    const MGF_PEAK_SIZE: usize = 25;
+    MGF_VOCABULARY_SIZE +
+        record.file.len() +
+        record.file.len() +
+        MGF_PEAK_SIZE * record.peaks.len()
 }
 
 // WRITER
