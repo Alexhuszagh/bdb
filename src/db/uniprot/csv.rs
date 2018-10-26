@@ -142,10 +142,7 @@ type CsvIterResult = Option<csv::Result<csv::StringRecord>>;
 fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
     -> ResultType<()>
 {
-    let row = match opt {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v?,
-    };
+    let row = none_to_error!(opt, InvalidInput)?;
 
     for tup in row.iter().enumerate() {
         let (index, item) = tup;
@@ -384,10 +381,7 @@ pub fn value_iterator_to_csv_lenient<Iter, T>(writer: &mut T, iter: Iter, delimi
 pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
     -> ResultType<Record>
 {
-    match iterator_from_csv(reader, delimiter).next() {
-        None    => Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => Ok(v?)
-    }
+    Ok(none_to_error!(iterator_from_csv(reader, delimiter).next(), InvalidInput)?)
 }
 
 // READER -- DEFAULT
@@ -449,7 +443,7 @@ pub type CsvRecordStrictIter<T> = StrictIter<Record, CsvRecordIter<T>>;
 /// Create strict record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_csv_strict<T: Read>(reader: T, delimiter: u8) -> CsvRecordStrictIter<T> {
-    CsvRecordStrictIter::new(CsvRecordIter::new(reader, delimiter))
+    CsvRecordStrictIter::new(iterator_from_csv(reader, delimiter))
 }
 
 // READER -- LENIENT
@@ -460,7 +454,7 @@ pub type CsvRecordLenientIter<T> = LenientIter<Record, CsvRecordIter<T>>;
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_csv_lenient<T: Read>(reader: T, delimiter: u8) -> CsvRecordLenientIter<T> {
-    CsvRecordLenientIter::new(CsvRecordIter::new(reader, delimiter))
+    CsvRecordLenientIter::new(iterator_from_csv(reader, delimiter))
 }
 
 // TRAITS

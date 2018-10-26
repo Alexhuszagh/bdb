@@ -192,16 +192,10 @@ pub fn record_from_fastq<T: BufRead>(reader: &mut T)
     // Split along lines.
     // The first line is the first header, short-circuit if it's none.
     let mut lines = reader.lines();
-    let header = match lines.next() {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v?,
-    };
+    let header = none_to_error!(lines.next(), InvalidInput)?;
 
     // process the header and match it to the FASTA record
-    let captures = match FastqHeaderRegex::extract().captures(&header) {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v,
-    };
+    let captures = none_to_error!(FastqHeaderRegex::extract().captures(&header), InvalidInput);
 
     // create the record from the header metadata
     let mut record = Record {
@@ -213,31 +207,18 @@ pub fn record_from_fastq<T: BufRead>(reader: &mut T)
     };
 
     // get the FASTQ sequence.
-    let sequence = match lines.next() {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v?,
-    };
+    let sequence = none_to_error!(lines.next(), InvalidInput)?;
     record.sequence = sequence.into_bytes();
     record.length = record.sequence.len() as u32;
 
     // get the header quality line
-    let header = match lines.next() {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v?,
-    };
-    if !header.starts_with('+') {
-        return Err(From::from(ErrorKind::InvalidInput));
-    }
+    let header = none_to_error!(lines.next(), InvalidInput)?;
+    bool_to_error!(header.starts_with('+'), InvalidInput);
 
     // get the FASTQ quality scores
-    let quality = match lines.next() {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v?,
-    };
+    let quality = none_to_error!(lines.next(), InvalidInput)?;
     record.quality = quality.into_bytes();
-    if record.quality.len() as u32 != record.length {
-        return Err(From::from(ErrorKind::InvalidRecord));
-    }
+    bool_to_error!(record.quality.len() as u32 == record.length, InvalidRecord);
 
     Ok(record)
 }
@@ -291,7 +272,7 @@ pub type FastqRecordStrictIter<T> = StrictIter<Record, FastqRecordIter<T>>;
 /// Create default record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_fastq_strict<T: BufRead>(reader: T) -> FastqRecordStrictIter<T> {
-    FastqRecordStrictIter::new(FastqRecordIter::new(reader))
+    FastqRecordStrictIter::new(iterator_from_fastq(reader))
 }
 
 // READER -- LENIENT
@@ -304,7 +285,7 @@ pub type FastqRecordLenientIter<T> = LenientIter<Record, FastqRecordIter<T>>;
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_fastq_lenient<T: BufRead>(reader: T) -> FastqRecordLenientIter<T> {
-    FastqRecordLenientIter::new(FastqRecordIter::new(reader))
+    FastqRecordLenientIter::new(iterator_from_fastq(reader))
 }
 
 // TRAITS

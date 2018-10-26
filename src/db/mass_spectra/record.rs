@@ -11,8 +11,6 @@ pub struct Record {
     pub ms_level: u8,
     /// Time of spectrum acquisition.
     pub rt: f64,
-    /// Time of parent spectrum acquisition.
-    pub parent_rt: f64,
     /// Mass to charge value of parent.
     pub parent_mz: f64,
     /// Intensity of parent ion.
@@ -39,13 +37,30 @@ impl Record {
             num: 0,
             ms_level: 0,
             rt: 0.0,
-            parent_rt: 0.0,
             parent_mz: 0.0,
             parent_intensity: 0.0,
             parent_z: 0,
             file: String::new(),
             filter: String::new(),
             peaks: vec![],
+            parent: vec![],
+            children: vec![],
+        }
+    }
+
+    /// Create new, empty spectral record.
+    #[inline]
+    pub fn with_peak_capacity(capacity: usize) -> Self {
+        Record {
+            num: 0,
+            ms_level: 0,
+            rt: 0.0,
+            parent_mz: 0.0,
+            parent_intensity: 0.0,
+            parent_z: 0,
+            file: String::new(),
+            filter: String::new(),
+            peaks: PeakList::with_capacity(capacity),
             parent: vec![],
             children: vec![],
         }

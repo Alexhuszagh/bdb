@@ -16,7 +16,7 @@ use super::record_list::RecordList;
 ///
 /// Convert a stream to a lazy reader that fetches individual MGF entries
 /// from the document.
-#[allow(dead_code)]     // TODO(ahuszagh), Remove
+#[allow(dead_code)]     // TODO(ahuszagh) Remove
 pub struct MgfIter<T: BufRead> {
     reader: T,
     start: &'static str,
@@ -27,7 +27,7 @@ pub struct MgfIter<T: BufRead> {
 impl<T: BufRead> MgfIter<T> {
     /// Create new MgfIter from a buffered reader.
     #[inline]
-    #[allow(dead_code)]     // TODO(ahuszagh), Remove
+    #[allow(dead_code)]     // TODO(ahuszagh) Remove
     pub fn new(reader: T, start: &'static str) -> Self {
         MgfIter {
             reader: reader,
@@ -77,31 +77,87 @@ pub fn record_to_mgf<T: Write>(writer: &mut T, record: &Record, kind: MgfKind)
 }
 
 // WRITER -- DEFAULT
+
+/// Default exporter from a non-owning iterator to MGF.
+#[inline(always)]
+pub fn reference_iterator_to_mgf<'a, Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    match kind {
+        MgfKind::MsConvert => reference_iterator_to_msconvert_mgf(writer, iter),
+    }
+}
+
+/// Default exporter from an owning iterator to MGF.
+#[inline(always)]
+#[allow(dead_code)]
+pub fn value_iterator_to_mgf<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    match kind {
+        MgfKind::MsConvert => value_iterator_to_msconvert_mgf(writer, iter),
+    }
+}
+
 // WRITER -- STRICT
+
+/// Strict exporter from a non-owning iterator to MGF.
+#[inline(always)]
+#[allow(dead_code)]
+pub fn reference_iterator_to_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    match kind {
+        MgfKind::MsConvert => reference_iterator_to_msconvert_mgf_strict(writer, iter),
+    }
+}
+
+/// Strict exporter from an owning iterator to MGF.
+#[inline(always)]
+#[allow(dead_code)]
+pub fn value_iterator_to_mgf_strict<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    match kind {
+        MgfKind::MsConvert => value_iterator_to_msconvert_mgf_strict(writer, iter),
+    }
+}
+
 // WRITER -- LENIENT
 
-// TODO(ahuszagh)
-//  Implement these callbacks...
-//#[inline(always)]
-//fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
-//    -> ResultType<TextWriterState<T>>
-//{
-//    Ok(TextWriterState::new(writer, delimiter))
-//}
-//
-//#[inline(always)]
-//fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
-//    -> ResultType<()>
-//{
-//    writer.export(record, &to_fasta)
-//}
-//
-//#[inline(always)]
-//fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
-//    -> ResultType<()>
-//{
-//    Ok(())
-//}
+/// Lenient exporter from a non-owning iterator to MGF.
+#[inline(always)]
+#[allow(dead_code)]
+pub fn reference_iterator_to_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = &'a Record>
+{
+    match kind {
+        MgfKind::MsConvert => reference_iterator_to_msconvert_mgf_lenient(writer, iter),
+    }
+}
+
+/// Lenient exporter from an owning iterator to MGF.
+#[inline(always)]
+#[allow(dead_code)]
+pub fn value_iterator_to_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
+    -> ResultType<()>
+    where T: Write,
+          Iter: Iterator<Item = ResultType<Record>>
+{
+    match kind {
+        MgfKind::MsConvert => value_iterator_to_msconvert_mgf_lenient(writer, iter),
+    }
+}
 
 // READER
 
@@ -115,8 +171,81 @@ pub fn record_from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind)
 }
 
 // READER -- DEFAULT
+
+/// Iterator to lazily load `Record`s from a document.
+///
+/// Wraps `MgfIter` and converts the text to records.
+pub struct MgfRecordIter<T: BufRead> {
+    iter: MgfIter<T>,
+    kind: MgfKind
+}
+
+impl<T: BufRead> MgfRecordIter<T> {
+    /// Create new MgfRecordIter from a buffered reader.
+    #[inline]
+    pub fn new(reader: T, start: &'static str, kind: MgfKind) -> Self {
+        MgfRecordIter {
+            iter: MgfIter::new(reader, start),
+            kind: kind
+        }
+    }
+}
+
+impl<T: BufRead> Iterator for MgfRecordIter<T> {
+    type Item = ResultType<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let text = match self.iter.next()? {
+            Err(e)   => return Some(Err(e)),
+            Ok(text) => text,
+
+        };
+
+        Some(Record::from_mgf_string(&text, self.kind))
+    }
+}
+
+/// Create default record iterator from reader.
+#[inline(always)]
+pub fn iterator_from_mgf<T: BufRead>(reader: T, kind: MgfKind)
+    -> MgfRecordIter<T>
+{
+    match kind {
+        MgfKind::MsConvert => iterator_from_msconvert_mgf(reader),
+    }
+}
+
 // READER -- STRICT
+
+/// Iterator to lazily load `Record`s from a document.
+///
+/// Wraps `FastaIter` and converts the text to records strictly.
+pub type MgfRecordStrictIter<T> = StrictIter<Record, MgfRecordIter<T>>;
+
+/// Create default record iterator from reader.
+#[inline(always)]
+#[allow(dead_code)]         // TODO(ahuszagh)       Remove
+pub fn iterator_from_fasta_strict<T: BufRead>(reader: T, kind: MgfKind)
+    -> MgfRecordStrictIter<T>
+{
+    MgfRecordStrictIter::new(iterator_from_mgf(reader, kind))
+}
+
 // READER -- LENIENT
+
+/// Iterator to lazily load `Record`s from a document.
+///
+/// Wraps `FastaIter` and converts the text to records leniently.
+pub type MgfRecordLenientIter<T> = LenientIter<Record, MgfRecordIter<T>>;
+
+/// Create default record iterator from reader.
+#[inline(always)]
+#[allow(dead_code)]         // TODO(ahuszagh)       Remove
+pub fn iterator_from_fasta_lenient<T: BufRead>(reader: T, kind: MgfKind)
+    -> MgfRecordLenientIter<T>
+{
+    MgfRecordLenientIter::new(iterator_from_mgf(reader, kind))
+}
 
 // TRAITS
 
@@ -146,16 +275,18 @@ impl Mgf for RecordList {
     #[inline(always)]
     #[allow(unused_variables)]
     fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()> {
-        // TODO(ahuszagh)   Implement...
-        Ok(())
+        reference_iterator_to_mgf(writer, self.iter(), kind)
     }
 
     #[inline(always)]
     #[allow(unused_variables)]
     fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self> {
-        // TODO(ahuszagh)   Implement...
-        Ok(RecordList::new())
+        iterator_from_mgf(reader, kind).collect()
     }
+}
+
+impl MgfCollection for RecordList {
+    // TODO(ahuszagh)   Implement...
 }
 
 // TESTS

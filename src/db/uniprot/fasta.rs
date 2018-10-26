@@ -199,7 +199,7 @@ pub fn reference_iterator_to_fasta<'a, Iter, T>(writer: &mut T, iter: Iter)
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    reference_iterator_export(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
+    reference_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
 
@@ -210,7 +210,7 @@ pub fn value_iterator_to_fasta<Iter, T>(writer: &mut T, iter: Iter)
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
+    value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
 // WRITER -- STRICT
@@ -232,7 +232,7 @@ pub fn value_iterator_to_fasta_strict<Iter, T>(writer: &mut T, iter: Iter)
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
+    value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
 // WRITER -- LENIENT
@@ -244,7 +244,7 @@ pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(writer: &mut T, iter: It
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
-    reference_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
+    reference_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
 /// Lenient exporter from an owning iterator to FASTA.
@@ -254,7 +254,7 @@ pub fn value_iterator_to_fasta_lenient<Iter, T>(writer: &mut T, iter: Iter)
     where T: Write,
           Iter: Iterator<Item = ResultType<Record>>
 {
-    value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb,&dest_cb)
+    value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
 // READER
@@ -264,10 +264,7 @@ fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
     type R = SwissProtHeaderRegex;
 
     // process the header and match it to the FASTA record
-    let captures = match R::extract().captures(&header) {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v,
-    };
+    let captures = none_to_error!(R::extract().captures(&header), InvalidInput);
 
     // initialize the record with header data
     let pe = capture_as_str(&captures, R::PE_INDEX);
@@ -298,10 +295,7 @@ fn record_header_from_trembl(header: &str) -> ResultType<Record> {
     type R = TrEMBLHeaderRegex;
 
     // process the header and match it to the FASTA record
-    let captures = match R::extract().captures(&header) {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v,
-    };
+    let captures = none_to_error!(R::extract().captures(&header), InvalidInput);
 
     // initialize the record with header data
     let pe = capture_as_str(&captures, R::PE_INDEX);
@@ -335,15 +329,10 @@ pub fn record_from_fasta<T: BufRead>(reader: &mut T)
     // First line is the header, rest are the sequences.
     // Short-circuit if the header is `None`.
     let mut lines = reader.lines();
-    let header = match lines.next() {
-        None    => return Err(From::from(ErrorKind::InvalidInput)),
-        Some(v) => v?,
-    };
+    let header = none_to_error!(lines.next(), InvalidInput)?;
 
     // Ensure we don't raise an out-of-bounds error on the subsequent slice.
-    if header.len() < 3 {
-        return Err(From::from(ErrorKind::InvalidInput));
-    }
+    bool_to_error!(header.len() >= 3, InvalidInput);
 
     let mut record = match &header[..3] {
         ">sp"   => record_header_from_swissprot(&header)?,
@@ -415,7 +404,7 @@ pub type FastaRecordStrictIter<T> = StrictIter<Record, FastaRecordIter<T>>;
 /// Create default record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_fasta_strict<T: BufRead>(reader: T) -> FastaRecordStrictIter<T> {
-    FastaRecordStrictIter::new(FastaRecordIter::new(reader))
+    FastaRecordStrictIter::new(iterator_from_fasta(reader))
 }
 
 // READER -- LENIENT
@@ -428,7 +417,7 @@ pub type FastaRecordLenientIter<T> = LenientIter<Record, FastaRecordIter<T>>;
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_fasta_lenient<T: BufRead>(reader: T) -> FastaRecordLenientIter<T> {
-    FastaRecordLenientIter::new(FastaRecordIter::new(reader))
+    FastaRecordLenientIter::new(iterator_from_fasta(reader))
 }
 
 // TRAITS

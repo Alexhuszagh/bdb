@@ -48,10 +48,7 @@ fn estimate_list_size(list: &RecordList) -> usize {
 pub fn record_from_xml<T: BufRead>(reader: &mut T)
     -> ResultType<Record>
 {
-    match iterator_from_xml(reader).next() {
-        None    => Err(From::from(ErrorKind::UnexpectedEof)),
-        Some(v) => v
-    }
+    none_to_error!(iterator_from_xml(reader).next(), UnexpectedEof)
 }
 
 // XML RECORD ITER
@@ -538,7 +535,7 @@ pub type XmlRecordStrictIter<T> = StrictIter<Record, XmlRecordIter<T>>;
 /// Create strict record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_xml_strict<T: BufRead>(reader: T) -> XmlRecordStrictIter<T> {
-    XmlRecordStrictIter::new(XmlRecordIter::new(reader))
+    XmlRecordStrictIter::new(iterator_from_xml(reader))
 }
 
 // READER -- LENIENT
@@ -549,7 +546,7 @@ pub type XmlRecordLenientIter<T> = LenientIter<Record, XmlRecordIter<T>>;
 /// Create lenient record iterator from reader.
 #[inline(always)]
 pub fn iterator_from_xml_lenient<T: BufRead>(reader: T) -> XmlRecordLenientIter<T> {
-    XmlRecordLenientIter::new(XmlRecordIter::new(reader))
+    XmlRecordLenientIter::new(iterator_from_xml(reader))
 }
 
 // XML UNIPROT WRITER

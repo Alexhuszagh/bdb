@@ -54,6 +54,30 @@ macro_rules! nonzero_to_string {
 }
 
 
+/// Macro to serialize non-zero floating numbers to string.
+///
+/// Exports a number to string only if the float is non-zero.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # pub fn main() {
+/// assert_eq!(nonzero_float_to_string!(0.0), "");
+/// assert_eq!(nonzero_float_to_string!(1.2), "1.2");
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! nonzero_float_to_string {
+    ($e:expr) => ({
+        // Prevent side effects from expression evaluation.
+        let memo = $e;
+        binary_choice!(memo == 0.0, String::new(), memo.to_string())
+    });
+}
+
+
 /// Macro to parse non-zero numbers from string.
 ///
 /// Parses an empty string as zero, otherwise, parses the number.
@@ -80,6 +104,36 @@ macro_rules! nonzero_from_string {
         // Prevent side effects from expression evaluation.
         let memo = $e;
         binary_choice!(memo == "", Ok(0), memo.parse::<$t>())
+    });
+}
+
+
+/// Macro to parse non-zero floating numbers from string.
+///
+/// Parses an empty string as zero, otherwise, parses the float.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate bdb;
+/// # pub fn main() {
+/// assert_eq!(nonzero_float_from_string!("").unwrap(), 0.0);
+/// assert_eq!(nonzero_float_from_string!("1.2").unwrap(), 1.2);
+/// assert_eq!(nonzero_float_from_string!("1.2", f32).unwrap(), 1.2);
+/// # }
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! nonzero_float_from_string {
+    ($e:expr) => ({
+        // Prevent side effects from expression evaluation.
+        let memo = $e;
+        binary_choice!(memo == "", Ok(0.), memo.parse())
+    });
+    ($e:expr, $t:ty) => ({
+        // Prevent side effects from expression evaluation.
+        let memo = $e;
+        binary_choice!(memo == "", Ok(0.), memo.parse::<$t>())
     });
 }
 
@@ -230,4 +284,29 @@ macro_rules! write_alls {
             _      => write_alls!($s, $($y),+)
         }
     });
+}
+
+// ERROR
+
+/// Macro to convert a `None` `Option` to an error.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! none_to_error {
+    ($e:expr, $t:ident) => (
+        match $e {
+            None    => return Err(From::from(ErrorKind::$t)),
+            Some(v) => v,
+        };
+    )
+}
+
+/// Macro to convert `false` to an error.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! bool_to_error {
+    ($e:expr, $t:ident) => (
+        if !$e {
+            return Err(From::from(ErrorKind::$t));
+        };
+    )
 }

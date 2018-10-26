@@ -190,11 +190,8 @@ pub fn reference_iterator_export_strict<
     let mut inner = init_cb(writer, delimiter)?;
 
     for record in iter {
-        if record.is_valid() {
-            export_cb(&mut inner, record)?;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
+        bool_to_error!(record.is_valid(), InvalidRecord);
+        export_cb(&mut inner, record)?;
     }
 
     dest_cb(&mut inner)
@@ -231,11 +228,8 @@ pub fn value_iterator_export_strict<
 
     for result in iter {
         let record = result?;
-        if record.is_valid() {
-            export_cb(&mut inner, &record)?;
-        } else {
-            return Err(From::from(ErrorKind::InvalidRecord));
-        }
+        bool_to_error!(record.is_valid(), InvalidRecord);
+        export_cb(&mut inner, &record)?;
     }
 
     dest_cb(&mut inner)
