@@ -5,10 +5,13 @@
         - Add unittests.
 
 # Mass Spectra
+    - Finished
+        -MSConvert
     - Implement the MGF deserializers.
-        - MSConvert (test)
+        - other formats
     - Implement the MGF serializers
-        - MSConvert (test)
+        - other formats
+    - Need to add centroiding and deisotoping (with a custom callback likely).
 
 # Formats
     - Add MGF, mzXML, mzML, etc....

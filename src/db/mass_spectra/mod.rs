@@ -11,11 +11,15 @@ mod record;
 mod record_list;
 mod valid;
 
-#[cfg(feature = "mgf")]
-mod mgf;
-
-#[cfg(feature = "mgf")]
-mod msconvert_mgf;
+cfg_if! {
+    if #[cfg(feature = "mgf")] {
+        mod mgf;
+        mod fullms_mgf;
+        mod msconvert_mgf;
+        mod pava_mgf;
+        mod pwiz_mgf;
+    }
+}
 
 #[cfg(test)]
 mod test;

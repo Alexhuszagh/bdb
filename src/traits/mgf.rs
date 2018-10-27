@@ -6,11 +6,22 @@ use std::path::Path;
 use util::ResultType;
 
 /// Identifier for the MGF file format type.
+///
+/// MGF files are superficially similar text files, with a start and end
+/// delimiter for each scan (usually "BEGIN IONS" and "END IONS"). The
+/// scan metadata is encoded in a header, and each peak in the scan
+/// is encoded on a separate line.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum MgfKind {
     /// MSConvert MGF file format.
     MsConvert = 1,
+    /// Pava MGF file format.
+    Pava = 2,
+    ///// ProteoWizard MGF file format.
+    //Pwiz = 3,
+    ///// Pava MS1 (FullMs) MGF file format.
+    //FullMs = 4,
     // TODO(ahuszagh)   Add others...
 }
 
@@ -20,7 +31,8 @@ pub enum MgfKind {
 /// MGF, or Mascot General Format, is generic format with a start and
 /// end scan delimiter, along with metadata along 1 or multiple header
 /// lines, followed by individual scans (usually with tab-delimited data).
-/// There are many MGF flavors, however, a sample format is shown below.
+/// There are many MGF flavors, however, a sample (MSConvert) format
+/// is shown below.
 ///
 /// # Serialized Format
 /// BEGIN IONS

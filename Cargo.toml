@@ -38,6 +38,7 @@ uniprot = []
 [dependencies]
 assert_approx_eq = "1"
 bencher = "0.1.5"
+cfg-if = "0.1"
 digit_group = "0.1"
 lazy_static = "1"
 ref_slice = "1"

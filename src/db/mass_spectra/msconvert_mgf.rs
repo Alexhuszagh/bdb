@@ -180,7 +180,7 @@ pub(crate) fn reference_iterator_to_msconvert_mgf_strict<'a, Iter, T>(writer: &m
     reference_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
-/// Strict exporter from an owning iterator to MGF.
+/// Strict exporter from an owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_msconvert_mgf_strict<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
@@ -202,7 +202,7 @@ pub(crate) fn reference_iterator_to_msconvert_mgf_lenient<'a, Iter, T>(writer: &
     reference_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
-/// Lenient exporter from an owning iterator to MGF.
+/// Lenient exporter from an owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_msconvert_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>
@@ -221,11 +221,9 @@ type PeakableLines<T> = Peekable<Lines<T>>;
 fn parse_start_line<T: BufRead>(lines: &mut PeakableLines<T>, _: &mut Record)
     -> ResultType<()>
 {
-    type Start = MsConvertMgfStartRegex;
-
     // Verify the start header line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
-    bool_to_error!(Start::validate().is_match(&line), InvalidInput);
+    bool_to_error!(line == "BEGIN IONS", InvalidInput);
 
     Ok(())
 }

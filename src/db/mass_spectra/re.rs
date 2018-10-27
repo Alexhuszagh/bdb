@@ -39,7 +39,7 @@ impl ValidationRegex<Regex> for MsConvertMgfRegex {
                 [^.="]+
             )
             \.[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]*
-            \sFile:"[^.="]+\.[^.="]+",\sNativeID:"
+            \sFile:"[^.="]+(?:\.[^.="]+)?",\sNativeID:"
             controllerType=[[:digit:]]+
             \scontrollerNumber=[[:digit:]]+
             \sscan=
@@ -98,7 +98,7 @@ impl ExtractionRegex<Regex> for MsConvertMgfRegex {
                 [^.="]+
             )
             \.[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]*
-            \sFile:"[^.="]+\.[^.="]+",\sNativeID:"
+            \sFile:"[^.="]+(?:\.[^.="]+)?",\sNativeID:"
             controllerType=[[:digit:]]+
             \scontrollerNumber=[[:digit:]]+
             \sscan=
@@ -145,31 +145,6 @@ impl ExtractionRegex<Regex> for MsConvertMgfRegex {
                 \r?\n
             )?
         "##);
-        &REGEX
-    }
-}
-
-/// Regular expression to validate MSConvert MGF start delimiter.
-pub struct MsConvertMgfStartRegex;
-
-impl ValidationRegex<Regex> for MsConvertMgfStartRegex {
-    fn validate() -> &'static Regex {
-        lazy_regex!(Regex, r"(?x)
-            \A
-            BEGIN\sIONS
-            \z
-        ");
-        &REGEX
-    }
-}
-
-impl ExtractionRegex<Regex> for MsConvertMgfStartRegex {
-    fn extract() -> &'static Regex {
-        lazy_regex!(Regex, r"(?x)
-            \A
-            BEGIN\sIONS
-            \z
-        ");
         &REGEX
     }
 }
@@ -364,6 +339,90 @@ impl ExtractionRegex<Regex> for MsConvertMgfChargeRegex {
     }
 }
 
+// PAVA
+
+/// Regular expression to validate and parse Pava MGF files.
+pub struct PavaMgfRegex;
+
+// TODO(ahuszagh)   Implement...
+//impl PavaMgfRegex {
+//    /// Hard-coded index fields for data extraction.
+//}
+//
+//impl ValidationRegex<Regex> for MsConvertMgfRegex {
+//    fn validate() -> &'static Regex {}
+//}
+//
+//impl ExtractionRegex<Regex> for MsConvertMgfRegex {
+//    fn extract() -> &'static Regex {}
+//}
+
+/// Regular expression to validate and parse Pava MGF title lines.
+pub struct PavaMgfTitleRegex;
+
+impl PavaMgfTitleRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const NUM_INDEX: usize = 1;
+    pub const RT_INDEX: usize = 2;
+    pub const FILE_INDEX: usize = 3;
+}
+
+impl ValidationRegex<Regex> for PavaMgfTitleRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r##"(?x)
+            \A
+            TITLE=Scan\s
+            (?:
+                [[:digit:]]+
+            )
+            \s\(rt=
+            (?:
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            \)
+            \s\[
+            (?:
+                [^.="]+
+            )
+            (?:\.[^.="]+)?
+            \]
+            \z
+        "##);
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for PavaMgfTitleRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r##"(?x)
+            \A
+            TITLE=Scan\s
+            # Group 1, Scan Number.
+            (
+                [[:digit:]]+
+            )
+            \s\(rt=
+            # Group 2, Retention Time.
+            (
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            \)
+            \s\[
+            # Group 3, File Name.
+            (
+                [^.="]+
+            )
+            (?:\.[^.="]+)?
+            \]
+            \z
+        "##);
+        &REGEX
+    }
+}
+
+// TODO(ahuszagh)
+//  Add PepMass, Charge
+
 // TODO(ahuszagh)
 //  Add other MGF files...
 
@@ -373,6 +432,8 @@ impl ExtractionRegex<Regex> for MsConvertMgfChargeRegex {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // MSCONVERT
 
     #[test]
     fn msconvert_mgf_regex_test() {
@@ -401,20 +462,6 @@ mod tests {
         extract_regex!(T, text, 5, "170643.953125", as_str);
         extract_regex!(T, text, 6, "4", as_str);
         extract_regex!(T, text, 7, "+", as_str);
-    }
-
-    #[test]
-    fn msconvert_mgf_start_regex_test() {
-        type T = MsConvertMgfStartRegex;
-
-        // empty
-        check_regex!(T, "", false);
-
-        // valid
-        check_regex!(T, "BEGIN IONS", true);
-
-        // invalid
-        check_regex!(T, "BEGIN ION", false);
     }
 
     #[test]
@@ -512,4 +559,35 @@ mod tests {
         extract_regex!(T, "CHARGE=4+", 1, "4", as_str);
         extract_regex!(T, "CHARGE=4+", 2, "+", as_str);
     }
+
+    // PAVA
+
+    #[test]
+    fn pava_mgf_regex_test() {
+        // TODO(ahuszagh)   Implement
+    }
+
+    #[test]
+    fn pava_mgf_title_regex_test() {
+        type T = PavaMgfTitleRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "TITLE=Scan 749 (rt=14.112) [beta_orbi111015_06.raw]", true);
+
+        // invalid
+        check_regex!(T, "TITLE=Scan 749X (rt=14.112) [beta_orbi111015_06.raw]", false);
+        check_regex!(T, "TITLE=Scan 749 (rt=14.) [beta_orbi111015_06.raw]", false);
+        check_regex!(T, "TITLE=Scan 749 (rt=14.112) [beta.orbi111015_06.raw]", false);
+        check_regex!(T, "TITLE=Scan 749 (rt=14.112) [beta=orbi111015_06.raw]", false);
+
+        // extract
+        extract_regex!(T, "TITLE=Scan 749 (rt=14.112) [beta_orbi111015_06.raw]", 1, "749", as_str);
+        extract_regex!(T, "TITLE=Scan 749 (rt=14.112) [beta_orbi111015_06.raw]", 2, "14.112", as_str);
+        extract_regex!(T, "TITLE=Scan 749 (rt=14.112) [beta_orbi111015_06.raw]", 3, "beta_orbi111015_06", as_str);
+    }
+
+    // TODO(ahuszagh)   Add more tests here.
 }
