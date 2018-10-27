@@ -18,8 +18,8 @@ pub enum MgfKind {
     MsConvert = 1,
     /// Pava MGF file format.
     Pava = 2,
-    ///// ProteoWizard MGF file format.
-    //Pwiz = 3,
+    /// ProteoWizard MGF file format.
+    Pwiz = 3,
     ///// Pava MS1 (FullMs) MGF file format.
     //FullMs = 4,
     // TODO(ahuszagh)   Add others...

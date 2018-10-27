@@ -6,6 +6,7 @@ use traits::*;
 use util::*;
 use super::msconvert_mgf::*;
 use super::pava_mgf::*;
+use super::pwiz_mgf::*;
 use super::record::Record;
 use super::record_list::RecordList;
 
@@ -51,6 +52,7 @@ fn estimate_record_size(record: &Record, kind: MgfKind) -> usize {
     match kind {
         MgfKind::MsConvert => estimate_msconvert_mgf_record_size(record),
         MgfKind::Pava => estimate_pava_mgf_record_size(record),
+        MgfKind::Pwiz => estimate_pwiz_mgf_record_size(record),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -72,6 +74,7 @@ pub fn record_to_mgf<T: Write>(writer: &mut T, record: &Record, kind: MgfKind)
     match kind {
         MgfKind::MsConvert => record_to_msconvert_mgf(writer, record),
         MgfKind::Pava => record_to_pava_mgf(writer, record),
+        MgfKind::Pwiz => record_to_pwiz_mgf(writer, record),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -89,6 +92,7 @@ pub fn reference_iterator_to_mgf<'a, Iter, T>(writer: &mut T, iter: Iter, kind: 
     match kind {
         MgfKind::MsConvert => reference_iterator_to_msconvert_mgf(writer, iter),
         MgfKind::Pava => reference_iterator_to_pava_mgf(writer, iter),
+        MgfKind::Pwiz => reference_iterator_to_pwiz_mgf(writer, iter),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -104,6 +108,7 @@ pub fn value_iterator_to_mgf<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
     match kind {
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf(writer, iter),
         MgfKind::Pava => value_iterator_to_pava_mgf(writer, iter),
+        MgfKind::Pwiz => value_iterator_to_pwiz_mgf(writer, iter),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -121,6 +126,7 @@ pub fn reference_iterator_to_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter,
     match kind {
         MgfKind::MsConvert => reference_iterator_to_msconvert_mgf_strict(writer, iter),
         MgfKind::Pava => reference_iterator_to_pava_mgf_strict(writer, iter),
+        MgfKind::Pwiz => reference_iterator_to_pwiz_mgf_strict(writer, iter),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -136,6 +142,7 @@ pub fn value_iterator_to_mgf_strict<Iter, T>(writer: &mut T, iter: Iter, kind: M
     match kind {
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf_strict(writer, iter),
         MgfKind::Pava => value_iterator_to_pava_mgf_strict(writer, iter),
+        MgfKind::Pwiz => value_iterator_to_pwiz_mgf_strict(writer, iter),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -153,6 +160,7 @@ pub fn reference_iterator_to_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter
     match kind {
         MgfKind::MsConvert => reference_iterator_to_msconvert_mgf_lenient(writer, iter),
         MgfKind::Pava => reference_iterator_to_pava_mgf_lenient(writer, iter),
+        MgfKind::Pwiz => reference_iterator_to_pwiz_mgf_lenient(writer, iter),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -168,6 +176,7 @@ pub fn value_iterator_to_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter, kind: 
     match kind {
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf_lenient(writer, iter),
         MgfKind::Pava => value_iterator_to_pava_mgf_lenient(writer, iter),
+        MgfKind::Pwiz => value_iterator_to_pwiz_mgf_lenient(writer, iter),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -182,6 +191,7 @@ pub fn record_from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind)
     match kind {
         MgfKind::MsConvert => record_from_msconvert_mgf(reader),
         MgfKind::Pava => record_from_pava_mgf(reader),
+        MgfKind::Pwiz => record_from_pwiz_mgf(reader),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -230,6 +240,7 @@ pub fn iterator_from_mgf<T: BufRead>(reader: T, kind: MgfKind)
     match kind {
         MgfKind::MsConvert => iterator_from_msconvert_mgf(reader),
         MgfKind::Pava => iterator_from_pava_mgf(reader),
+        MgfKind::Pwiz => iterator_from_pwiz_mgf(reader),
         // TODO(ahuszagh)
         //  Add more record types.
     }
@@ -481,4 +492,7 @@ mod tests {
 
     //TODO(ahuszagh)
     //  Add more MGF types...
+    //  Pava
+    //  Pwiz
+    //  FullMS
 }
