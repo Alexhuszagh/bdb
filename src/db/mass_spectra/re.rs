@@ -10,6 +10,8 @@ use regex::Regex;
 // Re-export regular-expression traits.
 pub use util::{ExtractionRegex, ValidationRegex};
 
+// FULL MS
+
 // MSCONVERT
 
 /// Regular expression to validate and parse MSConvert MGF title lines.
@@ -362,6 +364,189 @@ impl ExtractionRegex<Regex> for PavaMgfChargeRegex {
         &REGEX
     }
 }
+
+// PWIZ
+
+/// Regular expression to validate and parse Pwiz MGF title lines.
+pub struct PwizMgfTitleRegex;
+
+impl PwizMgfTitleRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const FILE_INDEX: usize = 1;
+    pub const NUM_INDEX: usize = 2;
+}
+
+impl ValidationRegex<Regex> for PwizMgfTitleRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            TITLE=
+            (?:
+                [^\x20]+
+            )
+            \sSpectrum[0-9]+\sscans:\s
+            (?:
+                [[:digit:]]+
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for PwizMgfTitleRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            TITLE=
+            # Group 1, File Name.
+            (
+                [^\x20]+
+            )
+            \sSpectrum[0-9]+\sscans:\s
+            # Group 1, Scan Number.
+            (
+                [[:digit:]]+
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+/// Regular expression to validate and parse Pwiz MGF pepmass lines.
+pub struct PwizMgfPepMassRegex;
+
+impl PwizMgfPepMassRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const PARENT_MZ_INDEX: usize = 1;
+    pub const PARENT_INTENSITY_INDEX: usize = 2;
+}
+
+impl ValidationRegex<Regex> for PwizMgfPepMassRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            PEPMASS=
+            (?:
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            (?:
+                \s
+                (?:
+                    [[:digit:]]+(?:\.[[:digit:]]+)?
+                )
+            )?
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for PwizMgfPepMassRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            PEPMASS=
+            # Group 1, Parent M/Z.
+            (
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            (?:
+                \s
+                # Group 2, Parent Intensity.
+                (
+                    [[:digit:]]+(?:\.[[:digit:]]+)?
+                )
+            )?
+            \z
+        ");
+        &REGEX
+    }
+}
+
+/// Regular expression to validate and parse Pwiz MGF charge lines.
+pub struct PwizMgfChargeRegex;
+
+impl PwizMgfChargeRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const PARENT_Z_INDEX: usize = 1;
+    pub const PARENT_Z_SIGN_INDEX: usize = 2;
+}
+
+impl ValidationRegex<Regex> for PwizMgfChargeRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            CHARGE=
+            (?:
+                [[:digit:]]+
+            )
+            (?:
+                [+\-]
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for PwizMgfChargeRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            CHARGE=
+            # Group 1, Parent Charge.
+            (
+                [[:digit:]]+
+            )
+            # Group 2, Charge Sign.
+            (
+                [+\-]
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+/// Regular expression to validate and parse Pwiz MGF RT lines.
+pub struct PwizMgfRtRegex;
+
+impl PwizMgfRtRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const RT_INDEX: usize = 1;
+}
+
+impl ValidationRegex<Regex> for PwizMgfRtRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            RTINSECONDS=
+            (?:
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for PwizMgfRtRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            RTINSECONDS=
+            # Group 1, Retention Time.
+            (
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
 // TODO(ahuszagh)
 //  Add other MGF files...
 
@@ -373,6 +558,7 @@ mod tests {
     use super::*;
 
     // FULLMS
+    // TODO(ahuszagh)   Add more tests here.
 
     // MSCONVERT
 
@@ -475,11 +661,6 @@ mod tests {
     // PAVA
 
     #[test]
-    fn pava_mgf_regex_test() {
-        // TODO(ahuszagh)   Implement
-    }
-
-    #[test]
     fn pava_mgf_title_regex_test() {
         type T = PavaMgfTitleRegex;
 
@@ -551,5 +732,6 @@ mod tests {
     }
 
     // PWIZ
+
     // TODO(ahuszagh)   Add more tests here.
 }
