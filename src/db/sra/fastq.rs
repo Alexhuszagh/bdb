@@ -36,7 +36,7 @@ impl<T: BufRead> Iterator for FastqIter<T> {
     type Item = ResultType<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        text_next("@", &mut self.reader, &mut self.buf, &mut self.line)
+        text_next_skip_whitespace("@", &mut self.reader, &mut self.buf, &mut self.line)
     }
 }
 

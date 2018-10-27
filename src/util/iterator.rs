@@ -334,8 +334,25 @@ fn text_next_to_string(buf: &mut BufferType)
     result
 }
 
-/// Produce the next element from a text-based iterator.
-pub fn text_next<T: BufRead>(
+/// Implied macro to fetch the next item from a reader.
+macro_rules! text_next_impl {
+    ($reader:ident, $buf:ident, $line:ident, $block:expr) => ({
+        loop {
+            match $reader.read_line($line) {
+                Err(e)      => return Some(Err(From::from(e))),
+                Ok(size)    => match size {
+                    // Reached EOF
+                    0   => return text_next_to_string($buf),
+                    // Read bytes, process them.
+                    _   => $block,
+                }
+            }
+        }
+    })
+}
+
+/// Produce the next element from a text-based iterator (skipping whitespace).
+pub fn text_next_skip_whitespace<T: BufRead>(
     start: &str,
     reader: &mut T,
     buf: &mut BufferType,
@@ -343,32 +360,21 @@ pub fn text_next<T: BufRead>(
 )
     -> Option<ResultType<String>>
 {
-    // Indefinitely loop over lines.
-    loop {
-        match reader.read_line(line) {
-            Err(e)      => return Some(Err(From::from(e))),
-            Ok(size)    => match size {
-                // Reached EOF
-                0   => return text_next_to_string(buf),
-                // Read bytes, process them.
-                _   => unsafe {
-                    // Ignore whitespace.
-                    if line == "\n" || line == "\r\n" {
-                        line.as_mut_vec().set_len(0);
-                        continue;
-                    } else if buf.len() > 0 && line.starts_with(start) {
-                        // Create result from existing buffer,
-                        // clear the existing buffer, and add
-                        // the current line to a new buffer.
-                        let result = text_next_to_string(buf);
-                        buf.append(line.as_mut_vec());
-                        return result;
-                    } else {
-                        // Move the line to the buffer.
-                        buf.append(line.as_mut_vec());
-                    }
-                },
-            }
+    text_next_impl!(reader, buf, line, unsafe {
+        if line == "\n" || line == "\r\n" {
+            // Ignore whitespace.
+            line.as_mut_vec().set_len(0);
+            continue;
+        } else if buf.len() > 0 && line.starts_with(start) {
+            // Create result from existing buffer,
+            // clear the existing buffer, and add
+            // the current line to a new buffer.
+            let result = text_next_to_string(buf);
+            buf.append(line.as_mut_vec());
+            return result;
+        } else {
+            // Move the line to the buffer.
+            buf.append(line.as_mut_vec());
         }
-    }
+    })
 }

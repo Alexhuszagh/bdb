@@ -57,7 +57,7 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
 fn export_rt<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
-    let rt = record.rt.to_string();
+    let rt = format!("{:?}", record.rt);
     write_alls!(writer, b"RTINSECONDS=", rt.as_bytes(), b"\n")?;
 
     Ok(())

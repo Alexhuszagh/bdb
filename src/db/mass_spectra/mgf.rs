@@ -39,7 +39,7 @@ impl<T: BufRead> Iterator for MgfIter<T> {
     type Item = ResultType<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        text_next(self.start, &mut self.reader, &mut self.buf, &mut self.line)
+        text_next_skip_whitespace(self.start, &mut self.reader, &mut self.buf, &mut self.line)
     }
 }
 
