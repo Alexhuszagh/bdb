@@ -1,6 +1,6 @@
 //! Model for Uniprot protein section type.
 
-use util::{ErrorKind, ResultType};
+use util::{ErrorKind, Ntoa, ResultType};
 use std::mem;
 
 /// Identifier for the section type of a UniProt record.
@@ -48,15 +48,22 @@ impl Section {
     }
 
     /// Create string from an enumerated value.
-    #[inline]
+    #[inline(always)]
     pub fn to_string(&self) -> String {
         self.to_int().to_string()
     }
 
     /// Create enumerated value from str.
-    #[inline]
+    #[inline(always)]
     pub fn from_str(s: &str) -> ResultType<Self> {
         Section::from_int(s.parse::<u8>()?)
+    }
+}
+
+impl Ntoa for Section {
+    #[inline(always)]
+    fn ntoa(&self) -> ResultType<String> {
+        self.to_int().ntoa()
     }
 }
 
@@ -86,6 +93,9 @@ mod tests {
         assert_eq!(text, expected);
         let result = Section::from_str(&text).unwrap();
         assert_eq!(result, section);
+
+        let text = section.ntoa().unwrap();
+        assert_eq!(text, expected);
     }
 
     #[test]

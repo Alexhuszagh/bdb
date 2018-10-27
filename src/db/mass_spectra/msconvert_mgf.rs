@@ -40,7 +40,7 @@ fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
 fn export_title<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
-    let num = record.num.to_string();
+    let num = record.num.ntoa()?;
     write_alls!(
         writer,
         b"TITLE=", record.file.as_bytes(), b".",
@@ -67,10 +67,10 @@ fn export_rt<T: Write>(writer: &mut T, record: &Record)
 fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
-    let parent_mz = record.parent_mz.to_string();
+    let parent_mz = record.parent_mz.ntoa()?;
     write_alls!(writer, b"PEPMASS=", parent_mz.as_bytes())?;
     if record.parent_intensity != 0.0 {
-        let parent_intensity = record.parent_intensity.to_string();
+        let parent_intensity = record.parent_intensity.ntoa()?;
         write_alls!(writer, b" ", parent_intensity.as_bytes())?;
     }
     writer.write_all(b"\n")?;
@@ -85,11 +85,11 @@ fn export_charge<T: Write>(writer: &mut T, record: &Record)
     if record.parent_z != 1 {
         writer.write_all(b"CHARGE=")?;
         if record.parent_z > 0 {
-            let parent_z = record.parent_z.to_string();
+            let parent_z = record.parent_z.ntoa()?;
             write_alls!(writer, parent_z.as_bytes(), b"+")?;
         } else {
             let z = -record.parent_z;
-            let parent_z = z.to_string();
+            let parent_z = z.ntoa()?;
             write_alls!(writer, parent_z.as_bytes(), b"-")?;
         }
         writer.write_all(b"\n")?;

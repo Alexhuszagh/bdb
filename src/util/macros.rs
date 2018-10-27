@@ -36,11 +36,12 @@ macro_rules! binary_choice {
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// # #[macro_use] extern crate bdb;
+/// # use bdb::util::Ntoa;
 /// # pub fn main() {
-/// assert_eq!(nonzero_to_string!(0), "");
-/// assert_eq!(nonzero_to_string!(1), "1");
+/// assert_eq!(nonzero_to_string!(0 as i32), "");
+/// assert_eq!(nonzero_to_string!(1 as i32), "1");
 /// # }
 /// ```
 #[doc(hidden)]
@@ -49,7 +50,7 @@ macro_rules! nonzero_to_string {
     ($e:expr) => ({
         // Prevent side effects from expression evaluation.
         let memo = $e;
-        binary_choice!(memo == 0, String::new(), memo.to_string())
+        binary_choice!(memo == 0, String::new(), memo.ntoa().unwrap())
     });
 }
 
@@ -60,11 +61,12 @@ macro_rules! nonzero_to_string {
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// # #[macro_use] extern crate bdb;
+/// # use bdb::util::Ntoa;
 /// # pub fn main() {
-/// assert_eq!(nonzero_float_to_string!(0.0), "");
-/// assert_eq!(nonzero_float_to_string!(1.2), "1.2");
+/// assert_eq!(nonzero_float_to_string!(0.0 as f32), "");
+/// assert_eq!(nonzero_float_to_string!(1.2 as f32), "1.2");
 /// # }
 /// ```
 #[doc(hidden)]
@@ -73,7 +75,7 @@ macro_rules! nonzero_float_to_string {
     ($e:expr) => ({
         // Prevent side effects from expression evaluation.
         let memo = $e;
-        binary_choice!(memo == 0.0, String::new(), memo.to_string())
+        binary_choice!(memo == 0.0, String::new(), memo.ntoa().unwrap())
     });
 }
 

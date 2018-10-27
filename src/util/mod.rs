@@ -10,6 +10,7 @@ mod re;
 
 mod alias;
 mod error;
+mod fmt;
 mod iterator;
 mod writer;
 
@@ -18,6 +19,7 @@ mod xml;
 
 pub use self::alias::{BufferType, ErrorType, ResultType};
 pub use self::error::{Error, ErrorKind};
+pub use self::fmt::*;
 pub use self::iterator::*;
 pub use self::re::*;
 pub use self::writer::TextWriterState;

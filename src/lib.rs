@@ -2,6 +2,8 @@
 extern crate bencher;
 #[macro_use] extern crate cfg_if;
 extern crate digit_group;
+extern crate dtoa;
+extern crate itoa;
 #[macro_use] extern crate lazy_static;
 extern crate ref_slice;
 extern crate regex;

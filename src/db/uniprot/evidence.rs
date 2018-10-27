@@ -1,6 +1,6 @@
 //! Model for UniProt protein evidence.
 
-use util::{ErrorKind, ResultType};
+use util::{ErrorKind, Ntoa, ResultType};
 use std::mem;
 
 /// Identifier for the evidence type for protein existence.
@@ -89,13 +89,13 @@ impl ProteinEvidence {
     }
 
     /// Create string from an enumerated value.
-    #[inline]
+    #[inline(always)]
     pub fn to_string(&self) -> String {
         self.to_int().to_string()
     }
 
     /// Create enumerated value from str.
-    #[inline]
+    #[inline(always)]
     pub fn from_str(s: &str) -> ResultType<Self> {
         ProteinEvidence::from_int(s.parse::<u8>()?)
     }
@@ -133,6 +133,14 @@ impl ProteinEvidence {
             Self::UNKNOWN_LEVEL_XML_VERBOSE      => Ok(ProteinEvidence::Unknown),
             _                                    => Err(From::from(ErrorKind::InvalidEnumeration)),
         }
+    }
+}
+
+impl Ntoa for ProteinEvidence {
+    /// Create fast string from an enumerated value.
+    #[inline(always)]
+    fn ntoa(&self) -> ResultType<String> {
+        self.to_int().ntoa()
     }
 }
 
@@ -209,6 +217,9 @@ mod tests {
         assert_eq!(text, expected);
         let result = ProteinEvidence::from_str(&text).unwrap();
         assert_eq!(result, evidence);
+
+        let text = evidence.ntoa().unwrap();
+        assert_eq!(text, expected);
     }
 
     #[test]

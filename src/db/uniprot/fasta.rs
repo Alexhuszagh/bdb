@@ -94,8 +94,8 @@ pub fn write_swissprot_header<T: Write>(record: &Record, writer: &mut T)
 
     write_alls!(
         writer,
-        b" PE=",     record.protein_evidence.to_string().as_bytes(),
-        b" SV=",     record.sequence_version.to_string().as_bytes()
+        b" PE=",     record.protein_evidence.ntoa()?.as_bytes(),
+        b" SV=",     record.sequence_version.ntoa()?.as_bytes()
     )?;
     Ok(())
 }
@@ -127,8 +127,8 @@ pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
 
     write_alls!(
         writer,
-        b" PE=",     record.protein_evidence.to_string().as_bytes(),
-        b" SV=",     record.sequence_version.to_string().as_bytes()
+        b" PE=",     record.protein_evidence.ntoa()?.as_bytes(),
+        b" SV=",     record.sequence_version.ntoa()?.as_bytes()
     )?;
     Ok(())
 }

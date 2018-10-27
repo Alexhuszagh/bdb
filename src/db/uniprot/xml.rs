@@ -724,9 +724,9 @@ impl<T: Write> XmlUniProtWriter<T> {
     #[inline]
     fn write_sequence(&mut self, record: &Record) -> ResultType<()>
     {
-        let length = record.length.to_string();
-        let mass = record.mass.to_string();
-        let version = record.sequence_version.to_string();
+        let length = record.length.ntoa()?;
+        let mass = record.mass.ntoa()?;
+        let version = record.sequence_version.ntoa()?;
 
         self.writer.write_text_element(b"sequence", record.sequence.as_slice(), &[
             (b"length", length.as_bytes()),
