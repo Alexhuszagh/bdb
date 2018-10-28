@@ -36,7 +36,7 @@ macro_rules! binary_choice {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,text
 /// # #[macro_use] extern crate bdb;
 /// # use bdb::util::Ntoa;
 /// # pub fn main() {
@@ -61,7 +61,7 @@ macro_rules! nonzero_to_string {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,text
 /// # #[macro_use] extern crate bdb;
 /// # use bdb::util::Ntoa;
 /// # pub fn main() {
