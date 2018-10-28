@@ -1,14 +1,17 @@
 [package]
 authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
-categories = ["biology", "scientific", "proteomics", "genetics"]
-keywords = ["biology", "scientific", "proteomics", "genetics", "uniprot", "database"]
+categories = ["parsing", "science"]
+description = "Efficient APIs to parse from and export to file formats commonly used in biology, for both proteomics and genetics workflows."
+keywords = ["biology", "scientific", "proteomics", "genetics", "uniprot", "database", "sra"]
 license = "MIT/Apache-2.0"
 name = "bdb"
 readme = "README.md"
-version = "0.1.0"
+repository = "https://github.com/AlexHuszagh/bdb"
+version = "0.0.1"
 
 [badges]
 maintenance = { status = "experimental" }
+travis-ci = { repository = "AlexHuszagh/bdb" }
 
 [features]
 default = [
@@ -36,13 +39,12 @@ sra = []
 uniprot = []
 
 [dependencies]
-assert_approx_eq = "1"
-bencher = "0.1.5"
 cfg-if = "0.1"
 digit_group = "0.1"
 dtoa = "0.4"
 itoa = "0.4"
 lazy_static = "1"
+numpress = "1"
 ref_slice = "1"
 regex = "1"
 
@@ -53,6 +55,10 @@ url = { version = "1", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
+
+[dev-dependencies]
+assert_approx_eq = "1"
+bencher = "0.1.5"
 
 # Benchmarks
 

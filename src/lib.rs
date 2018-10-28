@@ -1,10 +1,16 @@
-#[cfg_attr(test, macro_use)] extern crate assert_approx_eq;
-extern crate bencher;
-#[macro_use] extern crate cfg_if;
+#[cfg(test)]
+#[macro_use]
+extern crate assert_approx_eq;
+
+#[macro_use]
+extern crate cfg_if;
+
+#[macro_use]
+extern crate lazy_static;
+
 extern crate digit_group;
 extern crate dtoa;
 extern crate itoa;
-#[macro_use] extern crate lazy_static;
 extern crate ref_slice;
 extern crate regex;
 
@@ -19,6 +25,9 @@ extern crate reqwest;
 
 #[cfg(feature = "http")]
 extern crate url;
+
+#[cfg(test)]
+extern crate bencher;
 
 // Macros and utilities (required by other modules).
 #[macro_use]

@@ -6,6 +6,10 @@
 # NumPress
     - Need to add NumPress functionality to rust.
 
+# Compression Streams
+    - Need to define compression streams for Rust...
+        - bzip, lzma, zlib
+
 # PeakList
     - Need to add average m/z and intensity tools
     - Need to add for the type of class...
