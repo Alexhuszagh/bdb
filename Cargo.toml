@@ -2,7 +2,7 @@
 authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
 categories = ["parsing", "science"]
 description = "Efficient APIs to parse from and export to file formats commonly used in biology, for both proteomics and genetics workflows."
-keywords = ["biology", "scientific", "proteomics", "genetics", "uniprot", "database", "sra"]
+keywords = ["biology", "scientific", "proteomics", "genetics"]
 license = "MIT/Apache-2.0"
 name = "bdb"
 readme = "README.md"
