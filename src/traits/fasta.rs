@@ -9,6 +9,7 @@ use util::ResultType;
 ///
 /// # Serialized Format
 ///
+/// ```text
 /// >sp|P46406|G3P_RABIT Glyceraldehyde-3-phosphate dehydrogenase OS=Oryctolagus cuniculus GN=GAPDH PE=1 SV=3
 /// MVKVGVNGFGRIGRLVTRAAFNSGKVDVVAINDPFIDLHYMVYMFQYDSTHGKFHGTVKA
 /// ENGKLVINGKAITIFQERDPANIKWGDAGAEYVVESTGVFTTMEKAGAHLKGGAKRVIIS
@@ -16,6 +17,7 @@ use util::ResultType;
 /// ATQKTVDGPSGKLWRDGRGAAQNIIPASTGAAKAVGKVIPELNGKLTGMAFRVPTPNVSV
 /// VDLTCRLEKAAKYDDIKKVVKQASEGPLKGILGYTEDQVVSCDFNSATHSSTFDAGAGIA
 /// LNDHFVKLISWYDNEFGYSNRVVDLMVHMASKE
+/// ```
 pub trait Fasta: Sized {
     /// Estimate the size of the resulting FASTA output to avoid reallocations.
     #[inline(always)]
@@ -24,6 +26,9 @@ pub trait Fasta: Sized {
     }
 
     /// Export model to FASTA.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Export model to FASTA string.
@@ -73,12 +78,18 @@ pub trait FastaCollection: Fasta {
     ///
     /// Returns an error if any of the items within the collection
     /// are invalid.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Export collection to FASTA.
     ///
     /// Returns only errors due to serialization issues, otherwise,
     /// exports as many items as possible.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Import collection from FASTA.

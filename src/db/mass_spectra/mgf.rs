@@ -1,9 +1,11 @@
 //! Helper utilities for MGF loading and saving.
 
 use std::io::prelude::*;
+use std::str as stdstr;
 
 use traits::*;
 use util::*;
+use super::fullms_mgf::*;
 use super::msconvert_mgf::*;
 use super::pava_mgf::*;
 use super::pwiz_mgf::*;
@@ -40,7 +42,23 @@ impl<T: BufRead> Iterator for MgfIter<T> {
     type Item = ResultType<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        text_next_skip_whitespace(self.start, &mut self.reader, &mut self.buf, &mut self.line)
+        text_next!(&mut self.reader, &mut self.buf, &mut self.line, unsafe {
+            if self.line == "\n" || self.line == "\r\n" || self.line.starts_with("Mass") {
+                // Ignore whitespace and lines with "Mass".
+                self.line.as_mut_vec().set_len(0);
+                continue;
+            } else if self.buf.len() > 0 && self.line.starts_with(self.start) {
+                // Create result from existing buffer,
+                // clear the existing buffer, and add
+                // the current line to a new buffer.
+                let result = buffer_to_string!(self.buf);
+                self.buf.append(self.line.as_mut_vec());
+                return result;
+            } else {
+                // Move the line to the buffer.
+                self.buf.append(self.line.as_mut_vec());
+            }
+        })
     }
 }
 
@@ -53,8 +71,7 @@ fn estimate_record_size(record: &Record, kind: MgfKind) -> usize {
         MgfKind::MsConvert => estimate_msconvert_mgf_record_size(record),
         MgfKind::Pava => estimate_pava_mgf_record_size(record),
         MgfKind::Pwiz => estimate_pwiz_mgf_record_size(record),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => estimate_fullms_mgf_record_size(record),
     }
 }
 
@@ -75,8 +92,7 @@ pub fn record_to_mgf<T: Write>(writer: &mut T, record: &Record, kind: MgfKind)
         MgfKind::MsConvert => record_to_msconvert_mgf(writer, record),
         MgfKind::Pava => record_to_pava_mgf(writer, record),
         MgfKind::Pwiz => record_to_pwiz_mgf(writer, record),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => record_to_fullms_mgf(writer, record),
     }
 }
 
@@ -93,8 +109,7 @@ pub fn reference_iterator_to_mgf<'a, Iter, T>(writer: &mut T, iter: Iter, kind: 
         MgfKind::MsConvert => reference_iterator_to_msconvert_mgf(writer, iter),
         MgfKind::Pava => reference_iterator_to_pava_mgf(writer, iter),
         MgfKind::Pwiz => reference_iterator_to_pwiz_mgf(writer, iter),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => reference_iterator_to_fullms_mgf(writer, iter),
     }
 }
 
@@ -109,8 +124,7 @@ pub fn value_iterator_to_mgf<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf(writer, iter),
         MgfKind::Pava => value_iterator_to_pava_mgf(writer, iter),
         MgfKind::Pwiz => value_iterator_to_pwiz_mgf(writer, iter),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => value_iterator_to_fullms_mgf(writer, iter),
     }
 }
 
@@ -127,8 +141,7 @@ pub fn reference_iterator_to_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter,
         MgfKind::MsConvert => reference_iterator_to_msconvert_mgf_strict(writer, iter),
         MgfKind::Pava => reference_iterator_to_pava_mgf_strict(writer, iter),
         MgfKind::Pwiz => reference_iterator_to_pwiz_mgf_strict(writer, iter),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => reference_iterator_to_fullms_mgf_strict(writer, iter),
     }
 }
 
@@ -143,8 +156,7 @@ pub fn value_iterator_to_mgf_strict<Iter, T>(writer: &mut T, iter: Iter, kind: M
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf_strict(writer, iter),
         MgfKind::Pava => value_iterator_to_pava_mgf_strict(writer, iter),
         MgfKind::Pwiz => value_iterator_to_pwiz_mgf_strict(writer, iter),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => value_iterator_to_fullms_mgf_strict(writer, iter),
     }
 }
 
@@ -161,8 +173,7 @@ pub fn reference_iterator_to_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter
         MgfKind::MsConvert => reference_iterator_to_msconvert_mgf_lenient(writer, iter),
         MgfKind::Pava => reference_iterator_to_pava_mgf_lenient(writer, iter),
         MgfKind::Pwiz => reference_iterator_to_pwiz_mgf_lenient(writer, iter),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => reference_iterator_to_fullms_mgf_lenient(writer, iter),
     }
 }
 
@@ -177,8 +188,7 @@ pub fn value_iterator_to_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter, kind: 
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf_lenient(writer, iter),
         MgfKind::Pava => value_iterator_to_pava_mgf_lenient(writer, iter),
         MgfKind::Pwiz => value_iterator_to_pwiz_mgf_lenient(writer, iter),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => value_iterator_to_fullms_mgf_lenient(writer, iter),
     }
 }
 
@@ -192,8 +202,7 @@ pub fn record_from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind)
         MgfKind::MsConvert => record_from_msconvert_mgf(reader),
         MgfKind::Pava => record_from_pava_mgf(reader),
         MgfKind::Pwiz => record_from_pwiz_mgf(reader),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => record_from_fullms_mgf(reader),
     }
 }
 
@@ -241,8 +250,7 @@ pub fn iterator_from_mgf<T: BufRead>(reader: T, kind: MgfKind)
         MgfKind::MsConvert => iterator_from_msconvert_mgf(reader),
         MgfKind::Pava => iterator_from_pava_mgf(reader),
         MgfKind::Pwiz => iterator_from_pwiz_mgf(reader),
-        // TODO(ahuszagh)
-        //  Add more record types.
+        MgfKind::FullMs => iterator_from_fullms_mgf(reader),
     }
 }
 
@@ -364,36 +372,47 @@ mod tests {
 
     #[test]
     fn estimate_size_test() {
+        let s = mgf_33450();
+        let e = mgf_empty();
+        let v = vec![mgf_33450(), mgf_empty()];
+
         // MSConvert
         let kind = MgfKind::MsConvert;
-        let s = msconvert_33450();
-        let e = msconvert_empty();
-        let v = vec![msconvert_33450(), msconvert_empty()];
-        assert_eq!(estimate_record_size(&s,kind), 1987);
-        assert_eq!(estimate_record_size(&e,kind), 262);
-        assert_eq!(estimate_list_size(&v,kind), 2249);
+        assert_eq!(estimate_record_size(&s, kind), 1987);
+        assert_eq!(estimate_record_size(&e, kind), 262);
+        assert_eq!(estimate_list_size(&v, kind), 2249);
+
+        // Pava
+        let kind = MgfKind::Pava;
+        assert_eq!(estimate_record_size(&s, kind), 1856);
+        assert_eq!(estimate_record_size(&e, kind), 131);
+        assert_eq!(estimate_list_size(&v, kind), 1987);
+
+        // Pwiz
+        let kind = MgfKind::Pwiz;
+        assert_eq!(estimate_record_size(&s, kind), 1906);
+        assert_eq!(estimate_record_size(&e, kind), 181);
+        assert_eq!(estimate_list_size(&v, kind), 2087);
     }
 
-    #[test]
-    fn iterator_to_msconvert_mgf_test() {
-        let v = vec![msconvert_33450()];
-        let u = vec![msconvert_33450(), msconvert_empty()];
-        let kind = MgfKind::MsConvert;
+    fn iterator_to_mgf_test(kind: MgfKind, expected: &str) {
+        let v = vec![mgf_33450()];
+        let u = vec![mgf_33450(), mgf_empty()];
 
         // reference -- default
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf(&mut w, v.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf(&mut w, iterator_by_value!(v.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf_strict(&mut w, v.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         let mut w = Cursor::new(vec![]);
         let r = reference_iterator_to_mgf_strict(&mut w, u.iter(), kind);
@@ -402,7 +421,7 @@ mod tests {
         // value -- strict
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf_strict(&mut w, iterator_by_value!(v.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         let mut w = Cursor::new(vec![]);
         let r = value_iterator_to_mgf_strict(&mut w, iterator_by_value!(u.iter()), kind);
@@ -411,63 +430,99 @@ mod tests {
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf_lenient(&mut w, v.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf_lenient(&mut w, u.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf_lenient(&mut w, iterator_by_value!(v.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
 
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf_lenient(&mut w, iterator_by_value!(u.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), MSCONVERT_33450_MGF);
+        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
     }
 
-    #[test]
-    fn iterator_from_msconvert_mgf_test() {
-        // VALID
-        let text = MSCONVERT_33450_MGF;
-        let expected = vec![msconvert_33450()];
-        let kind = MgfKind::MsConvert;
-
+    fn iterator_from_mgf_test_valid(kind: MgfKind, input: &str, expected: RecordList) {
         // record iterator -- default
-        let iter = iterator_from_mgf(Cursor::new(text), kind);
+        let iter = iterator_from_mgf(Cursor::new(input), kind);
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- strict
-        let iter = iterator_from_mgf_strict(Cursor::new(text), kind);
+        let iter = iterator_from_mgf_strict(Cursor::new(input), kind);
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- lenient
-        let iter = iterator_from_mgf_lenient(Cursor::new(text), kind);
+        let iter = iterator_from_mgf_lenient(Cursor::new(input), kind);
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
+    }
 
-        // INVALID
-        let text = MSCONVERT_EMPTY_MGF;
-        let expected = vec![msconvert_empty()];
-
+    fn iterator_from_mgf_test_invalid(kind: MgfKind, input: &str, expected: RecordList) {
         // record iterator -- default
-        let iter = iterator_from_mgf(Cursor::new(text), kind);
+        let iter = iterator_from_mgf(Cursor::new(input), kind);
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- strict
-        let iter = iterator_from_mgf_strict(Cursor::new(text), kind);
+        let iter = iterator_from_mgf_strict(Cursor::new(input), kind);
         let v: ResultType<RecordList> = iter.collect();
         assert!(v.is_err());
 
         // record iterator -- lenient
-        let iter = iterator_from_mgf_lenient(Cursor::new(text), kind);
+        let iter = iterator_from_mgf_lenient(Cursor::new(input), kind);
         let v: ResultType<RecordList> = iter.collect();
         assert_eq!(v.unwrap().len(), 0);
     }
+
+    // FULLMS
+    // TODO(ahuszagh)   Implement...
+
+    // MSCONVERT
+
+    #[test]
+    fn iterator_to_msconvert_mgf_test() {
+        iterator_to_mgf_test(MgfKind::MsConvert, MSCONVERT_33450_MGF)
+    }
+
+    #[test]
+    fn iterator_from_msconvert_mgf_test() {
+        iterator_from_mgf_test_valid(MgfKind::MsConvert, MSCONVERT_33450_MGF, vec![mgf_33450()]);
+        iterator_from_mgf_test_invalid(MgfKind::MsConvert, MSCONVERT_EMPTY_MGF, vec![mgf_empty()]);
+    }
+
+    // PAVA
+
+    #[test]
+    fn iterator_to_pava_mgf_test() {
+        iterator_to_mgf_test(MgfKind::Pava, PAVA_33450_MGF)
+    }
+
+    #[test]
+    fn iterator_from_pava_mgf_test() {
+        iterator_from_mgf_test_valid(MgfKind::Pava, PAVA_33450_MGF, vec![mgf_33450()]);
+        iterator_from_mgf_test_invalid(MgfKind::Pava, PAVA_EMPTY_MGF, vec![mgf_empty()]);
+    }
+
+    // PWIZ
+
+    #[test]
+    fn iterator_to_pwiz_mgf_test() {
+        iterator_to_mgf_test(MgfKind::Pwiz, PWIZ_33450_MGF)
+    }
+
+    #[test]
+    fn iterator_from_pwiz_mgf_test() {
+        iterator_from_mgf_test_valid(MgfKind::Pwiz, PWIZ_33450_MGF, vec![mgf_33450()]);
+        iterator_from_mgf_test_invalid(MgfKind::Pwiz, PWIZ_EMPTY_MGF, vec![mgf_empty()]);
+    }
+
+    // FILE
 
     fn mgf_dir() -> PathBuf {
         let mut dir = testdata_dir();

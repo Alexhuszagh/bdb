@@ -28,5 +28,22 @@ impl Peak {
 
 #[cfg(test)]
 mod tests {
-    // TODO(ahuszagh)   Implement...
+    use super::*;
+
+    #[test]
+    fn debug_peak() {
+        let peak = Peak { mz: 257.1, intensity: 457.5, z: 1 };
+        let text = format!("{:?}", peak);
+        assert_eq!(text, "Peak { mz: 257.1, intensity: 457.5, z: 1 }");
+    }
+
+    #[test]
+    fn equality_peak() {
+        let x = Peak { mz: 257.1, intensity: 457.5, z: 1 };
+        let y = Peak { mz: 257.1, intensity: 457.5, z: 1 };
+        let z = Peak { mz: 257.1, intensity: 457.5, z: 2 };
+        assert_eq!(x, y);
+        assert_ne!(x, z);
+        assert_ne!(y, z);
+    }
 }

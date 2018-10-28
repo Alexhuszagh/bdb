@@ -85,7 +85,6 @@ mod tests {
         assert!(!g2.is_valid());
         assert!(!g2.is_complete());
         g2.sequence = g1.sequence.clone();
-
     }
 
     // TODO(ahuszagh)

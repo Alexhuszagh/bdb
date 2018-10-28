@@ -9,10 +9,12 @@ use util::ResultType;
 ///
 /// # Serialized Format
 ///
+/// ```text
 /// @SRR390728.1 1 length=72
 /// CATTCTTCACGTAGTTCTCGAGCCTTGGTTTTCAGCGATGGAGAATGACTTTGACAAGCTGAGAGAAGNTNC
 /// +SRR390728.1 1 length=72
 /// ;;;;;;;;;;;;;;;;;;;;;;;;;;;9;;665142;;;;;;;;;;;;;;;;;;;;;;;;;;;;;96&&&&(
+/// ```
 pub trait Fastq: Sized {
     /// Estimate the size of the resulting FASTQ output to avoid reallocations.
     #[inline(always)]
@@ -21,6 +23,9 @@ pub trait Fastq: Sized {
     }
 
     /// Export model to FASTQ.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Export model to FASTQ string.
@@ -70,12 +75,18 @@ pub trait FastqCollection: Fastq {
     ///
     /// Returns an error if any of the items within the collection
     /// are invalid.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_fastq_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Export collection to FASTQ.
     ///
     /// Returns only errors due to serialization issues, otherwise,
     /// exports as many items as possible.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_fastq_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Import collection from FASTQ.

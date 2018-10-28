@@ -9,10 +9,25 @@ impl Valid for Record {
         (
             self.num != 0 &&
             self.rt >= 0.0 &&
-            self.parent_mz >= 0.0 &&
-            self.parent_intensity >= 0.0 &&
-            self.parent_z != 0 &&
-            !self.peaks.is_empty()
+            !self.peaks.is_empty() &&
+            // If the MS level is 2 or higher, check the parents are set.
+            (
+                (
+                    self.ms_level >= 2 &&
+                    self.parent_mz != 0.0 &&
+                    self.parent_intensity > 0.0 &&
+                    self.parent_z != 0
+                )
+                ||
+                (
+                    self.ms_level == 1 &&
+                    self.parent_mz == 0.0 &&
+                    self.parent_intensity == 0.0 &&
+                    self.parent_z == 0
+                )
+                ||
+                self.ms_level == 0
+            )
         )
     }
 }

@@ -14,6 +14,9 @@ pub trait Xml: Sized {
     }
 
     /// Export model to XML.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_xml<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     // Export model to XML string.
@@ -63,12 +66,18 @@ pub trait XmlCollection: Xml {
     ///
     /// Returns an error if any of the items within the collection
     /// are invalid.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_xml_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Export collection to XML.
     ///
     /// Returns only errors due to serialization issues, otherwise,
     /// exports as many items as possible.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
 
     /// Import collection from XML.

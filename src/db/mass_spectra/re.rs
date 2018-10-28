@@ -12,6 +12,80 @@ pub use util::{ExtractionRegex, ValidationRegex};
 
 // FULL MS
 
+/// Regular expression to validate and parse Pava FullMs MGF scan lines.
+pub struct FullMsMgfScanRegex;
+
+impl FullMsMgfScanRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const NUM_INDEX: usize = 1;
+}
+
+impl ValidationRegex<Regex> for FullMsMgfScanRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            Scan\#:\s
+            (?:
+                [[:digit:]]+
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for FullMsMgfScanRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            Scan\#:\s
+            # Group 1, Scan Number.
+            (
+                [[:digit:]]+
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+/// Regular expression to validate and parse Pava FullMs MGF RT lines.
+pub struct FullMsMgfRtRegex;
+
+impl FullMsMgfRtRegex {
+    /// Hard-coded index fields for data extraction.
+    pub const RT_INDEX: usize = 1;
+}
+
+impl ValidationRegex<Regex> for FullMsMgfRtRegex {
+    fn validate() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            Ret\.Time:\s
+            (?:
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
+impl ExtractionRegex<Regex> for FullMsMgfRtRegex {
+    fn extract() -> &'static Regex {
+        lazy_regex!(Regex, r"(?x)
+            \A
+            Ret\.Time:\s
+            # Group 1, Retention Time.
+            (
+                [[:digit:]]+(?:\.[[:digit:]]+)?
+            )
+            \z
+        ");
+        &REGEX
+    }
+}
+
 // MSCONVERT
 
 /// Regular expression to validate and parse MSConvert MGF title lines.
@@ -524,7 +598,7 @@ impl ValidationRegex<Regex> for PwizMgfRtRegex {
             \A
             RTINSECONDS=
             (?:
-                [[:digit:]]+(?:\.[[:digit:]]+)?
+                [[:digit:]]+
             )
             \z
         ");
@@ -539,16 +613,13 @@ impl ExtractionRegex<Regex> for PwizMgfRtRegex {
             RTINSECONDS=
             # Group 1, Retention Time.
             (
-                [[:digit:]]+(?:\.[[:digit:]]+)?
+                [[:digit:]]+
             )
             \z
         ");
         &REGEX
     }
 }
-
-// TODO(ahuszagh)
-//  Add other MGF files...
 
 // TESTS
 // -----
@@ -558,7 +629,47 @@ mod tests {
     use super::*;
 
     // FULLMS
-    // TODO(ahuszagh)   Add more tests here.
+
+    #[test]
+    fn fullms_mgf_scan_regex_test() {
+        type T = FullMsMgfScanRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "Scan#: 2182", true);
+
+        // invalid
+        check_regex!(T, "Scan: 2182", false);
+        check_regex!(T, "Scan# 2182", false);
+        check_regex!(T, "Scan#: X2182", false);
+
+        // extract
+        extract_regex!(T, "Scan#: 2182", 1, "2182", as_str);
+    }
+
+    #[test]
+    fn fullms_mgf_rt_regex_test() {
+        type T = FullMsMgfRtRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "Ret.Time: 8692", true);
+        check_regex!(T, "Ret.Time: 8692.657303", true);
+
+        // invalid
+        check_regex!(T, "Ret.Time: 8692.", false);
+        check_regex!(T, "RetTime: 8692.657303", false);
+        check_regex!(T, "Ret.Time: 8692X", false);
+        check_regex!(T, "Ret.Time: 8692.123X", false);
+
+        // extract
+        extract_regex!(T, "Ret.Time: 8692", 1, "8692", as_str);
+        extract_regex!(T, "Ret.Time: 8692.657303", 1, "8692.657303", as_str);
+    }
 
     // MSCONVERT
 
@@ -733,5 +844,92 @@ mod tests {
 
     // PWIZ
 
-    // TODO(ahuszagh)   Add more tests here.
+    #[test]
+    fn pwiz_mgf_title_regex_test() {
+        type T = PwizMgfTitleRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "TITLE=File73 Spectrum1 scans: 750", true);
+
+        // invalid
+        check_regex!(T, "TITLE=File73 Spectrum1X scans: 750", false);
+        check_regex!(T, "TITLE=File73 Spectrum1 scans: 750X", false);
+        check_regex!(T, "TITLE=File73 Spectrum1]tscans: 750", false);
+
+        // extract
+        extract_regex!(T, "TITLE=File73 Spectrum1 scans: 750", 1, "File73", as_str);
+        extract_regex!(T, "TITLE=File73 Spectrum1 scans: 750", 2, "750", as_str);
+    }
+
+    #[test]
+    fn pwiz_mgf_pepmass_regex_test() {
+        type T = PwizMgfPepMassRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "PEPMASS=775", true);
+        check_regex!(T, "PEPMASS=775.15625", true);
+        check_regex!(T, "PEPMASS=775 170643.953125", true);
+        check_regex!(T, "PEPMASS=775.15625 170643", true);
+        check_regex!(T, "PEPMASS=775.15625 170643.953125", true);
+
+        // invalid
+        check_regex!(T, "PEPMASS=775.", false);
+        check_regex!(T, "PEPMASS=775.15X", false);
+        check_regex!(T, "PEPMASS=775. 170643.953125", false);
+        check_regex!(T, "PEPMASS=775.15625 170643.", false);
+        check_regex!(T, "PEPMASS=775.15625X 170643.953125", false);
+        check_regex!(T, "PEPMASS=775.15625 170643.953125X", false);
+
+        // extract
+        extract_regex!(T, "PEPMASS=775", 1, "775", as_str);
+        extract_regex!(T, "PEPMASS=775.15625", 1, "775.15625", as_str);
+        extract_regex!(T, "PEPMASS=775 170643.953125", 1, "775", as_str);
+        extract_regex!(T, "PEPMASS=775 170643.953125", 2, "170643.953125", as_str);
+    }
+
+    #[test]
+    fn pwiz_mgf_charge_regex_test() {
+        type T = PwizMgfChargeRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "CHARGE=4+", true);
+
+        // invalid
+        check_regex!(T, "CHARGE=4+X", false);
+        check_regex!(T, "CHARGE=4X+", false);
+        check_regex!(T, "CHARGE=4", false);
+
+        // extract
+        extract_regex!(T, "CHARGE=4+", 1, "4", as_str);
+        extract_regex!(T, "CHARGE=4+", 2, "+", as_str);
+    }
+
+    #[test]
+    fn pwiz_mgf_rt_regex_test() {
+        type T = PwizMgfRtRegex;
+
+        // empty
+        check_regex!(T, "", false);
+
+        // valid
+        check_regex!(T, "RTINSECONDS=8692", true);
+
+        // invalid
+        check_regex!(T, "RTINSECONDS=8692.", false);
+        check_regex!(T, "RTINSECONDS=8692.657303", false);
+        check_regex!(T, "RTINSECONDS=8692X", false);
+        check_regex!(T, "RTINSECONDS=8692.123X", false);
+
+        // extract
+        extract_regex!(T, "RTINSECONDS=8692", 1, "8692", as_str);
+    }
 }

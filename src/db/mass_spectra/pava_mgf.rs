@@ -14,10 +14,15 @@ use super::record::Record;
 
 /// Estimate the size of a Pava MGF record.
 #[inline]
-#[allow(unused)] // TODO(ahuszagh) Remove
 pub(crate) fn estimate_pava_mgf_record_size(record: &Record) -> usize {
-    // TODO(ahuszagh)   Implement
-    0
+    // Actual size is ~50 with a lot of extra size for the scan,
+    // and the peptide RT, m/z, and intensity.
+    const MGF_VOCABULARY_SIZE: usize = 100;
+    // Estimated average is ~20 characters per line, assume slightly above.
+    const MGF_PEAK_SIZE: usize = 25;
+    MGF_VOCABULARY_SIZE +
+        record.file.len() +
+        MGF_PEAK_SIZE * record.peaks.len()
 }
 
 // WRITER
@@ -253,7 +258,7 @@ fn parse_charge_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
     type Charge = PavaMgfChargeRegex;
 
     // Verify and parse the charge line
-    let line = lines.next().unwrap()?;
+    let line = none_to_error!(lines.next(), InvalidInput)?;
     let captures = none_to_error!(Charge::extract().captures(&line), InvalidInput);
     let z = capture_as_str(&captures, Charge::PARENT_Z_INDEX).parse::<i8>()?;
     let sign = capture_as_str(&captures, Charge::PARENT_Z_SIGN_INDEX);

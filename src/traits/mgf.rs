@@ -20,9 +20,8 @@ pub enum MgfKind {
     Pava = 2,
     /// ProteoWizard MGF file format.
     Pwiz = 3,
-    ///// Pava MS1 (FullMs) MGF file format.
-    //FullMs = 4,
-    // TODO(ahuszagh)   Add others...
+    /// Pava MS1 (FullMs) MGF file format.
+    FullMs = 4,
 }
 
 
@@ -35,6 +34,8 @@ pub enum MgfKind {
 /// is shown below.
 ///
 /// # Serialized Format
+///
+/// ```text
 /// BEGIN IONS
 /// TITLE=Sample.33450.33450.4 File:"Sample.raw", NativeID:"controllerType=0 controllerNumber=1 scan=33450"
 /// RTINSECONDS=8692.657303
@@ -45,6 +46,7 @@ pub enum MgfKind {
 /// 205.9335913 0.0
 /// 205.9351781 0.0
 /// END IONS
+/// ```
 pub trait Mgf: Sized {
     /// Estimate the size of the resulting MGF output to avoid reallocations.
     #[inline(always)]
@@ -53,6 +55,9 @@ pub trait Mgf: Sized {
     }
 
     /// Export model to MGF.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
 
     /// Export model to MGF string.
@@ -102,12 +107,18 @@ pub trait MgfCollection: Mgf {
     ///
     /// Returns an error if any of the items within the collection
     /// are invalid.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_mgf_strict<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
 
     /// Export collection to MGF.
     ///
     /// Returns only errors due to serialization issues, otherwise,
     /// exports as many items as possible.
+    ///
+    /// Note that many small writers are made to the writer, so the writer
+    /// should be buffered.
     fn to_mgf_lenient<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
 
     /// Import collection from MGF.

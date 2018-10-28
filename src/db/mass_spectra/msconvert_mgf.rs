@@ -57,7 +57,7 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
 fn export_rt<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
-    let rt = format!("{:?}", record.rt);
+    let rt = record.rt.ntoa()?;
     write_alls!(writer, b"RTINSECONDS=", rt.as_bytes(), b"\n")?;
 
     Ok(())
@@ -103,8 +103,9 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
     -> ResultType<()>
 {
     for peak in record.peaks.iter() {
-        let text = format!("{:?} {:?}\n", peak.mz, peak.intensity);
-        writer.write_all(text.as_bytes())?;
+        let mz = peak.mz.ntoa()?;
+        let intensity = peak.intensity.ntoa()?;
+        write_alls!(writer, mz.as_bytes(), b" ", intensity.as_bytes(), b"\n")?;
     }
 
     Ok(())
@@ -158,7 +159,7 @@ pub(crate) fn reference_iterator_to_msconvert_mgf<'a, Iter, T>(writer: &mut T, i
     reference_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
 
-/// Default exporter from an owning iterator to MGF.
+/// Default exporter from an owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_msconvert_mgf<Iter, T>(writer: &mut T, iter: Iter)
     -> ResultType<()>

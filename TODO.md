@@ -1,5 +1,15 @@
 # TODO List
 
+# Benchmarks
+    - Add MGF parsers to benchmarks
+
+# NumPress
+    - Need to add NumPress functionality to rust.
+
+# PeakList
+    - Need to add average m/z and intensity tools
+    - Need to add for the type of class...
+
 # Fastq
     - Finish Fastq deserialization
         - Add unittests.

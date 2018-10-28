@@ -6,12 +6,14 @@
 mod macros;
 
 #[macro_use]
+mod iterator;
+
+#[macro_use]
 mod re;
 
 mod alias;
 mod error;
 mod fmt;
-mod iterator;
 mod writer;
 
 #[cfg(feature = "xml")]

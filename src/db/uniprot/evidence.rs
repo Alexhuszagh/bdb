@@ -137,10 +137,14 @@ impl ProteinEvidence {
 }
 
 impl Ntoa for ProteinEvidence {
-    /// Create fast string from an enumerated value.
     #[inline(always)]
     fn ntoa(&self) -> ResultType<String> {
         self.to_int().ntoa()
+    }
+
+    #[inline(always)]
+    fn ntoa_with_capacity(&self, capacity: usize) -> ResultType<String> {
+        self.to_int().ntoa_with_capacity(capacity)
     }
 }
 
