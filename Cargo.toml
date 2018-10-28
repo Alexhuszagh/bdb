@@ -2,7 +2,7 @@
 authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
 categories = ["biology", "scientific", "proteomics", "genetics"]
 keywords = ["biology", "scientific", "proteomics", "genetics", "uniprot", "database"]
-license = "MIT"
+license = "MIT/Apache-2.0"
 name = "bdb"
 readme = "README.md"
 version = "0.1.0"
