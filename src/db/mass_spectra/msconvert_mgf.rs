@@ -31,14 +31,14 @@ pub(crate) fn estimate_msconvert_mgf_record_size(record: &Record) -> usize {
 
 #[inline(always)]
 fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     record_to_msconvert_mgf(writer, record)
 }
 
 #[inline(always)]
 fn export_title<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let num = record.num.ntoa()?;
     write_alls!(
@@ -55,7 +55,7 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_rt<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let rt = record.rt.ntoa()?;
     write_alls!(writer, b"RTINSECONDS=", rt.as_bytes(), b"\n")?;
@@ -65,7 +65,7 @@ fn export_rt<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let parent_mz = record.parent_mz.ntoa()?;
     write_alls!(writer, b"PEPMASS=", parent_mz.as_bytes())?;
@@ -80,7 +80,7 @@ fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_charge<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     if record.parent_z != 1 {
         writer.write_all(b"CHARGE=")?;
@@ -100,7 +100,7 @@ fn export_charge<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_spectra<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     for peak in record.peaks.iter() {
         let mz = peak.mz.ntoa()?;
@@ -113,7 +113,7 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
 
 /// Export record to MSConvert MGF.
 pub(crate) fn record_to_msconvert_mgf<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.write_all(b"BEGIN IONS\n")?;
     export_title(writer, record)?;
@@ -130,21 +130,21 @@ pub(crate) fn record_to_msconvert_mgf<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
-    -> ResultType<TextWriterState<T>>
+    -> Result<TextWriterState<T>>
 {
     Ok(TextWriterState::new(writer, delimiter))
 }
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.export(record, &to_mgf)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     Ok(())
 }
@@ -152,7 +152,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 /// Default exporter from a non-owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_msconvert_mgf<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -162,9 +162,9 @@ pub(crate) fn reference_iterator_to_msconvert_mgf<'a, Iter, T>(writer: &mut T, i
 /// Default exporter from an owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_msconvert_mgf<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -174,7 +174,7 @@ pub(crate) fn value_iterator_to_msconvert_mgf<Iter, T>(writer: &mut T, iter: Ite
 /// Strict exporter from a non-owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_msconvert_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -184,9 +184,9 @@ pub(crate) fn reference_iterator_to_msconvert_mgf_strict<'a, Iter, T>(writer: &m
 /// Strict exporter from an owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_msconvert_mgf_strict<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -196,7 +196,7 @@ pub(crate) fn value_iterator_to_msconvert_mgf_strict<Iter, T>(writer: &mut T, it
 /// Lenient exporter from a non-owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_msconvert_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -206,9 +206,9 @@ pub(crate) fn reference_iterator_to_msconvert_mgf_lenient<'a, Iter, T>(writer: &
 /// Lenient exporter from an owning iterator to MSConvert MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_msconvert_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -220,7 +220,7 @@ type PeakableLines<T> = Peekable<Lines<T>>;
 /// Parse the start header line.
 #[inline(always)]
 fn parse_start_line<T: BufRead>(lines: &mut PeakableLines<T>, _: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Verify the start header line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
@@ -232,7 +232,7 @@ fn parse_start_line<T: BufRead>(lines: &mut PeakableLines<T>, _: &mut Record)
 /// Parse the title header line.
 #[inline(always)]
 fn parse_title_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Title = MsConvertMgfTitleRegex;
 
@@ -250,7 +250,7 @@ fn parse_title_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Recor
 /// Parse the RT header line.
 #[inline(always)]
 fn parse_rt_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Rt = MsConvertMgfRtRegex;
 
@@ -267,7 +267,7 @@ fn parse_rt_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
 /// Parse the pepmass header line.
 #[inline(always)]
 fn parse_pepmass_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type PepMass = MsConvertMgfPepMassRegex;
 
@@ -287,7 +287,7 @@ fn parse_pepmass_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Rec
 /// Parse the charge header line.
 #[inline(always)]
 fn parse_charge_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Charge = MsConvertMgfChargeRegex;
 
@@ -335,7 +335,7 @@ fn parse_charge_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Reco
 /// Parse the charge header line.
 #[inline(always)]
 fn parse_spectra<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     for result in lines {
         let line = result?;
@@ -361,7 +361,7 @@ fn parse_spectra<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
 
 /// Import record from MGF.
 pub(crate) fn record_from_msconvert_mgf<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     let mut lines = reader.lines().peekable();
     let mut record = Record::with_peak_capacity(50);

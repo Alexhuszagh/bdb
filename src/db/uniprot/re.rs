@@ -518,7 +518,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn accession_regex() {
+    fn accession_regex_test() {
         type T = AccessionRegex;
 
         // empty
@@ -554,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn mnemonic_regex() {
+    fn mnemonic_regex_test() {
         type T = MnemonicRegex;
 
         // empty
@@ -590,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn gene_regex() {
+    fn gene_regex_test() {
         type T = GeneRegex;
 
         // empty
@@ -619,7 +619,7 @@ mod tests {
     }
 
     #[test]
-    fn aminoacid_regex() {
+    fn aminoacid_regex_test() {
         type T = AminoacidRegex;
 
         // empty
@@ -642,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn proteome_regex() {
+    fn proteome_regex_test() {
         type T = ProteomeRegex;
 
         // empty
@@ -670,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    fn taxonomy_regex() {
+    fn taxonomy_regex_test() {
         type T = TaxonomyRegex;
 
         // empty
@@ -691,7 +691,7 @@ mod tests {
     }
 
     #[test]
-    fn swissprot_header_regex() {
+    fn swissprot_header_regex_test() {
         type T = SwissProtHeaderRegex;
 
         // empty
@@ -736,7 +736,7 @@ mod tests {
     }
 
     #[test]
-    fn trembl_header_regex() {
+    fn trembl_header_regex_test() {
         type T = TrEMBLHeaderRegex;
 
         // empty
@@ -782,7 +782,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn human_accession_regex() {
+    fn human_accession_regex_test() {
         let mut path = human_dir();
         path.push("accession");
         let reader = BufReader::new(File::open(path).unwrap());
@@ -794,7 +794,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn human_mnemonic_regex() {
+    fn human_mnemonic_regex_test() {
         let mut path = human_dir();
         path.push("mnemonic");
         let reader = BufReader::new(File::open(path).unwrap());
@@ -806,7 +806,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn human_gene_regex() {
+    fn human_gene_regex_test() {
         let mut path = human_dir();
         path.push("gene");
         let reader = BufReader::new(File::open(path).unwrap());
@@ -818,7 +818,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn human_aminoacid_regex() {
+    fn human_aminoacid_regex_test() {
         let mut path = human_dir();
         path.push("aminoacid");
         let reader = BufReader::new(File::open(path).unwrap());
@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn all_proteome_regex() {
+    fn all_proteome_regex_test() {
         let mut path = all_dir();
         path.push("proteome");
         let reader = BufReader::new(File::open(path).unwrap());
@@ -842,7 +842,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn all_taxonomy_regex() {
+    fn all_taxonomy_regex_test() {
         let mut path = all_dir();
         path.push("taxonomy");
         let reader = BufReader::new(File::open(path).unwrap());
@@ -854,7 +854,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn human_fasta_header_regex() {
+    fn human_fasta_header_regex_test() {
         let mut path = human_dir();
         path.push("header");
         let reader = BufReader::new(File::open(path).unwrap());

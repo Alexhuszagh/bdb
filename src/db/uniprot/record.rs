@@ -188,7 +188,7 @@ mod tests {
     use super::super::test::*;
 
     #[test]
-    fn debug_record() {
+    fn debug_record_test() {
         let text = format!("{:?}", gapdh());
         assert_eq!(text, "Record { sequence_version: 3, protein_evidence: ProteinLevel, mass: 35780, length: 333, gene: \"GAPDH\", id: \"P46406\", mnemonic: \"G3P_RABIT\", name: \"Glyceraldehyde-3-phosphate dehydrogenase\", organism: \"Oryctolagus cuniculus\", proteome: \"UP000001811\", sequence: [77, 86, 75, 86, 71, 86, 78, 71, 70, 71, 82, 73, 71, 82, 76, 86, 84, 82, 65, 65, 70, 78, 83, 71, 75, 86, 68, 86, 86, 65, 73, 78, 68, 80, 70, 73, 68, 76, 72, 89, 77, 86, 89, 77, 70, 81, 89, 68, 83, 84, 72, 71, 75, 70, 72, 71, 84, 86, 75, 65, 69, 78, 71, 75, 76, 86, 73, 78, 71, 75, 65, 73, 84, 73, 70, 81, 69, 82, 68, 80, 65, 78, 73, 75, 87, 71, 68, 65, 71, 65, 69, 89, 86, 86, 69, 83, 84, 71, 86, 70, 84, 84, 77, 69, 75, 65, 71, 65, 72, 76, 75, 71, 71, 65, 75, 82, 86, 73, 73, 83, 65, 80, 83, 65, 68, 65, 80, 77, 70, 86, 77, 71, 86, 78, 72, 69, 75, 89, 68, 78, 83, 76, 75, 73, 86, 83, 78, 65, 83, 67, 84, 84, 78, 67, 76, 65, 80, 76, 65, 75, 86, 73, 72, 68, 72, 70, 71, 73, 86, 69, 71, 76, 77, 84, 84, 86, 72, 65, 73, 84, 65, 84, 81, 75, 84, 86, 68, 71, 80, 83, 71, 75, 76, 87, 82, 68, 71, 82, 71, 65, 65, 81, 78, 73, 73, 80, 65, 83, 84, 71, 65, 65, 75, 65, 86, 71, 75, 86, 73, 80, 69, 76, 78, 71, 75, 76, 84, 71, 77, 65, 70, 82, 86, 80, 84, 80, 78, 86, 83, 86, 86, 68, 76, 84, 67, 82, 76, 69, 75, 65, 65, 75, 89, 68, 68, 73, 75, 75, 86, 86, 75, 81, 65, 83, 69, 71, 80, 76, 75, 71, 73, 76, 71, 89, 84, 69, 68, 81, 86, 86, 83, 67, 68, 70, 78, 83, 65, 84, 72, 83, 83, 84, 70, 68, 65, 71, 65, 71, 73, 65, 76, 78, 68, 72, 70, 86, 75, 76, 73, 83, 87, 89, 68, 78, 69, 70, 71, 89, 83, 78, 82, 86, 86, 68, 76, 77, 86, 72, 77, 65, 83, 75, 69], taxonomy: \"9986\", reviewed: true }");
 
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn equality_record() {
+    fn equality_record_test() {
         let x = gapdh();
         let y = gapdh();
         let z = bsa();
@@ -207,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn properties_record() {
+    fn properties_record_test() {
         // test various permutations that can lead to
         // invalid or incomplete identifications
         let g1 = gapdh();
@@ -369,7 +369,7 @@ mod tests {
 
     #[cfg(feature = "fasta")]
     #[test]
-    fn fasta_record() {
+    fn fasta_record_test() {
         // gapdh
         let p = gapdh();
         let x = p.to_fasta_string().unwrap();
@@ -394,7 +394,7 @@ mod tests {
 
     #[cfg(feature = "csv")]
     #[test]
-    fn csv_record() {
+    fn csv_record_test() {
         // gapdh
         let p = gapdh();
         let x = p.to_csv_string(b'\t').unwrap();
@@ -425,7 +425,7 @@ mod tests {
 
     #[cfg(feature = "xml")]
     #[test]
-    fn xml_record() {
+    fn xml_record_test() {
         // gapdh
         let p = gapdh();
         let x = p.to_xml_string().unwrap();

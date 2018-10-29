@@ -29,14 +29,14 @@ pub(crate) fn estimate_pava_mgf_record_size(record: &Record) -> usize {
 
 #[inline(always)]
 fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     record_to_pava_mgf(writer, record)
 }
 
 #[inline(always)]
 fn export_title<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let num = record.num.ntoa()?;
     let rt = format!("{:?}", record.rt);
@@ -51,7 +51,7 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let parent_mz = record.parent_mz.ntoa()?;
     write_alls!(writer, b"PEPMASS=", parent_mz.as_bytes())?;
@@ -66,7 +66,7 @@ fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_charge<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.write_all(b"CHARGE=")?;
     if record.parent_z > 0 {
@@ -84,7 +84,7 @@ fn export_charge<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_spectra<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     for peak in record.peaks.iter() {
         let text = format!("{:?}\t{:?}\n", peak.mz, peak.intensity);
@@ -96,7 +96,7 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
 
 /// Export record to PAVA MGF.
 pub(crate) fn record_to_pava_mgf<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.write_all(b"BEGIN IONS\n")?;
     export_title(writer, record)?;
@@ -112,21 +112,21 @@ pub(crate) fn record_to_pava_mgf<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
-    -> ResultType<TextWriterState<T>>
+    -> Result<TextWriterState<T>>
 {
     Ok(TextWriterState::new(writer, delimiter))
 }
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.export(record, &to_mgf)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     Ok(())
 }
@@ -134,7 +134,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 /// Default exporter from a non-owning iterator to Pava MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_pava_mgf<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -144,9 +144,9 @@ pub(crate) fn reference_iterator_to_pava_mgf<'a, Iter, T>(writer: &mut T, iter: 
 /// Default exporter from an owning iterator to Pava MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_pava_mgf<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -156,7 +156,7 @@ pub(crate) fn value_iterator_to_pava_mgf<Iter, T>(writer: &mut T, iter: Iter)
 /// Strict exporter from a non-owning iterator to Pava MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_pava_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -166,9 +166,9 @@ pub(crate) fn reference_iterator_to_pava_mgf_strict<'a, Iter, T>(writer: &mut T,
 /// Strict exporter from an owning iterator to Pava MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_pava_mgf_strict<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -178,7 +178,7 @@ pub(crate) fn value_iterator_to_pava_mgf_strict<Iter, T>(writer: &mut T, iter: I
 /// Lenient exporter from a non-owning iterator to Pava MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_pava_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -188,9 +188,9 @@ pub(crate) fn reference_iterator_to_pava_mgf_lenient<'a, Iter, T>(writer: &mut T
 /// Lenient exporter from an owning iterator to Pava MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_pava_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -200,7 +200,7 @@ pub(crate) fn value_iterator_to_pava_mgf_lenient<Iter, T>(writer: &mut T, iter: 
 /// Parse the start header line.
 #[inline(always)]
 fn parse_start_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Verify the start header line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
@@ -212,7 +212,7 @@ fn parse_start_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
 /// Parse the title header line.
 #[inline(always)]
 fn parse_title_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Title = PavaMgfTitleRegex;
 
@@ -233,7 +233,7 @@ fn parse_title_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 /// Parse the pepmass header line.
 #[inline(always)]
 fn parse_pepmass_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type PepMass = PavaMgfPepMassRegex;
 
@@ -253,7 +253,7 @@ fn parse_pepmass_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 /// Parse the charge header line.
 #[inline(always)]
 fn parse_charge_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Charge = PavaMgfChargeRegex;
 
@@ -275,7 +275,7 @@ fn parse_charge_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 /// Parse the charge header line.
 #[inline(always)]
 fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     for result in lines {
         let line = result?;
@@ -284,16 +284,27 @@ fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
         }
 
         // Parse the line data
-        let mut items = line.split('\t');
-        let mz = none_to_error!(items.next(), InvalidInput);
-        let intensity = none_to_error!(items.next(), InvalidInput);
-        bool_to_error!(items.next().is_none(), InvalidInput);
-
-        record.peaks.push(Peak {
-            mz: mz.parse::<f64>()?,
-            intensity: intensity.parse::<f64>()?,
-            z: 0,
-        });
+        let mut items: Vec<&str> = Vec::with_capacity(5);
+        items.extend(line.split('\t'));
+        unsafe {
+            if items.len() == 2 {
+                // mz, intensity
+                record.peaks.push(Peak {
+                    mz: items.get_unchecked(0).parse::<f64>()?,
+                    intensity: items.get_unchecked(1).parse::<f64>()?,
+                    z: 0
+                });
+            } else if items.len() == 3 {
+                // mz, z, intensity
+                record.peaks.push(Peak {
+                    mz: items.get_unchecked(0).parse::<f64>()?,
+                    intensity: items.get_unchecked(2).parse::<f64>()?,
+                    z: items.get_unchecked(1).parse::<i8>()?
+                });
+            } else {
+                return Err(From::from(ErrorKind::InvalidInput));
+            }
+        }
     }
 
     Ok(())
@@ -301,7 +312,7 @@ fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 
 /// Import record from MGF.
 pub(crate) fn record_from_pava_mgf<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     let mut lines = reader.lines();
     let mut record = Record::with_peak_capacity(50);

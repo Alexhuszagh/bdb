@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::ResultType;
+use util::Result;
 
 /// Serialize to and from XML.
 pub trait Xml: Sized {
@@ -17,34 +17,31 @@ pub trait Xml: Sized {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_xml<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+    fn to_xml<T: Write>(&self, writer: &mut T) -> Result<()>;
 
     // Export model to XML string.
-    fn to_xml_string(&self) -> ResultType<String> {
+    fn to_xml_string(&self) -> Result<String> {
         let capacity = self.estimate_xml_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_xml(&mut writer)?;
-        match String::from_utf8(writer.into_inner()) {
-            Err(e)  => Err(Box::new(e)),
-            Ok(v)   => Ok(v),
-        }
+        Ok(String::from_utf8(writer.into_inner())?)
     }
 
     /// Export model to XML output file.
     #[inline]
-    fn to_xml_file<P: AsRef<Path>>(&self, path: P) -> ResultType<()> {
+    fn to_xml_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
         self.to_xml(&mut writer)
     }
 
     /// Import model from XML.
-    fn from_xml<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+    fn from_xml<T: BufRead>(reader: &mut T) -> Result<Self>;
 
     /// Import model from XML string.
     #[inline]
-    fn from_xml_string(text: &str) -> ResultType<Self> {
+    fn from_xml_string(text: &str) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
         let mut reader = Cursor::new(text);
@@ -53,7 +50,7 @@ pub trait Xml: Sized {
 
     /// Import model from XML file.
     #[inline]
-    fn from_xml_file<P: AsRef<Path>>(path: P) -> ResultType<Self> {
+    fn from_xml_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         Self::from_xml(&mut reader)
@@ -69,7 +66,7 @@ pub trait XmlCollection: Xml {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_xml_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+    fn to_xml_strict<T: Write>(&self, writer: &mut T) -> Result<()>;
 
     /// Export collection to XML.
     ///
@@ -78,17 +75,17 @@ pub trait XmlCollection: Xml {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+    fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> Result<()>;
 
     /// Import collection from XML.
     ///
     /// Returns an error if any of the items within the XML document
     /// are invalid.
-    fn from_xml_strict<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+    fn from_xml_strict<T: BufRead>(reader: &mut T) -> Result<Self>;
 
     /// Import collection from XML.
     ///
     /// Returns only errors due to deserialization errors, otherwise,
     /// imports as many items as possible.
-    fn from_xml_lenient<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+    fn from_xml_lenient<T: BufRead>(reader: &mut T) -> Result<Self>;
 }

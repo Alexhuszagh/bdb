@@ -22,7 +22,7 @@ use std::path::Path;
 
 use db::uniprot::RecordList;
 use traits::*;
-use util::ResultType;
+use util::Result;
 
 /// Reader/writer for UniProt FASTA records.
 #[cfg(feature = "fasta")]
@@ -32,25 +32,25 @@ pub struct UniProtFasta;
 impl UniProtFasta {
     /// Save UniProt records to string.
     #[inline(always)]
-    pub fn to_string(list: &RecordList) -> ResultType<String> {
+    pub fn to_string(list: &RecordList) -> Result<String> {
         list.to_fasta_string()
     }
 
     /// Save UniProt records to file.
     #[inline(always)]
-    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> ResultType<()> {
+    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> Result<()> {
         list.to_fasta_file(path)
     }
 
     /// Load UniProt records from string.
     #[inline(always)]
-    pub fn from_string(text: &str) -> ResultType<RecordList> {
+    pub fn from_string(text: &str) -> Result<RecordList> {
         RecordList::from_fasta_string(text)
     }
 
     /// Load UniProt records from file.
     #[inline(always)]
-    pub fn from_file<P: AsRef<Path>>(path: P) -> ResultType<RecordList> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<RecordList> {
         RecordList::from_fasta_file(path)
     }
 }
@@ -63,25 +63,25 @@ pub struct UniProtCsv;
 impl UniProtCsv {
     /// Save UniProt records to string.
     #[inline(always)]
-    pub fn to_string(list: &RecordList) -> ResultType<String> {
+    pub fn to_string(list: &RecordList) -> Result<String> {
         list.to_csv_string(b'\t')
     }
 
     /// Save UniProt records to file.
     #[inline(always)]
-    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> ResultType<()> {
+    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> Result<()> {
         list.to_csv_file(path, b'\t')
     }
 
     /// Load UniProt records from string.
     #[inline(always)]
-    pub fn from_string(text: &str) -> ResultType<RecordList> {
+    pub fn from_string(text: &str) -> Result<RecordList> {
         RecordList::from_csv_string(text, b'\t')
     }
 
     /// Load UniProt records from file.
     #[inline(always)]
-    pub fn from_file<P: AsRef<Path>>(path: P) -> ResultType<RecordList> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<RecordList> {
         RecordList::from_csv_file(path, b'\t')
     }
 }
@@ -94,25 +94,25 @@ pub struct UniProtXml;
 impl UniProtXml {
     /// Save UniProt records to string.
     #[inline(always)]
-    pub fn to_string(list: &RecordList) -> ResultType<String> {
+    pub fn to_string(list: &RecordList) -> Result<String> {
         list.to_xml_string()
     }
 
     /// Save UniProt records to file.
     #[inline(always)]
-    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> ResultType<()> {
+    pub fn to_file<P: AsRef<Path>>(list: &RecordList, path: P) -> Result<()> {
         list.to_xml_file(path)
     }
 
     /// Load UniProt records from string.
     #[inline(always)]
-    pub fn from_string(text: &str) -> ResultType<RecordList> {
+    pub fn from_string(text: &str) -> Result<RecordList> {
         RecordList::from_xml_string(text)
     }
 
     /// Load UniProt records from file.
     #[inline(always)]
-    pub fn from_file<P: AsRef<Path>>(path: P) -> ResultType<RecordList> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<RecordList> {
         RecordList::from_xml_file(path)
     }
 }

@@ -2,7 +2,8 @@
 
 use std::io::prelude::*;
 
-use bio::proteins::{AverageMass, ProteinMass};
+use bio::SequenceMass;
+use bio::proteins::AverageMass;
 use traits::*;
 use util::*;
 use super::evidence::ProteinEvidence;
@@ -18,7 +19,7 @@ use super::record_list::RecordList;
 /// from the document.
 pub struct FastaIter<T: BufRead> {
     reader: T,
-    buf: BufferType,
+    buf: Buffer,
     line: String,
 }
 
@@ -35,7 +36,7 @@ impl<T: BufRead> FastaIter<T> {
 }
 
 impl<T: BufRead> Iterator for FastaIter<T> {
-    type Item = ResultType<String>;
+    type Item = Result<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         text_next_skip_whitespace(">", &mut self.reader, &mut self.buf, &mut self.line)
@@ -72,7 +73,7 @@ fn estimate_list_size(list: &RecordList) -> usize {
 
 /// Export the SwissProt header to FASTA.
 pub fn write_swissprot_header<T: Write>(record: &Record, writer: &mut T)
-    -> ResultType<()>
+    -> Result<()>
 {
     write_alls!(
         writer,
@@ -105,7 +106,7 @@ pub fn write_swissprot_header<T: Write>(record: &Record, writer: &mut T)
 /// Don't deduplicate this with SwissProt, they're very different
 /// formats and we need to differentiate the two.
 pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
-    -> ResultType<()>
+    -> Result<()>
 {
     write_alls!(
         writer,
@@ -134,13 +135,13 @@ pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
 }
 
 #[inline(always)]
-fn to_fasta<'a, T: Write>(writer: &mut T, record: &'a Record) -> ResultType<()> {
+fn to_fasta<'a, T: Write>(writer: &mut T, record: &'a Record) -> Result<()> {
     record_to_fasta(writer, record)
 }
 
 /// Export record to FASTA.
 pub fn record_to_fasta<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Write header
     if record.reviewed {
@@ -173,21 +174,21 @@ pub fn record_to_fasta<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
-    -> ResultType<TextWriterState<T>>
+    -> Result<TextWriterState<T>>
 {
     Ok(TextWriterState::new(writer, delimiter))
 }
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.export(record, &to_fasta)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     Ok(())
 }
@@ -195,7 +196,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 /// Default exporter from a non-owning iterator to FASTA.
 #[inline(always)]
 pub fn reference_iterator_to_fasta<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -206,9 +207,9 @@ pub fn reference_iterator_to_fasta<'a, Iter, T>(writer: &mut T, iter: Iter)
 /// Default exporter from an owning iterator to FASTA.
 #[inline(always)]
 pub fn value_iterator_to_fasta<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -218,7 +219,7 @@ pub fn value_iterator_to_fasta<Iter, T>(writer: &mut T, iter: Iter)
 /// Strict exporter from a non-owning iterator to FASTA.
 #[inline(always)]
 pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -228,9 +229,9 @@ pub fn reference_iterator_to_fasta_strict<'a, Iter, T>(writer: &mut T, iter: Ite
 /// Strict exporter from an owning iterator to FASTA.
 #[inline(always)]
 pub fn value_iterator_to_fasta_strict<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -240,7 +241,7 @@ pub fn value_iterator_to_fasta_strict<Iter, T>(writer: &mut T, iter: Iter)
 /// Lenient exporter from a non-owning iterator to FASTA.
 #[inline(always)]
 pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -250,9 +251,9 @@ pub fn reference_iterator_to_fasta_lenient<'a, Iter, T>(writer: &mut T, iter: It
 /// Lenient exporter from an owning iterator to FASTA.
 #[inline(always)]
 pub fn value_iterator_to_fasta_lenient<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -260,7 +261,7 @@ pub fn value_iterator_to_fasta_lenient<Iter, T>(writer: &mut T, iter: Iter)
 // READER
 
 /// Import record from SwissProt FASTA.
-fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
+fn record_header_from_swissprot(header: &str) -> Result<Record> {
     type R = SwissProtHeaderRegex;
 
     // process the header and match it to the FASTA record
@@ -291,7 +292,7 @@ fn record_header_from_swissprot(header: &str) -> ResultType<Record> {
 }
 
 /// Import record from TrEMBL FASTA.
-fn record_header_from_trembl(header: &str) -> ResultType<Record> {
+fn record_header_from_trembl(header: &str) -> Result<Record> {
     type R = TrEMBLHeaderRegex;
 
     // process the header and match it to the FASTA record
@@ -323,7 +324,7 @@ fn record_header_from_trembl(header: &str) -> ResultType<Record> {
 
 /// Import record from FASTA.
 pub fn record_from_fasta<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     // Split along lines.
     // First line is the header, rest are the sequences.
@@ -337,7 +338,7 @@ pub fn record_from_fasta<T: BufRead>(reader: &mut T)
     let mut record = match &header[..3] {
         ">sp"   => record_header_from_swissprot(&header)?,
         ">tr"   => record_header_from_trembl(&header)?,
-        _       => return Err(From::from(ErrorKind::InvalidFastaType)),
+        _       => return Err(From::from(ErrorKind::InvalidFastaFormat)),
     };
 
     // add sequence data to the FASTA sequence
@@ -348,7 +349,7 @@ pub fn record_from_fasta<T: BufRead>(reader: &mut T)
     // calculate the protein length and mass
     if record.sequence.len() > 0 {
         record.length = record.sequence.len() as u32;
-        let mass = AverageMass::protein_sequence_mass(record.sequence.as_slice());
+        let mass = AverageMass::total_sequence_mass(record.sequence.as_slice());
         record.mass = mass.round() as u64;
     }
 
@@ -375,7 +376,7 @@ impl<T: BufRead> FastaRecordIter<T> {
 }
 
 impl<T: BufRead> Iterator for FastaRecordIter<T> {
-    type Item = ResultType<Record>;
+    type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let text = match self.iter.next()? {
@@ -429,11 +430,11 @@ impl Fasta for Record {
     }
 
     #[inline(always)]
-    fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fasta<T: Write>(&self, writer: &mut T) -> Result<()> {
         record_to_fasta(writer, self)
     }
 
-    fn from_fasta<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+    fn from_fasta<T: BufRead>(reader: &mut T) -> Result<Self> {
         record_from_fasta(reader)
     }
 }
@@ -445,34 +446,34 @@ impl Fasta for RecordList {
     }
 
     #[inline(always)]
-    fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fasta<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_fasta(writer, self.iter())
     }
 
     #[inline(always)]
-    fn from_fasta<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+    fn from_fasta<T: BufRead>(reader: &mut T) -> Result<RecordList> {
         iterator_from_fasta(reader).collect()
     }
 }
 
 impl FastaCollection for RecordList {
     #[inline(always)]
-    fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_fasta_strict(writer, self.iter())
     }
 
     #[inline(always)]
-    fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_fasta_lenient(writer, self.iter())
     }
 
     #[inline(always)]
-    fn from_fasta_strict<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+    fn from_fasta_strict<T: BufRead>(reader: &mut T) -> Result<RecordList> {
         iterator_from_fasta_strict(reader).collect()
     }
 
     #[inline(always)]
-    fn from_fasta_lenient<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+    fn from_fasta_lenient<T: BufRead>(reader: &mut T) -> Result<RecordList> {
         Ok(iterator_from_fasta_lenient(reader).filter_map(Result::ok).collect())
     }
 }
@@ -495,13 +496,13 @@ mod tests {
         // Check iterator over data.
         let s = ">tr\nXX\n>sp\nXX\nXX\n>tr\n";
         let i = FastaIter::new(Cursor::new(s));
-        let r: ResultType<Vec<String>> = i.collect();
+        let r: Result<Vec<String>> = i.collect();
         assert_eq!(r.unwrap(), &[">tr\nXX\n", ">sp\nXX\nXX\n", ">tr\n"]);
 
         // Check iterator over empty string.
         let s = "";
         let i = FastaIter::new(Cursor::new(s));
-        let r: ResultType<Vec<String>> = i.collect();
+        let r: Result<Vec<String>> = i.collect();
         assert_eq!(r.unwrap(), Vec::<String>::new());
     }
 
@@ -575,7 +576,7 @@ mod tests {
 
         // record iterator -- default
         let iter = FastaRecordIter::new(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         incomplete_list_eq(&expected, &v.unwrap());
 
         // Compile check only
@@ -583,7 +584,7 @@ mod tests {
 
         // record iterator -- strict
         let iter = iterator_from_fasta_strict(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         incomplete_list_eq(&expected, &v.unwrap());
 
         // Compile check only
@@ -591,7 +592,7 @@ mod tests {
 
         // record iterator -- lenient
         let iter = iterator_from_fasta_lenient(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         incomplete_list_eq(&expected, &v.unwrap());
 
         // Compile check only
@@ -604,7 +605,7 @@ mod tests {
 
         // record iterator -- default
         let iter = iterator_from_fasta(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         let v = v.unwrap();
         assert_eq!(expected1.len(), v.len());
         incomplete_eq(&expected1[0], &v[0]);
@@ -612,12 +613,12 @@ mod tests {
 
         // record iterator -- strict
         let iter = iterator_from_fasta_strict(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert!(v.is_err());
 
         // record iterator -- lenient
         let iter = iterator_from_fasta_lenient(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         incomplete_list_eq(&expected2, &v.unwrap());
     }
 

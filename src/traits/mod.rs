@@ -1,6 +1,7 @@
 //! Shared traits.
 
 mod complete;
+mod fmt;
 mod valid;
 
 #[cfg(feature = "csv")]
@@ -20,6 +21,7 @@ mod xml;
 
 // Record validation traits
 pub use self::complete::{Complete};
+pub use self::fmt::{Ntoa};
 pub use self::valid::{Valid};
 
 // Serialization Traits

@@ -21,7 +21,7 @@ use super::record_list::RecordList;
 pub struct MgfIter<T: BufRead> {
     reader: T,
     start: &'static str,
-    buf: BufferType,
+    buf: Buffer,
     line: String,
 }
 
@@ -39,11 +39,11 @@ impl<T: BufRead> MgfIter<T> {
 }
 
 impl<T: BufRead> Iterator for MgfIter<T> {
-    type Item = ResultType<String>;
+    type Item = Result<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         text_next!(&mut self.reader, &mut self.buf, &mut self.line, unsafe {
-            if self.line == "\n" || self.line == "\r\n" || self.line.starts_with("Mass") {
+            if self.line == "\n" || self.line == "\r\n" || self.line.starts_with("MASS=") {
                 // Ignore whitespace and lines with "Mass".
                 self.line.as_mut_vec().set_len(0);
                 continue;
@@ -86,7 +86,7 @@ fn estimate_list_size(list: &RecordList, kind: MgfKind) -> usize {
 /// Export record to MGF.
 #[inline(always)]
 pub fn record_to_mgf<T: Write>(writer: &mut T, record: &Record, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
 {
     match kind {
         MgfKind::MsConvert => record_to_msconvert_mgf(writer, record),
@@ -101,7 +101,7 @@ pub fn record_to_mgf<T: Write>(writer: &mut T, record: &Record, kind: MgfKind)
 /// Default exporter from a non-owning iterator to MGF.
 #[inline(always)]
 pub fn reference_iterator_to_mgf<'a, Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -116,9 +116,9 @@ pub fn reference_iterator_to_mgf<'a, Iter, T>(writer: &mut T, iter: Iter, kind: 
 /// Default exporter from an owning iterator to MGF.
 #[inline(always)]
 pub fn value_iterator_to_mgf<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     match kind {
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf(writer, iter),
@@ -133,7 +133,7 @@ pub fn value_iterator_to_mgf<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
 /// Strict exporter from a non-owning iterator to MGF.
 #[inline(always)]
 pub fn reference_iterator_to_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -148,9 +148,9 @@ pub fn reference_iterator_to_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter,
 /// Strict exporter from an owning iterator to MGF.
 #[inline(always)]
 pub fn value_iterator_to_mgf_strict<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     match kind {
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf_strict(writer, iter),
@@ -165,7 +165,7 @@ pub fn value_iterator_to_mgf_strict<Iter, T>(writer: &mut T, iter: Iter, kind: M
 /// Lenient exporter from a non-owning iterator to MGF.
 #[inline(always)]
 pub fn reference_iterator_to_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -180,9 +180,9 @@ pub fn reference_iterator_to_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter
 /// Lenient exporter from an owning iterator to MGF.
 #[inline(always)]
 pub fn value_iterator_to_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter, kind: MgfKind)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     match kind {
         MgfKind::MsConvert => value_iterator_to_msconvert_mgf_lenient(writer, iter),
@@ -196,7 +196,7 @@ pub fn value_iterator_to_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter, kind: 
 
 /// Import record from MGF.
 pub fn record_from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     match kind {
         MgfKind::MsConvert => record_from_msconvert_mgf(reader),
@@ -228,7 +228,7 @@ impl<T: BufRead> MgfRecordIter<T> {
 }
 
 impl<T: BufRead> Iterator for MgfRecordIter<T> {
-    type Item = ResultType<Record>;
+    type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let text = match self.iter.next()? {
@@ -293,12 +293,12 @@ impl Mgf for Record {
     }
 
     #[inline(always)]
-    fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()> {
+    fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()> {
         record_to_mgf(writer, self, kind)
     }
 
     #[inline(always)]
-    fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self> {
+    fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<Self> {
         record_from_mgf(reader, kind)
     }
 }
@@ -310,34 +310,34 @@ impl Mgf for RecordList {
     }
 
     #[inline(always)]
-    fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()> {
+    fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()> {
         reference_iterator_to_mgf(writer, self.iter(), kind)
     }
 
     #[inline(always)]
-    fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self> {
+    fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<Self> {
         iterator_from_mgf(reader, kind).collect()
     }
 }
 
 impl MgfCollection for RecordList {
     #[inline(always)]
-    fn to_mgf_strict<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()> {
+    fn to_mgf_strict<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()> {
         reference_iterator_to_mgf_strict(writer, self.iter(), kind)
     }
 
     #[inline(always)]
-    fn to_mgf_lenient<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()> {
+    fn to_mgf_lenient<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()> {
         reference_iterator_to_mgf_lenient(writer, self.iter(), kind)
     }
 
     #[inline(always)]
-    fn from_mgf_strict<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<RecordList> {
+    fn from_mgf_strict<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<RecordList> {
         iterator_from_mgf_strict(reader, kind).collect()
     }
 
     #[inline(always)]
-    fn from_mgf_lenient<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<RecordList> {
+    fn from_mgf_lenient<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<RecordList> {
         Ok(iterator_from_mgf_lenient(reader, kind).filter_map(Result::ok).collect())
     }
 }
@@ -358,16 +358,28 @@ mod tests {
     #[test]
     fn mgf_iter_test() {
         // Check iterator over data.
-        let s = "BEGIN IONS\nTITLE=A\nEND IONS\nBEGIN IONS\nTITLE=B\nEND IONS\n";
+        let s = "BEGIN IONS\nT=A\nEND IONS\nBEGIN IONS\nT=B\nEND IONS\n";
         let i = MgfIter::new(Cursor::new(s), "BEGIN IONS");
-        let r: ResultType<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["BEGIN IONS\nTITLE=A\nEND IONS\n", "BEGIN IONS\nTITLE=B\nEND IONS\n"]);
+        let r: Result<Vec<String>> = i.collect();
+        assert_eq!(r.unwrap(), &["BEGIN IONS\nT=A\nEND IONS\n", "BEGIN IONS\nT=B\nEND IONS\n"]);
 
         // Check iterator over empty string.
         let s = "";
         let i = MgfIter::new(Cursor::new(s), "BEGIN IONS");
-        let r: ResultType<Vec<String>> = i.collect();
+        let r: Result<Vec<String>> = i.collect();
         assert_eq!(r.unwrap(), Vec::<String>::new());
+
+        // Check iterator over different delimiter.
+        let s = "Scan#: 2182\n\n\nScan#: 2191\n\n\n";
+        let i = MgfIter::new(Cursor::new(s), "Scan#: ");
+        let r: Result<Vec<String>> = i.collect();
+        assert_eq!(r.unwrap(), &["Scan#: 2182\n", "Scan#: 2191\n"]);
+
+        // Check iterator with mass.
+        let s = "MASS=Mono\nBEGIN IONS\nT=A\nEND IONS\nBEGIN IONS\nT=B\nEND IONS\n";
+        let i = MgfIter::new(Cursor::new(s), "BEGIN IONS");
+        let r: Result<Vec<String>> = i.collect();
+        assert_eq!(r.unwrap(), &["BEGIN IONS\nT=A\nEND IONS\n", "BEGIN IONS\nT=B\nEND IONS\n"]);
     }
 
     #[test]
@@ -449,39 +461,49 @@ mod tests {
     fn iterator_from_mgf_test_valid(kind: MgfKind, input: &str, expected: RecordList) {
         // record iterator -- default
         let iter = iterator_from_mgf(Cursor::new(input), kind);
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- strict
         let iter = iterator_from_mgf_strict(Cursor::new(input), kind);
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- lenient
         let iter = iterator_from_mgf_lenient(Cursor::new(input), kind);
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
     }
 
     fn iterator_from_mgf_test_invalid(kind: MgfKind, input: &str, expected: RecordList) {
         // record iterator -- default
         let iter = iterator_from_mgf(Cursor::new(input), kind);
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- strict
         let iter = iterator_from_mgf_strict(Cursor::new(input), kind);
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert!(v.is_err());
 
         // record iterator -- lenient
         let iter = iterator_from_mgf_lenient(Cursor::new(input), kind);
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(v.unwrap().len(), 0);
     }
 
     // FULLMS
-    // TODO(ahuszagh)   Implement...
+
+    #[test]
+    fn iterator_to_fullms_mgf_test() {
+        iterator_to_mgf_test(MgfKind::FullMs, FULLMS_33450_MGF)
+    }
+
+    #[test]
+    fn iterator_from_fullms_mgf_test() {
+        iterator_from_mgf_test_valid(MgfKind::FullMs, FULLMS_33450_MGF, vec![fullms_mgf_33450()]);
+        iterator_from_mgf_test_invalid(MgfKind::FullMs, FULLMS_EMPTY_MGF, vec![fullms_mgf_empty()]);
+    }
 
     // MSCONVERT
 
@@ -530,14 +552,9 @@ mod tests {
         dir
     }
 
-    #[test]
-    #[ignore]
-    fn msconvert_mgf_test() {
-        let mut path = mgf_dir();
-        path.push("mgf_msconvert_ms2.txt");
-
+    fn mgf_file_test(path: PathBuf, kind: MgfKind) {
         let reader = BufReader::new(File::open(path).unwrap());
-        let iter = iterator_from_mgf(reader, MgfKind::MsConvert);
+        let iter = iterator_from_mgf(reader, kind);
 
         // do nothing, just check it parses.
         for item in iter {
@@ -545,9 +562,59 @@ mod tests {
         }
     }
 
-    //TODO(ahuszagh)
-    //  Add more MGF types...
-    //  Pava
-    //  Pwiz
-    //  FullMS
+    #[test]
+    #[ignore]
+    fn fullms_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_fullms.txt");
+        mgf_file_test(path, MgfKind::FullMs);
+    }
+
+    #[test]
+    #[ignore]
+    fn msconvert_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_msconvert_ms2.txt");
+        mgf_file_test(path, MgfKind::MsConvert);
+    }
+
+    #[test]
+    #[ignore]
+    fn pava_ms2_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_pava_ms2.txt");
+        mgf_file_test(path, MgfKind::Pava);
+    }
+
+    #[test]
+    #[ignore]
+    fn pava_ms3_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_pava_ms3.txt");
+        mgf_file_test(path, MgfKind::Pava);
+    }
+
+    #[test]
+    #[ignore]
+    fn pava_ms3_20170411_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_pava_ms3_20170411.txt");
+        mgf_file_test(path, MgfKind::Pava);
+    }
+
+    #[test]
+    #[ignore]
+    fn pwiz_ms2_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_pwiz_ms2.txt");
+        mgf_file_test(path, MgfKind::Pwiz);
+    }
+
+    #[test]
+    #[ignore]
+    fn pwiz_ms3_mgf_test() {
+        let mut path = mgf_dir();
+        path.push("mgf_pwiz_ms3.txt");
+        mgf_file_test(path, MgfKind::Pwiz);
+    }
 }

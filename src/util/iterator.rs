@@ -4,18 +4,18 @@ use std::io::prelude::*;
 use std::str as stdstr;
 
 use traits::Valid;
-use super::alias::{BufferType, ResultType};
+use super::alias::{Buffer, Result};
 use super::error::ErrorKind;
 
 // READER
 
 /// Iterator which raises an error for invalid items.
-pub struct StrictIter<T: Valid, U: Iterator<Item = ResultType<T>>> {
+pub struct StrictIter<T: Valid, U: Iterator<Item = Result<T>>> {
     /// Wrapped internal iterator.
     iter: U,
 }
 
-impl<T: Valid, U: Iterator<Item = ResultType<T>>> StrictIter<T, U> {
+impl<T: Valid, U: Iterator<Item = Result<T>>> StrictIter<T, U> {
     /// Create new StrictIter from a buffered reader.
     #[inline]
     pub fn new(iter: U) -> Self {
@@ -25,7 +25,7 @@ impl<T: Valid, U: Iterator<Item = ResultType<T>>> StrictIter<T, U> {
     }
 }
 
-impl<T: Valid, U: Iterator<Item = ResultType<T>>> Iterator for StrictIter<T, U> {
+impl<T: Valid, U: Iterator<Item = Result<T>>> Iterator for StrictIter<T, U> {
     type Item = U::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -39,12 +39,12 @@ impl<T: Valid, U: Iterator<Item = ResultType<T>>> Iterator for StrictIter<T, U> 
 }
 
 /// Iterator which ignores invalid items.
-pub struct LenientIter<T: Valid, U: Iterator<Item = ResultType<T>>> {
+pub struct LenientIter<T: Valid, U: Iterator<Item = Result<T>>> {
     /// Wrapped internal iterator.
     iter: U,
 }
 
-impl<T: Valid, U: Iterator<Item = ResultType<T>>> LenientIter<T, U> {
+impl<T: Valid, U: Iterator<Item = Result<T>>> LenientIter<T, U> {
     /// Create new LenientIter from a buffered reader.
     #[inline]
     pub fn new(iter: U) -> Self {
@@ -54,7 +54,7 @@ impl<T: Valid, U: Iterator<Item = ResultType<T>>> LenientIter<T, U> {
     }
 }
 
-impl<T: Valid, U: Iterator<Item = ResultType<T>>> Iterator for LenientIter<T, U> {
+impl<T: Valid, U: Iterator<Item = Result<T>>> Iterator for LenientIter<T, U> {
     type Item = U::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -103,13 +103,13 @@ pub fn reference_iterator_export<
     export_cb: &ExportCb,
     dest_cb: &DestCb
 )
-    -> ResultType<()>
+    -> Result<()>
     where Writer: Write,
           Iter: Iterator<Item = &'a Record>,
           Record: 'a + Valid,
-          InitCb: Fn(&'b mut Writer, u8) -> ResultType<InnerWriter>,
-          ExportCb: Fn(&mut InnerWriter, &'a Record) -> ResultType<()>,
-          DestCb: Fn(&mut InnerWriter) -> ResultType<()>
+          InitCb: Fn(&'b mut Writer, u8) -> Result<InnerWriter>,
+          ExportCb: Fn(&mut InnerWriter, &'a Record) -> Result<()>,
+          DestCb: Fn(&mut InnerWriter) -> Result<()>
 {
     let mut inner = init_cb(writer, delimiter)?;
 
@@ -141,13 +141,13 @@ pub fn value_iterator_export<
     export_cb: &ExportCb,
     dest_cb: &DestCb
 )
-    -> ResultType<()>
+    -> Result<()>
     where Writer: Write,
-          Iter: Iterator<Item = ResultType<Record>>,
+          Iter: Iterator<Item = Result<Record>>,
           Record: Valid,
-          InitCb: Fn(&'a mut Writer, u8) -> ResultType<InnerWriter>,
-          ExportCb: Fn(&mut InnerWriter, &Record) -> ResultType<()>,
-          DestCb: Fn(&mut InnerWriter) -> ResultType<()>
+          InitCb: Fn(&'a mut Writer, u8) -> Result<InnerWriter>,
+          ExportCb: Fn(&mut InnerWriter, &Record) -> Result<()>,
+          DestCb: Fn(&mut InnerWriter) -> Result<()>
 {
     let mut inner = init_cb(writer, delimiter)?;
 
@@ -179,13 +179,13 @@ pub fn reference_iterator_export_strict<
     export_cb: &ExportCb,
     dest_cb: &DestCb
 )
-    -> ResultType<()>
+    -> Result<()>
     where Writer: Write,
           Iter: Iterator<Item = &'a Record>,
           Record: 'a + Valid,
-          InitCb: Fn(&'b mut Writer, u8) -> ResultType<InnerWriter>,
-          ExportCb: Fn(&mut InnerWriter, &'a Record) -> ResultType<()>,
-          DestCb: Fn(&mut InnerWriter) -> ResultType<()>
+          InitCb: Fn(&'b mut Writer, u8) -> Result<InnerWriter>,
+          ExportCb: Fn(&mut InnerWriter, &'a Record) -> Result<()>,
+          DestCb: Fn(&mut InnerWriter) -> Result<()>
 {
     let mut inner = init_cb(writer, delimiter)?;
 
@@ -216,13 +216,13 @@ pub fn value_iterator_export_strict<
     export_cb: &ExportCb,
     dest_cb: &DestCb
 )
-    -> ResultType<()>
+    -> Result<()>
     where Writer: Write,
-          Iter: Iterator<Item = ResultType<Record>>,
+          Iter: Iterator<Item = Result<Record>>,
           Record: Valid,
-          InitCb: Fn(&'a mut Writer, u8) -> ResultType<InnerWriter>,
-          ExportCb: Fn(&mut InnerWriter, &Record) -> ResultType<()>,
-          DestCb: Fn(&mut InnerWriter) -> ResultType<()>
+          InitCb: Fn(&'a mut Writer, u8) -> Result<InnerWriter>,
+          ExportCb: Fn(&mut InnerWriter, &Record) -> Result<()>,
+          DestCb: Fn(&mut InnerWriter) -> Result<()>
 {
     let mut inner = init_cb(writer, delimiter)?;
 
@@ -254,13 +254,13 @@ pub fn reference_iterator_export_lenient<
     export_cb: &ExportCb,
     dest_cb: &DestCb
 )
-    -> ResultType<()>
+    -> Result<()>
     where Writer: Write,
           Iter: Iterator<Item = &'a Record>,
           Record: 'a + Valid,
-          InitCb: Fn(&'b mut Writer, u8) -> ResultType<InnerWriter>,
-          ExportCb: Fn(&mut InnerWriter, &'a Record) -> ResultType<()>,
-          DestCb: Fn(&mut InnerWriter) -> ResultType<()>
+          InitCb: Fn(&'b mut Writer, u8) -> Result<InnerWriter>,
+          ExportCb: Fn(&mut InnerWriter, &'a Record) -> Result<()>,
+          DestCb: Fn(&mut InnerWriter) -> Result<()>
 {
     let mut inner = init_cb(writer, delimiter)?;
 
@@ -294,13 +294,13 @@ pub fn value_iterator_export_lenient<
     export_cb: &ExportCb,
     dest_cb: &DestCb
 )
-    -> ResultType<()>
+    -> Result<()>
     where Writer: Write,
-          Iter: Iterator<Item = ResultType<Record>>,
+          Iter: Iterator<Item = Result<Record>>,
           Record: Valid,
-          InitCb: Fn(&'a mut Writer, u8) -> ResultType<InnerWriter>,
-          ExportCb: Fn(&mut InnerWriter, &Record) -> ResultType<()>,
-          DestCb: Fn(&mut InnerWriter) -> ResultType<()>
+          InitCb: Fn(&'a mut Writer, u8) -> Result<InnerWriter>,
+          ExportCb: Fn(&mut InnerWriter, &Record) -> Result<()>,
+          DestCb: Fn(&mut InnerWriter) -> Result<()>
 {
     let mut inner = init_cb(writer, delimiter)?;
 
@@ -359,10 +359,10 @@ macro_rules! text_next {
 pub fn text_next_skip_whitespace<T: BufRead>(
     start: &str,
     reader: &mut T,
-    buf: &mut BufferType,
+    buf: &mut Buffer,
     line: &mut String
 )
-    -> Option<ResultType<String>>
+    -> Option<Result<String>>
 {
     text_next!(reader, buf, line, unsafe {
         if line == "\n" || line == "\r\n" {

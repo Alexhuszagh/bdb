@@ -8,7 +8,7 @@ impl Valid for Record {
     fn is_valid(&self) -> bool {
         (
             self.num != 0 &&
-            self.rt >= 0.0 &&
+            self.rt != 0.0 &&
             !self.peaks.is_empty() &&
             // If the MS level is 2 or higher, check the parents are set.
             (

@@ -140,7 +140,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn nucleotide_regex() {
+    fn nucleotide_regex_test() {
         type T = NucleotideRegex;
 
         // empty
@@ -165,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_quality_regex() {
+    fn sequence_quality_regex_test() {
         type T = SequenceQualityRegex;
 
         // empty
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn fastq_header_regex() {
+    fn fastq_header_regex_test() {
         type T = FastqHeaderRegex;
 
         // empty

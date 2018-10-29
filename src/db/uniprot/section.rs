@@ -1,6 +1,7 @@
 //! Model for Uniprot protein section type.
 
-use util::{ErrorKind, Ntoa, ResultType};
+use traits::Ntoa;
+use util::{ErrorKind, Result};
 use std::mem;
 
 /// Identifier for the section type of a UniProt record.
@@ -39,7 +40,7 @@ impl Section {
 
     /// Create enumerated value (like C) from raw integer.
     #[inline]
-    pub fn from_int(int: u8) -> ResultType<Self> {
+    pub fn from_int(int: u8) -> Result<Self> {
         if int >= Self::MIN && int <= Self::MAX {
             Ok(unsafe { mem::transmute(int) })
         } else {
@@ -55,19 +56,19 @@ impl Section {
 
     /// Create enumerated value from str.
     #[inline(always)]
-    pub fn from_str(s: &str) -> ResultType<Self> {
+    pub fn from_str(s: &str) -> Result<Self> {
         Section::from_int(s.parse::<u8>()?)
     }
 }
 
 impl Ntoa for Section {
     #[inline(always)]
-    fn ntoa(&self) -> ResultType<String> {
+    fn ntoa(&self) -> Result<String> {
         self.to_int().ntoa()
     }
 
     #[inline(always)]
-    fn ntoa_with_capacity(&self, capacity: usize) -> ResultType<String> {
+    fn ntoa_with_capacity(&self, capacity: usize) -> Result<String> {
         self.to_int().ntoa_with_capacity(capacity)
     }
 }

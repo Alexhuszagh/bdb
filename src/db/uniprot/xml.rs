@@ -46,7 +46,7 @@ fn estimate_list_size(list: &RecordList) -> usize {
 /// Import record from XML.
 #[inline(always)]
 pub fn record_from_xml<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     none_to_error!(iterator_from_xml(reader).next(), UnexpectedEof)
 }
@@ -115,7 +115,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Enter the entry element.
     #[inline]
-    fn enter_entry(&mut self) -> Option<ResultType<bool>> {
+    fn enter_entry(&mut self) -> Option<Result<bool>> {
 
         //  Entry XML format.
         //      <entry dataset="TrEMBL" ... />
@@ -123,7 +123,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
         // Callback to determine if we're using a reviewed database.
         fn is_reviewed<'a>(event: BytesStart<'a>, _: &mut bool)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -145,13 +145,13 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Leave the entry element.
     #[inline]
-    fn leave_entry(&mut self) -> Option<ResultType<()>> {
+    fn leave_entry(&mut self) -> Option<Result<()>> {
         self.reader.seek_end(b"entry", 1)
     }
 
     /// Read the accession number.
     #[inline]
-    fn read_accession(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_accession(&mut self, record: &mut Record) -> Option<Result<()>> {
         try_opterr!(self.reader.seek_start(b"accession", 2));
 
         match self.reader.read_text(b"accession") {
@@ -164,7 +164,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the mnemonic identifier.
     #[inline]
-    fn read_mnemonic(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_mnemonic(&mut self, record: &mut Record) -> Option<Result<()>> {
         try_opterr!(self.reader.seek_start(b"name", 2));
 
         match self.reader.read_text(b"name") {
@@ -177,7 +177,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the SwissProt protein name.
     #[inline]
-    fn read_swissport_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_swissport_protein(&mut self, record: &mut Record) -> Option<Result<()>> {
         // Ensure we get to the recommendedName, since "alternativeName"
         // also has the same attributes.
         try_opterr!(self.reader.seek_start(b"recommendedName", 3));
@@ -194,7 +194,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the TrEMBL protein name.
     #[inline]
-    fn read_trembl_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_trembl_protein(&mut self, record: &mut Record) -> Option<Result<()>> {
         try_opterr!(self.reader.seek_start(b"submittedName", 3));
 
         // Read the protein name
@@ -209,7 +209,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the protein name.
     #[inline]
-    fn read_protein(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_protein(&mut self, record: &mut Record) -> Option<Result<()>> {
         match record.reviewed {
             true    => self.read_swissport_protein(record),
             false   => self.read_trembl_protein(record),
@@ -218,7 +218,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the text from the name element.
     #[inline]
-    fn read_gene_name(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_gene_name(&mut self, record: &mut Record) -> Option<Result<()>> {
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
             Ok(v)   => record.gene = v,
@@ -230,7 +230,7 @@ impl<T: BufRead> XmlRecordIter<T> {
     /// Read the gene name.
     /// Use as the callback if the seek to the "gene" start element succeededs.
     #[inline]
-    fn read_gene_inside(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_gene_inside(&mut self, record: &mut Record) -> Option<Result<()>> {
         //  Gene XML format.
         //      <gene>
         //      <name type="primary">GAPDH</name>
@@ -239,7 +239,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
         // Callback to determine if we're reading the primary gene name.
         fn is_gene<'a>(event: BytesStart<'a>, _: &mut Record)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -266,10 +266,10 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the taxonomy.
     #[inline]
-    fn read_taxonomy(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_taxonomy(&mut self, record: &mut Record) -> Option<Result<()>> {
         // Callback to parse the taxonomy information.
         fn parse_taxonomy<'a>(event: BytesStart<'a>, record: &mut Record)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -297,7 +297,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the text from the name element.
     #[inline]
-    fn read_organism_value(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_organism_value(&mut self, record: &mut Record) -> Option<Result<()>> {
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
             Ok(v)   => record.organism = v,
@@ -309,7 +309,7 @@ impl<T: BufRead> XmlRecordIter<T> {
     /// Read the organism name implied.
     /// Use as the callback if the seek to the "gene" start element fails.
     #[inline]
-    fn read_organism_inside(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_organism_inside(&mut self, record: &mut Record) -> Option<Result<()>> {
         //  Organism XML format.
         //        <organism>
         //        <name type="scientific">Oryctolagus cuniculus</name>
@@ -320,7 +320,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
         // Callback to determine if we're reading the scientific name.
         fn is_organism<'a>(event: BytesStart<'a>, _: &mut Record)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -351,7 +351,7 @@ impl<T: BufRead> XmlRecordIter<T> {
     /// The gene information may be lacking, so we must call
     /// the organism as a fallback if so.
     #[inline]
-    fn read_gene_or_organism(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_gene_or_organism(&mut self, record: &mut Record) -> Option<Result<()>> {
 
         match self.reader.seek_start_or_fallback(b"gene", 2, b"organism", 2)? {
             Err(e)  => Some(Err(e)),
@@ -371,13 +371,13 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the proteome ID.
     #[inline]
-    fn read_proteome(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_proteome(&mut self, record: &mut Record) -> Option<Result<()>> {
         //  Proteomes XML format.
         //        <dbReference type="Proteomes" id="UP000001811">
 
         // Callback to determine if we're reading the proteome reference.
         fn parse_proteome<'a>(event: BytesStart<'a>, record: &mut Record)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -410,10 +410,10 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     /// Read the protein evidence.
     #[inline]
-    fn read_evidence(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_evidence(&mut self, record: &mut Record) -> Option<Result<()>> {
         // Callback to parse the protein evidence information.
         fn parse_evidence<'a>(event: BytesStart<'a>, record: &mut Record)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -439,10 +439,10 @@ impl<T: BufRead> XmlRecordIter<T> {
 
     // Read the sequence.
     #[inline]
-    fn read_sequence(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn read_sequence(&mut self, record: &mut Record) -> Option<Result<()>> {
         // Callback to parse the protein evidence information.
         fn parse_sequence<'a>(event: BytesStart<'a>, record: &mut Record)
-            -> Option<ResultType<bool>>
+            -> Option<Result<bool>>
         {
             for result in event.attributes() {
                 let attribute = parse_attribute!(result);
@@ -476,7 +476,7 @@ impl<T: BufRead> XmlRecordIter<T> {
     }
 
     /// Parse the UniProt record.
-    fn parse_record(&mut self, record: &mut Record) -> Option<ResultType<()>> {
+    fn parse_record(&mut self, record: &mut Record) -> Option<Result<()>> {
         try_opterr!(self.read_accession(record));
         try_opterr!(self.read_mnemonic(record));
         try_opterr!(self.read_protein(record));
@@ -492,7 +492,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 }
 
 impl<T: BufRead> Iterator for XmlRecordIter<T> {
-    type Item = ResultType<Record>;
+    type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Enter the entry, which stores our position for the entry element.
@@ -567,13 +567,13 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the XML declaration.
     #[inline(always)]
-    pub fn write_declaration(&mut self) -> ResultType<()> {
+    pub fn write_declaration(&mut self) -> Result<()> {
         self.writer.write_declaration()
     }
 
     /// Write the UniProt start element.
     #[inline]
-    fn write_uniprot_start(&mut self) -> ResultType<()> {
+    fn write_uniprot_start(&mut self) -> Result<()> {
         self.writer.write_start_element(b"uniprot", &[
             (b"xlmns", b"http://uniprot.org/uniprot"),
             (b"xmlns:xsi", b"http://www.w3.org/2001/XMLSchema-instance"),
@@ -583,13 +583,13 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the UniProt end element.
     #[inline]
-    fn write_uniprot_end(&mut self) -> ResultType<()> {
+    fn write_uniprot_end(&mut self) -> Result<()> {
         self.writer.write_end_element(b"uniprot")
     }
 
     /// Write the entry start element.
     #[inline]
-    fn write_entry_start(&mut self, record: &Record) -> ResultType<()> {
+    fn write_entry_start(&mut self, record: &Record) -> Result<()> {
         match record.reviewed {
             true    => self.writer.write_start_element(b"entry", &[
                     (b"dataset", b"Swiss-Prot"),
@@ -602,25 +602,25 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the entry end element.
     #[inline]
-    fn write_entry_end(&mut self) -> ResultType<()> {
+    fn write_entry_end(&mut self) -> Result<()> {
         self.writer.write_end_element(b"entry")
     }
 
     /// Write the accession element.
     #[inline]
-    fn write_id(&mut self, record: &Record) -> ResultType<()> {
+    fn write_id(&mut self, record: &Record) -> Result<()> {
         self.writer.write_text_element(b"accession", record.id.as_bytes(), &[])
     }
 
     /// Write the mnemonic element.
     #[inline]
-    fn write_mnemonic(&mut self, record: &Record) -> ResultType<()> {
+    fn write_mnemonic(&mut self, record: &Record) -> Result<()> {
         self.writer.write_text_element(b"name", record.mnemonic.as_bytes(), &[])
     }
 
     /// Write the protein element.
     #[inline]
-    fn write_protein(&mut self, record: &Record) -> ResultType<()> {
+    fn write_protein(&mut self, record: &Record) -> Result<()> {
         self.writer.write_start_element(b"protein", &[])?;
         match record.reviewed {
             true    => self.write_recommended_name(record)?,
@@ -631,7 +631,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the protein element.
     #[inline]
-    fn write_recommended_name(&mut self, record: &Record) -> ResultType<()> {
+    fn write_recommended_name(&mut self, record: &Record) -> Result<()> {
         self.writer.write_start_element(b"recommendedName", &[])?;
         self.write_full_name(record)?;
         self.write_gene_name(record)?;
@@ -640,7 +640,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the protein element.
     #[inline]
-    fn write_submitted_name(&mut self, record: &Record) -> ResultType<()> {
+    fn write_submitted_name(&mut self, record: &Record) -> Result<()> {
         self.writer.write_start_element(b"submittedName", &[])?;
         self.write_full_name(record)?;
         self.writer.write_end_element(b"submittedName")
@@ -648,19 +648,19 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the name element.
     #[inline]
-    fn write_full_name(&mut self, record: &Record) -> ResultType<()> {
+    fn write_full_name(&mut self, record: &Record) -> Result<()> {
         self.writer.write_text_element(b"fullName", record.name.as_bytes(), &[])
     }
 
     /// Write the gene element.
     #[inline]
-    fn write_gene_name(&mut self, record: &Record) -> ResultType<()> {
+    fn write_gene_name(&mut self, record: &Record) -> Result<()> {
         self.writer.write_text_element(b"shortName", record.gene.as_bytes(), &[])
     }
 
     /// Write the gene information element.
     #[inline]
-    fn write_gene(&mut self, record: &Record) -> ResultType<()> {
+    fn write_gene(&mut self, record: &Record) -> Result<()> {
         self.writer.write_start_element(b"gene", &[])?;
         self.write_primary_name(record)?;
         self.writer.write_end_element(b"gene")
@@ -668,7 +668,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the primary gene name element.
     #[inline]
-    fn write_primary_name(&mut self, record: &Record) -> ResultType<()> {
+    fn write_primary_name(&mut self, record: &Record) -> Result<()> {
         self.writer.write_text_element(b"name", record.gene.as_bytes(), &[
             (b"type", b"primary")
         ])
@@ -676,7 +676,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the organism information element.
     #[inline]
-    fn write_organism(&mut self, record: &Record) -> ResultType<()> {
+    fn write_organism(&mut self, record: &Record) -> Result<()> {
         self.writer.write_start_element(b"organism", &[])?;
         // Skip the common name since we can never guess....
         self.write_scientific_name(record)?;
@@ -686,14 +686,14 @@ impl<T: Write> XmlUniProtWriter<T> {
     }
 
     #[inline]
-    fn write_scientific_name(&mut self, record: &Record) -> ResultType<()> {
+    fn write_scientific_name(&mut self, record: &Record) -> Result<()> {
         self.writer.write_text_element(b"name", record.organism.as_bytes(), &[
             (b"type", b"scientific")
         ])
     }
 
     #[inline]
-    fn write_taxonomy_id(&mut self, record: &Record) -> ResultType<()> {
+    fn write_taxonomy_id(&mut self, record: &Record) -> Result<()> {
         self.writer.write_empty_element(b"dbReference", &[
             (b"type", b"NCBI Taxonomy"),
             (b"id", record.taxonomy.as_bytes())
@@ -701,7 +701,7 @@ impl<T: Write> XmlUniProtWriter<T> {
     }
 
     #[inline]
-    fn write_proteome(&mut self, record: &Record) -> ResultType<()> {
+    fn write_proteome(&mut self, record: &Record) -> Result<()> {
         self.writer.write_start_element(b"dbReference", &[
             (b"type", b"Proteomes"),
             (b"id", record.proteome.as_bytes())
@@ -715,14 +715,14 @@ impl<T: Write> XmlUniProtWriter<T> {
     }
 
     #[inline]
-    fn write_protein_existence(&mut self, record: &Record) -> ResultType<()> {
+    fn write_protein_existence(&mut self, record: &Record) -> Result<()> {
         self.writer.write_empty_element(b"proteinExistence", &[
             (b"type", record.protein_evidence.xml_verbose().as_bytes())
         ])
     }
 
     #[inline]
-    fn write_sequence(&mut self, record: &Record) -> ResultType<()>
+    fn write_sequence(&mut self, record: &Record) -> Result<()>
     {
         let length = record.length.ntoa()?;
         let mass = record.mass.ntoa()?;
@@ -737,7 +737,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
     /// Write the entry element.
     #[inline]
-    fn write_entry(&mut self, record: &Record) -> ResultType<()> {
+    fn write_entry(&mut self, record: &Record) -> Result<()> {
         self.write_entry_start(record)?;
         self.write_id(record)?;
         self.write_mnemonic(record)?;
@@ -758,7 +758,7 @@ impl<T: Write> XmlUniProtWriter<T> {
 
 /// Export record data to XML.
 fn item_to_xml<T: Write>(writer: &mut XmlUniProtWriter<T>, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.write_uniprot_start()?;
     writer.write_entry(record)?;
@@ -767,7 +767,7 @@ fn item_to_xml<T: Write>(writer: &mut XmlUniProtWriter<T>, record: &Record)
 
 /// Export record to XML.
 pub fn record_to_xml<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let mut writer = XmlUniProtWriter::new(writer);
     writer.write_declaration()?;
@@ -778,14 +778,14 @@ pub fn record_to_xml<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn to_xml<'a, T: Write>(writer: &mut XmlUniProtWriter<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.write_entry(record)
 }
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: T, _: u8)
-    -> ResultType<XmlUniProtWriter<T>>
+    -> Result<XmlUniProtWriter<T>>
 {
     let mut writer = XmlUniProtWriter::new(writer);
     writer.write_declaration()?;
@@ -795,14 +795,14 @@ fn init_cb<T: Write>(writer: T, _: u8)
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut XmlUniProtWriter<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     to_xml(writer, record)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(writer: &mut XmlUniProtWriter<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.write_uniprot_end()
 }
@@ -810,7 +810,7 @@ fn dest_cb<T: Write>(writer: &mut XmlUniProtWriter<T>)
 /// Default exporter from a non-owning iterator to XML.
 #[inline(always)]
 pub fn reference_iterator_to_xml<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -820,9 +820,9 @@ pub fn reference_iterator_to_xml<'a, Iter, T>(writer: &mut T, iter: Iter)
 /// Default exporter from an owning iterator to XML.
 #[inline(always)]
 pub fn value_iterator_to_xml<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
@@ -832,7 +832,7 @@ pub fn value_iterator_to_xml<Iter, T>(writer: &mut T, iter: Iter)
 /// Strict exporter from a non-owning iterator to XML.
 #[inline(always)]
 pub fn reference_iterator_to_xml_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -842,9 +842,9 @@ pub fn reference_iterator_to_xml_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
 /// Strict exporter from an owning iterator to XML.
 #[inline(always)]
 pub fn value_iterator_to_xml_strict<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
@@ -854,7 +854,7 @@ pub fn value_iterator_to_xml_strict<Iter, T>(writer: &mut T, iter: Iter)
 /// Lenient exporter from a non-owning iterator to XML.
 #[inline(always)]
 pub fn reference_iterator_to_xml_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -864,9 +864,9 @@ pub fn reference_iterator_to_xml_lenient<'a, Iter, T>(writer: &mut T, iter: Iter
 /// Lenient exporter from an owning iterator to XML.
 #[inline(always)]
 pub fn value_iterator_to_xml_lenient<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, b'\0', &init_cb, &export_cb, &dest_cb)
 }
@@ -880,12 +880,12 @@ impl Xml for Record {
     }
 
     #[inline(always)]
-    fn to_xml<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_xml<T: Write>(&self, writer: &mut T) -> Result<()> {
         record_to_xml(writer, self)
     }
 
     #[inline(always)]
-    fn from_xml<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+    fn from_xml<T: BufRead>(reader: &mut T) -> Result<Self> {
         record_from_xml(reader)
     }
 }
@@ -897,34 +897,34 @@ impl Xml for RecordList {
     }
 
     #[inline(always)]
-    fn to_xml<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_xml<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_xml(writer, self.iter())
     }
 
     #[inline(always)]
-    fn from_xml<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+    fn from_xml<T: BufRead>(reader: &mut T) -> Result<Self> {
         iterator_from_xml(reader).collect()
     }
 }
 
 impl XmlCollection for RecordList {
     #[inline(always)]
-    fn to_xml_strict<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_xml_strict<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_xml_strict(writer, self.iter())
     }
 
     #[inline(always)]
-    fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_xml_lenient<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_xml_lenient(writer, self.iter())
     }
 
     #[inline(always)]
-    fn from_xml_strict<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+    fn from_xml_strict<T: BufRead>(reader: &mut T) -> Result<Self> {
         iterator_from_xml_strict(reader).collect()
     }
 
     #[inline(always)]
-    fn from_xml_lenient<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+    fn from_xml_lenient<T: BufRead>(reader: &mut T) -> Result<Self> {
         Ok(iterator_from_xml_lenient(reader).filter_map(Result::ok).collect())
     }
 }
@@ -1012,7 +1012,7 @@ mod tests {
 
         // record iterator -- default
         let iter = XmlRecordIter::new(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(&expected, &v.unwrap());
 
         // Compile check only
@@ -1020,7 +1020,7 @@ mod tests {
 
         // record iterator -- strict
         let iter = iterator_from_xml_strict(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(&expected, &v.unwrap());
 
         // Compile check only
@@ -1028,7 +1028,7 @@ mod tests {
 
         // record iterator -- lenient
         let iter = iterator_from_xml_lenient(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(&expected, &v.unwrap());
 
         // Compile check only
@@ -1041,7 +1041,7 @@ mod tests {
 
         // record iterator -- default
         let iter = iterator_from_xml(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         let v = v.unwrap();
         assert_eq!(expected1.len(), v.len());
         assert_eq!(&expected1[0], &v[0]);
@@ -1049,12 +1049,12 @@ mod tests {
 
         // record iterator -- strict
         let iter = iterator_from_xml_strict(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert!(v.is_err());
 
         // record iterator -- lenient
         let iter = iterator_from_xml_lenient(Cursor::new(text));
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(&expected2, &v.unwrap());
     }
 

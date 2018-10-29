@@ -16,7 +16,7 @@ use super::record_list::RecordList;
 /// from the document.
 pub struct FastqIter<T: BufRead> {
     reader: T,
-    buf: BufferType,
+    buf: Buffer,
     line: String,
 }
 
@@ -33,7 +33,7 @@ impl<T: BufRead> FastqIter<T> {
 }
 
 impl<T: BufRead> Iterator for FastqIter<T> {
-    type Item = ResultType<String>;
+    type Item = Result<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         text_next_skip_whitespace("@", &mut self.reader, &mut self.buf, &mut self.line)
@@ -65,13 +65,13 @@ fn estimate_list_size(list: &RecordList) -> usize {
 // WRITER
 
 #[inline(always)]
-fn to_fastq<T: Write>(writer: &mut T, record: &Record) -> ResultType<()> {
+fn to_fastq<T: Write>(writer: &mut T, record: &Record) -> Result<()> {
     record_to_fastq(writer, record)
 }
 
 /// Export record to FASTQ.
 pub fn record_to_fastq<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     write_alls!(writer, b"@", record.seq_id.as_bytes())?;
 
@@ -98,21 +98,21 @@ pub fn record_to_fastq<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
-    -> ResultType<TextWriterState<T>>
+    -> Result<TextWriterState<T>>
 {
     Ok(TextWriterState::new(writer, delimiter))
 }
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.export(record, &to_fastq)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     Ok(())
 }
@@ -120,7 +120,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 /// Default exporter from a non-owning iterator to FASTQ.
 #[inline(always)]
 pub fn reference_iterator_to_fastq<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -131,9 +131,9 @@ pub fn reference_iterator_to_fastq<'a, Iter, T>(writer: &mut T, iter: Iter)
 /// Default exporter from an owning iterator to FASTQ.
 #[inline(always)]
 pub fn value_iterator_to_fastq<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -143,7 +143,7 @@ pub fn value_iterator_to_fastq<Iter, T>(writer: &mut T, iter: Iter)
 /// Strict exporter from a non-owning iterator to FASTQ.
 #[inline(always)]
 pub fn reference_iterator_to_fastq_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -153,9 +153,9 @@ pub fn reference_iterator_to_fastq_strict<'a, Iter, T>(writer: &mut T, iter: Ite
 /// Strict exporter from an owning iterator to FASTQ.
 #[inline(always)]
 pub fn value_iterator_to_fastq_strict<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -165,7 +165,7 @@ pub fn value_iterator_to_fastq_strict<Iter, T>(writer: &mut T, iter: Iter)
 /// Lenient exporter from a non-owning iterator to FASTQ.
 #[inline(always)]
 pub fn reference_iterator_to_fastq_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -175,9 +175,9 @@ pub fn reference_iterator_to_fastq_lenient<'a, Iter, T>(writer: &mut T, iter: It
 /// Lenient exporter from an owning iterator to FASTQ.
 #[inline(always)]
 pub fn value_iterator_to_fastq_lenient<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -187,7 +187,7 @@ pub fn value_iterator_to_fastq_lenient<Iter, T>(writer: &mut T, iter: Iter)
 /// Import record from FASTQ.
 #[allow(unused_variables)]
 pub fn record_from_fastq<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     // Split along lines.
     // The first line is the first header, short-circuit if it's none.
@@ -243,7 +243,7 @@ impl<T: BufRead> FastqRecordIter<T> {
 }
 
 impl<T: BufRead> Iterator for FastqRecordIter<T> {
-    type Item = ResultType<Record>;
+    type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let text = match self.iter.next()? {
@@ -297,11 +297,11 @@ impl Fastq for Record {
     }
 
     #[inline(always)]
-    fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fastq<T: Write>(&self, writer: &mut T) -> Result<()> {
         record_to_fastq(writer, self)
     }
 
-    fn from_fastq<T: BufRead>(reader: &mut T) -> ResultType<Self> {
+    fn from_fastq<T: BufRead>(reader: &mut T) -> Result<Self> {
         record_from_fastq(reader)
     }
 }
@@ -313,34 +313,34 @@ impl Fastq for RecordList {
     }
 
     #[inline(always)]
-    fn to_fastq<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fastq<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_fastq(writer, self.iter())
     }
 
     #[inline(always)]
-    fn from_fastq<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+    fn from_fastq<T: BufRead>(reader: &mut T) -> Result<RecordList> {
         iterator_from_fastq(reader).collect()
     }
 }
 
 impl FastqCollection for RecordList {
     #[inline(always)]
-    fn to_fastq_strict<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fastq_strict<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_fastq_strict(writer, self.iter())
     }
 
     #[inline(always)]
-    fn to_fastq_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()> {
+    fn to_fastq_lenient<T: Write>(&self, writer: &mut T) -> Result<()> {
         reference_iterator_to_fastq_lenient(writer, self.iter())
     }
 
     #[inline(always)]
-    fn from_fastq_strict<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+    fn from_fastq_strict<T: BufRead>(reader: &mut T) -> Result<RecordList> {
         iterator_from_fastq_strict(reader).collect()
     }
 
     #[inline(always)]
-    fn from_fastq_lenient<T: BufRead>(reader: &mut T) -> ResultType<RecordList> {
+    fn from_fastq_lenient<T: BufRead>(reader: &mut T) -> Result<RecordList> {
         Ok(iterator_from_fastq_lenient(reader).filter_map(Result::ok).collect())
     }
 }
@@ -360,13 +360,13 @@ mod tests {
 
         let s = "@tag desc\nCATTAG\n+tag desc\n;;;;;;\n@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;";
         let i = FastqIter::new(Cursor::new(s));
-        let r: ResultType<Vec<String>> = i.collect();
+        let r: Result<Vec<String>> = i.collect();
         assert_eq!(r.unwrap(), &["@tag desc\nCATTAG\n+tag desc\n;;;;;;\n", "@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;"]);
 
         // Check iterator over empty string.
         let s = "";
         let i = FastqIter::new(Cursor::new(s));
-        let r: ResultType<Vec<String>> = i.collect();
+        let r: Result<Vec<String>> = i.collect();
         assert_eq!(r.unwrap(), Vec::<String>::new());
     }
 

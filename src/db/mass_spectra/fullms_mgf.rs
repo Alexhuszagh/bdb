@@ -1,5 +1,6 @@
 //! Utilities to load and save Pava FullMS MGF files.
 
+use std::cmp::Ordering;
 use std::io::prelude::*;
 use std::io::Lines;
 
@@ -27,14 +28,14 @@ pub(crate) fn estimate_fullms_mgf_record_size(record: &Record) -> usize {
 
 #[inline(always)]
 fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     record_to_fullms_mgf(writer, record)
 }
 
 #[inline(always)]
 fn export_scan<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let num = record.num.ntoa()?;
     write_alls!(writer, b"Scan#: ", num.as_bytes(), b"\n")?;
@@ -44,7 +45,7 @@ fn export_scan<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn export_rt<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     let rt = record.rt.ntoa()?;
     write_alls!(writer, b"Ret.Time: ", rt.as_bytes(), b"\n")?;
@@ -53,32 +54,38 @@ fn export_rt<T: Write>(writer: &mut T, record: &Record)
 }
 
 #[inline(always)]
-#[allow(unused)]    // TODO(ahuszagh)   Remove...
-fn export_basepeak_mz<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+fn export_basepeak<T: Write>(writer: &mut T, record: &Record)
+    -> Result<()>
 {
-    // TODO(ahuszagh)   Implement...
-//    let rt = record.rt.ntoa()?;
-//    write_alls!(writer, b"Ret.Time: ", rt.as_bytes(), b"\n")?;
+    // Custom total-ordering comparison for floats.
+    #[inline(always)]
+    fn cmp(x: f64, y: f64) -> Ordering {
+        if x.is_nan() || x < y { Ordering::Less } else { Ordering::Greater }
+    }
 
-    Ok(())
-}
-
-#[inline(always)]
-#[allow(unused)]    // TODO(ahuszagh)   Remove...
-fn export_basepeak_intensity<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
-{
-    // TODO(ahuszagh)   Implement...
-//    let rt = record.rt.ntoa()?;
-//    write_alls!(writer, b"Ret.Time: ", rt.as_bytes(), b"\n")?;
+    // Export the basepeak m/z and intensity, which is the m/z
+    // and intensity for the **most intense** peak in the peaklist.
+    if record.peaks.is_empty() {
+        write_alls!(writer, b"BasePeakMass: 0.0\nBasePeakIntensity: 0.0\n")?;
+    } else {
+        let iter = record.peaks.iter();
+        let max = iter.max_by(|x, y| cmp(x.intensity, y.intensity)).unwrap();
+        let mz = max.mz.ntoa()?;
+        let intensity = max.intensity.ntoa()?;
+        write_alls!(
+            writer,
+            b"BasePeakMass: ", mz.as_bytes(),
+            b"\nBasePeakIntensity: ", intensity.as_bytes(),
+            b"\n"
+        )?;
+    }
 
     Ok(())
 }
 
 #[inline(always)]
 fn export_spectra<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     for peak in record.peaks.iter() {
         let mz = peak.mz.ntoa()?;
@@ -91,14 +98,13 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
 
 /// Export record to Pava FullMS MGF.
 pub(crate) fn record_to_fullms_mgf<T: Write>(writer: &mut T, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     export_scan(writer, record)?;
     export_rt(writer, record)?;
     // Export null values,since we don't store this information.
     writer.write_all(b"IonInjectionTime(ms): 0.0\nTotalIonCurrent: 0\n")?;
-    export_basepeak_mz(writer, record)?;
-    export_basepeak_intensity(writer, record)?;
+    export_basepeak(writer, record)?;
     export_spectra(writer, record)?;
     writer.write_all(b"\n\n")?;
 
@@ -109,21 +115,21 @@ pub(crate) fn record_to_fullms_mgf<T: Write>(writer: &mut T, record: &Record)
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: &mut T, delimiter: u8)
-    -> ResultType<TextWriterState<T>>
+    -> Result<TextWriterState<T>>
 {
     Ok(TextWriterState::new(writer, delimiter))
 }
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut TextWriterState<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     writer.export(record, &to_mgf)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     Ok(())
 }
@@ -131,7 +137,7 @@ fn dest_cb<T: Write>(_: &mut TextWriterState<T>)
 /// Default exporter from a non-owning iterator to Pava FullMS MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_fullms_mgf<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -141,9 +147,9 @@ pub(crate) fn reference_iterator_to_fullms_mgf<'a, Iter, T>(writer: &mut T, iter
 /// Default exporter from an owning iterator to Pava FullMS MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_fullms_mgf<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -153,7 +159,7 @@ pub(crate) fn value_iterator_to_fullms_mgf<Iter, T>(writer: &mut T, iter: Iter)
 /// Strict exporter from a non-owning iterator to Pava FullMS MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_fullms_mgf_strict<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -163,9 +169,9 @@ pub(crate) fn reference_iterator_to_fullms_mgf_strict<'a, Iter, T>(writer: &mut 
 /// Strict exporter from an owning iterator to Pava FullMS MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_fullms_mgf_strict<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -175,7 +181,7 @@ pub(crate) fn value_iterator_to_fullms_mgf_strict<Iter, T>(writer: &mut T, iter:
 /// Lenient exporter from a non-owning iterator to Pava FullMS MGF.
 #[inline(always)]
 pub(crate) fn reference_iterator_to_fullms_mgf_lenient<'a, Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -185,9 +191,9 @@ pub(crate) fn reference_iterator_to_fullms_mgf_lenient<'a, Iter, T>(writer: &mut
 /// Lenient exporter from an owning iterator to Pava FullMS MGF.
 #[inline(always)]
 pub(crate) fn value_iterator_to_fullms_mgf_lenient<Iter, T>(writer: &mut T, iter: Iter)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, b'\n', &init_cb, &export_cb, &dest_cb)
 }
@@ -197,7 +203,7 @@ pub(crate) fn value_iterator_to_fullms_mgf_lenient<Iter, T>(writer: &mut T, iter
 /// Parse the title header line.
 #[inline(always)]
 fn parse_scan_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Scan = FullMsMgfScanRegex;
 
@@ -214,7 +220,7 @@ fn parse_scan_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 /// Parse the RT header line.
 #[inline(always)]
 fn parse_rt_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     type Rt = FullMsMgfRtRegex;
 
@@ -231,7 +237,7 @@ fn parse_rt_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 /// Parse the ion injection time line.
 #[inline(always)]
 fn parse_ion_injection_time_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Verify the ion injection time line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
@@ -243,7 +249,7 @@ fn parse_ion_injection_time_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Recor
 /// Parse the total ion current line.
 #[inline(always)]
 fn parse_total_ion_current_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Verify the total ion current line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
@@ -255,7 +261,7 @@ fn parse_total_ion_current_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record
 /// Parse the basepeak mass line.
 #[inline(always)]
 fn parse_basepeak_mass_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Verify the basepeak mass line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
@@ -267,7 +273,7 @@ fn parse_basepeak_mass_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
 /// Parse the basepeak intensity line.
 #[inline(always)]
 fn parse_basepeak_intensity_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Verify the basepeak intensity line.
     let line = none_to_error!(lines.next(), InvalidInput)?;
@@ -279,7 +285,7 @@ fn parse_basepeak_intensity_line<T: BufRead>(lines: &mut Lines<T>, _: &mut Recor
 /// Parse the charge header line.
 #[inline(always)]
 fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     for result in lines {
         let line = result?;
@@ -305,7 +311,7 @@ fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
 
 /// Import record from MGF.
 pub(crate) fn record_from_fullms_mgf<T: BufRead>(reader: &mut T)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     let mut lines = reader.lines();
     let mut record = Record::with_peak_capacity(50);

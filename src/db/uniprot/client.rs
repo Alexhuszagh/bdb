@@ -3,7 +3,7 @@
 use reqwest::{self, Response};
 use url;
 
-use util::{ErrorType, ResultType};
+use util::Result;
 use super::csv::CsvRecordIter;
 
 /// Host URL for the UniProt KB domain and path.
@@ -13,13 +13,13 @@ const HOST: &str = "https://www.uniprot.org:443/uniprot/";
 const DELIMITER: &str = " OR ";
 
 /// Return type to iteratively produce records.
-type IteratorType = CsvRecordIter<Response>;
+type RecordIterator = CsvRecordIter<Response>;
 
 /// Request UniProt records by accession number.
 ///
 /// * `ids` - Single accession number (eg. P46406).
 #[inline(always)]
-pub fn by_id(id: &str) -> ResultType<IteratorType> {
+pub fn by_id(id: &str) -> Result<RecordIterator> {
     by_id_impl(id)
 }
 
@@ -27,7 +27,7 @@ pub fn by_id(id: &str) -> ResultType<IteratorType> {
 ///
 /// * `ids` - Slice of accession numbers (eg. [P46406]).
 #[inline(always)]
-pub fn by_id_list(ids: &[&str]) -> ResultType<IteratorType> {
+pub fn by_id_list(ids: &[&str]) -> Result<RecordIterator> {
     by_id_impl(&ids.join(DELIMITER))
 }
 
@@ -35,7 +35,7 @@ pub fn by_id_list(ids: &[&str]) -> ResultType<IteratorType> {
 ///
 /// * `mnemonic` - Single mnemonic (eg. G3P_RABBIT).
 #[inline(always)]
-pub fn by_mnemonic(mnemonic: &str) -> ResultType<IteratorType> {
+pub fn by_mnemonic(mnemonic: &str) -> Result<RecordIterator> {
     by_mnemonic_impl(mnemonic)
 }
 
@@ -43,7 +43,7 @@ pub fn by_mnemonic(mnemonic: &str) -> ResultType<IteratorType> {
 ///
 /// * `mnemonics` - Slice of mnemonics (eg. [G3P_RABBIT]).
 #[inline(always)]
-pub fn by_mnemonic_list(mnemonics: &[&str]) -> ResultType<IteratorType> {
+pub fn by_mnemonic_list(mnemonics: &[&str]) -> Result<RecordIterator> {
     by_mnemonic_impl(&mnemonics.join(DELIMITER))
 }
 
@@ -52,18 +52,18 @@ pub fn by_mnemonic_list(mnemonics: &[&str]) -> ResultType<IteratorType> {
 
 /// Helper function for requesting by accession number.
 #[inline(always)]
-fn by_id_impl(param: &str) -> ResultType<IteratorType> {
+fn by_id_impl(param: &str) -> Result<RecordIterator> {
     call(&format!("id:{}", param))
 }
 
 /// Helper function for requesting by mnemonic.
 #[inline(always)]
-fn by_mnemonic_impl(param: &str) -> ResultType<IteratorType> {
+fn by_mnemonic_impl(param: &str) -> Result<RecordIterator> {
     call(&format!("mnemonic:{}", param))
 }
 
 // Helper function for calling the UniProt KB service.
-fn call(query: &str) -> ResultType<IteratorType> {
+fn call(query: &str) -> Result<RecordIterator> {
     // create our url with form-encoded parameters
     let params = url::form_urlencoded::Serializer::new(String::new())
         .append_pair("sort", "score")
@@ -75,9 +75,7 @@ fn call(query: &str) -> ResultType<IteratorType> {
         .append_pair("columns", "version(sequence),existence,mass,length,genes(PREFERRED),id,entry name,protein names,organism,proteome,sequence,organism-id,reviewed")
         .finish();
     let url = format!("{}?{}", HOST, params);
-    let response = reqwest::get(&url).map_err(|e| {
-        Box::new(e) as ErrorType
-    })?;
+    let response = reqwest::get(&url)?;
 
     Ok(CsvRecordIter::new(response, b'\t'))
 }
@@ -135,7 +133,7 @@ mod tests {
     #[ignore]
     fn by_id_list_test() {
         let ids = ["P46406", "P02769"];
-        let result: ResultType<RecordList> = by_id_list(&ids).unwrap().collect();
+        let result: Result<RecordList> = by_id_list(&ids).unwrap().collect();
         let mut list = result.unwrap();
         list.sort();        // Ensure we get a stable ordering
 
@@ -156,7 +154,7 @@ mod tests {
     #[ignore]
     fn by_mnemonic_list_test() {
         let mnemonics = ["G3P_RABIT", "ALBU_BOVIN"];
-        let result: ResultType<RecordList> = by_mnemonic_list(&mnemonics).unwrap().collect();
+        let result: Result<RecordList> = by_mnemonic_list(&mnemonics).unwrap().collect();
         let mut list = result.unwrap();
         list.sort();        // Ensure we get a stable ordering
 

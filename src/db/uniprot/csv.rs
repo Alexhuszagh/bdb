@@ -5,7 +5,8 @@ use digit_group::FormatGroup;
 use std::collections::BTreeMap;
 use std::io::prelude::*;
 
-use bio::proteins::{AverageMass, ProteinMass};
+use bio::SequenceMass;
+use bio::proteins::AverageMass;
 use traits::*;
 use util::*;
 use super::evidence::ProteinEvidence;
@@ -74,7 +75,7 @@ const CSV_HEADER: [&'static str; 13] = [
 
 /// Convert a record to an array of strings for CSV serialization.
 fn to_csv<T: Write>(writer: &mut csv::Writer<T>, record: &Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     // Export values with the thousands separator.
     let sv = nonzero_to_commas!(record.sequence_version);
@@ -140,7 +141,7 @@ type CsvIterResult = Option<csv::Result<csv::StringRecord>>;
 
 /// Helper function to parse the header from a record iterator.
 fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
-    -> ResultType<()>
+    -> Result<()>
 {
     let row = none_to_error!(opt, InvalidInput)?;
 
@@ -170,7 +171,7 @@ fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
 
 /// Helper function to return the next `Record` from the CSV iterator.
 fn next(opt: CsvIterResult, map: &RecordFieldIndex)
-    -> Option<ResultType<Record>>
+    -> Option<Result<Record>>
 {
     // Get the next record, and short-circuit if None or an Error.
     let row = match opt? {
@@ -234,7 +235,7 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
 
     // fix the mass if not present
     if record.mass == 0 && !record.sequence.is_empty() {
-        let mass = AverageMass::protein_sequence_mass(record.sequence.as_slice());
+        let mass = AverageMass::total_sequence_mass(record.sequence.as_slice());
         record.mass = mass.round() as u64;
     }
 
@@ -277,7 +278,7 @@ fn estimate_list_size(list: &RecordList) -> usize {
 
 /// Export record to CSV.
 pub fn record_to_csv<T: Write>(writer: &mut T, record: &Record, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
 {
     let mut writer = new_writer(writer, delimiter);
     writer.write_record(&CSV_HEADER)?;
@@ -289,7 +290,7 @@ pub fn record_to_csv<T: Write>(writer: &mut T, record: &Record, delimiter: u8)
 
 #[inline(always)]
 fn init_cb<T: Write>(writer: T, delimiter: u8)
-    -> ResultType<csv::Writer<T>>
+    -> Result<csv::Writer<T>>
 {
     let mut writer = new_writer(writer, delimiter);
     writer.write_record(&CSV_HEADER)?;
@@ -298,14 +299,14 @@ fn init_cb<T: Write>(writer: T, delimiter: u8)
 
 #[inline(always)]
 fn export_cb<'a, T: Write>(writer: &mut csv::Writer<T>, record: &'a Record)
-    -> ResultType<()>
+    -> Result<()>
 {
     to_csv(writer, record)
 }
 
 #[inline(always)]
 fn dest_cb<T: Write>(_: &mut csv::Writer<T>)
-    -> ResultType<()>
+    -> Result<()>
 {
     Ok(())
 }
@@ -313,7 +314,7 @@ fn dest_cb<T: Write>(_: &mut csv::Writer<T>)
 /// Default export from a non-owning iterator to CSV.
 #[inline(always)]
 pub fn reference_iterator_to_csv<'a, Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -323,9 +324,9 @@ pub fn reference_iterator_to_csv<'a, Iter, T>(writer: &mut T, iter: Iter, delimi
 /// Default exporter from an owning iterator to FASTA.
 #[inline(always)]
 pub fn value_iterator_to_csv<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
@@ -335,7 +336,7 @@ pub fn value_iterator_to_csv<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
 /// Strict export from a non-owning iterator to CSV.
 #[inline(always)]
 pub fn reference_iterator_to_csv_strict<'a, Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -345,9 +346,9 @@ pub fn reference_iterator_to_csv_strict<'a, Iter, T>(writer: &mut T, iter: Iter,
 /// Strict exporter from an owning iterator to FASTA.
 #[inline(always)]
 pub fn value_iterator_to_csv_strict<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_strict(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
@@ -357,7 +358,7 @@ pub fn value_iterator_to_csv_strict<Iter, T>(writer: &mut T, iter: Iter, delimit
 /// Lenient export from a non-owning iterator to CSV.
 #[inline(always)]
 pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
           Iter: Iterator<Item = &'a Record>
 {
@@ -367,9 +368,9 @@ pub fn reference_iterator_to_csv_lenient<'a, Iter, T>(writer: &mut T, iter: Iter
 /// Lenient exporter from an owning iterator to FASTA.
 #[inline(always)]
 pub fn value_iterator_to_csv_lenient<Iter, T>(writer: &mut T, iter: Iter, delimiter: u8)
-    -> ResultType<()>
+    -> Result<()>
     where T: Write,
-          Iter: Iterator<Item = ResultType<Record>>
+          Iter: Iterator<Item = Result<Record>>
 {
     value_iterator_export_lenient(writer, iter, delimiter, &init_cb, &export_cb, &dest_cb)
 }
@@ -379,7 +380,7 @@ pub fn value_iterator_to_csv_lenient<Iter, T>(writer: &mut T, iter: Iter, delimi
 /// Import record from CSV.
 #[inline(always)]
 pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
-    -> ResultType<Record>
+    -> Result<Record>
 {
     Ok(none_to_error!(iterator_from_csv(reader, delimiter).next(), InvalidInput)?)
 }
@@ -406,7 +407,7 @@ impl<T: Read> CsvRecordIter<T> {
 
     /// Parse the header to determine the fields for the map.
     #[inline]
-    fn parse_header(&mut self) -> ResultType<()> {
+    fn parse_header(&mut self) -> Result<()> {
         // Do not set `has_map` until the headers are parsed.
         parse_header(self.iter.next(), &mut self.map)?;
         self.has_map = true;
@@ -415,7 +416,7 @@ impl<T: Read> CsvRecordIter<T> {
 }
 
 impl<T: Read> Iterator for CsvRecordIter<T> {
-    type Item = ResultType<Record>;
+    type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Parse headers if they have not already been parsed
@@ -466,12 +467,12 @@ impl Csv for Record {
     }
 
     #[inline(always)]
-    fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+    fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> Result<()> {
         record_to_csv(writer, self, delimiter)
     }
 
     #[inline(always)]
-    fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<Self> {
+    fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> Result<Self> {
         record_from_csv(reader, delimiter)
     }
 }
@@ -483,34 +484,34 @@ impl Csv for RecordList {
     }
 
     #[inline(always)]
-    fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+    fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> Result<()> {
         reference_iterator_to_csv(writer, self.iter(), delimiter)
     }
 
     #[inline(always)]
-    fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
+    fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> Result<RecordList> {
         iterator_from_csv(reader, delimiter).collect()
     }
 }
 
 impl CsvCollection for RecordList {
     #[inline(always)]
-    fn to_csv_strict<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+    fn to_csv_strict<T: Write>(&self, writer: &mut T, delimiter: u8) -> Result<()> {
         reference_iterator_to_csv_strict(writer, self.iter(), delimiter)
     }
 
     #[inline(always)]
-    fn to_csv_lenient<T: Write>(&self, writer: &mut T, delimiter: u8) -> ResultType<()> {
+    fn to_csv_lenient<T: Write>(&self, writer: &mut T, delimiter: u8) -> Result<()> {
         reference_iterator_to_csv_lenient(writer, self.iter(), delimiter)
     }
 
     #[inline(always)]
-    fn from_csv_strict<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
+    fn from_csv_strict<T: Read>(reader: &mut T, delimiter: u8) -> Result<RecordList> {
         iterator_from_csv_strict(reader, delimiter).collect()
     }
 
     #[inline(always)]
-    fn from_csv_lenient<T: Read>(reader: &mut T, delimiter: u8) -> ResultType<RecordList> {
+    fn from_csv_lenient<T: Read>(reader: &mut T, delimiter: u8) -> Result<RecordList> {
         Ok(iterator_from_csv_lenient(reader, delimiter).filter_map(Result::ok).collect())
     }
 }
@@ -594,7 +595,7 @@ mod tests {
 
         // record iterator -- default
         let iter = CsvRecordIter::new(Cursor::new(text), b'\t');
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // Compile check only
@@ -602,7 +603,7 @@ mod tests {
 
         // record iterator -- strict
         let iter = iterator_from_csv_strict(Cursor::new(text), b'\t');
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // Compile check only
@@ -610,7 +611,7 @@ mod tests {
 
         // record iterator -- lenient
         let iter = iterator_from_csv_lenient(Cursor::new(text), b'\t');
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // Compile check only
@@ -623,18 +624,18 @@ mod tests {
 
         // record iterator -- default
         let iter = iterator_from_csv(Cursor::new(text), b'\t');
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         let v = v.unwrap();
         assert_eq!(expected1, v);
 
         // record iterator -- strict
         let iter = iterator_from_csv_strict(Cursor::new(text), b'\t');
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert!(v.is_err());
 
         // record iterator -- lenient
         let iter = iterator_from_csv_lenient(Cursor::new(text), b'\t');
-        let v: ResultType<RecordList> = iter.collect();
+        let v: Result<RecordList> = iter.collect();
         assert_eq!(expected2, v.unwrap());
     }
 }

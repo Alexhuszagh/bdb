@@ -1,7 +1,7 @@
 use ref_slice::ref_slice;
 use std::io::Write;
 
-use super::alias::{ResultType};
+use super::alias::Result;
 
 // WRITER STATE
 
@@ -27,8 +27,8 @@ impl<'r, T: 'r + Write> TextWriterState<'r, T> {
 
     /// Export record to FASTA.
     pub fn export<'a, Value, Callback>(&mut self, value: &'a Value, callback: &Callback)
-        -> ResultType<()>
-        where Callback: Fn(&mut T, &'a Value) -> ResultType<()>
+        -> Result<()>
+        where Callback: Fn(&mut T, &'a Value) -> Result<()>
     {
         if self.previous {
             self.writer.write_all(ref_slice(&self.delimiter))?;

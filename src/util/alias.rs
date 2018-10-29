@@ -1,12 +1,10 @@
 //! Shared aliases.
 
-use std::error::Error as StdError;
+use super::error::Error;
+use std::result::Result as StdResult;
 
 /// General buffer type.
-pub type BufferType = Vec<u8>;
-
-/// General error type.
-pub type ErrorType = Box<StdError>;
+pub type Buffer = Vec<u8>;
 
 /// General result type.
-pub type ResultType<T> = Result<T, ErrorType>;
+pub type Result<T> = StdResult<T, Error>;

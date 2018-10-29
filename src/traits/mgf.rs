@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::ResultType;
+use util::Result;
 
 /// Identifier for the MGF file format type.
 ///
@@ -58,34 +58,31 @@ pub trait Mgf: Sized {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
+    fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()>;
 
     /// Export model to MGF string.
-    fn to_mgf_string(&self, kind: MgfKind) -> ResultType<String> {
+    fn to_mgf_string(&self, kind: MgfKind) -> Result<String> {
         let capacity = self.estimate_mgf_size(kind);
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_mgf(&mut writer, kind)?;
-        match String::from_utf8(writer.into_inner()) {
-            Err(e)  => Err(Box::new(e)),
-            Ok(v)   => Ok(v),
-        }
+        Ok(String::from_utf8(writer.into_inner())?)
     }
 
     /// Export model to MGF output file.
     #[inline]
-    fn to_mgf_file<P: AsRef<Path>>(&self, path: P, kind: MgfKind) -> ResultType<()> {
+    fn to_mgf_file<P: AsRef<Path>>(&self, path: P, kind: MgfKind) -> Result<()> {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
         self.to_mgf(&mut writer, kind)
     }
 
     /// Import model from MGF.
-    fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self>;
+    fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<Self>;
 
     /// Import model from MGF string.
     #[inline]
-    fn from_mgf_string(text: &str, kind: MgfKind) -> ResultType<Self> {
+    fn from_mgf_string(text: &str, kind: MgfKind) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
         let mut reader = Cursor::new(text);
@@ -94,7 +91,7 @@ pub trait Mgf: Sized {
 
     /// Import model from MGF file.
     #[inline]
-    fn from_mgf_file<P: AsRef<Path>>(path: P, kind: MgfKind) -> ResultType<Self> {
+    fn from_mgf_file<P: AsRef<Path>>(path: P, kind: MgfKind) -> Result<Self> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         Self::from_mgf(&mut reader, kind)
@@ -110,7 +107,7 @@ pub trait MgfCollection: Mgf {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_mgf_strict<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
+    fn to_mgf_strict<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()>;
 
     /// Export collection to MGF.
     ///
@@ -119,17 +116,17 @@ pub trait MgfCollection: Mgf {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_mgf_lenient<T: Write>(&self, writer: &mut T, kind: MgfKind) -> ResultType<()>;
+    fn to_mgf_lenient<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()>;
 
     /// Import collection from MGF.
     ///
     /// Returns an error if any of the items within the MGF document
     /// are invalid.
-    fn from_mgf_strict<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self>;
+    fn from_mgf_strict<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<Self>;
 
     /// Import collection from MGF.
     ///
     /// Returns only errors due to deserialization errors, otherwise,
     /// imports as many items as possible.
-    fn from_mgf_lenient<T: BufRead>(reader: &mut T, kind: MgfKind) -> ResultType<Self>;
+    fn from_mgf_lenient<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<Self>;
 }

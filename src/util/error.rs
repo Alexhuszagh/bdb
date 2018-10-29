@@ -3,18 +3,23 @@
 use std::error::Error as StdError;
 use std::io;
 use std::fmt;
+use std::num::ParseFloatError;
 use std::num::ParseIntError;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
+#[cfg(feature = "csv")]
+use csv::Error as CsvError;
+
+#[cfg(feature = "http")]
+use reqwest::Error as HttpError;
+
 #[cfg(feature = "xml")]
 use quick_xml::Error as XmlError;
 
-use util::ErrorType;
-
 // TYPE
 
-/// Error type.
+/// Enumerated error type during BDB error handling.
 #[derive(Debug)]
 pub enum ErrorKind {
     // ENUMERATION
@@ -32,16 +37,31 @@ pub enum ErrorKind {
     /// Deserializer fails due to invalid or empty input data.
     InvalidInput,
     /// Deserializer fails because the FASTA type is not recognized.
-    InvalidFastaType,
+    InvalidFastaFormat,
     /// Deserializer fails because of an unexpected EOF.
     UnexpectedEof,
 
     // INHERITED
+    /// Inherited `io::Error`.
     Io(io::Error),
+    /// Inherited `Utf8Error`.
     Utf8(Utf8Error),
+    /// Inherited `FromUtf8Error`.
     FromUtf8(FromUtf8Error),
+    /// Inherited `ParseIntError`.
     ParseInt(ParseIntError),
+    /// Inherited `ParseFloatError`.
+    ParseFloat(ParseFloatError),
 
+    /// Inherited `csv::Error`.
+    #[cfg(feature = "csv")]
+    Csv(CsvError),
+
+    /// Inherited `reqwest::Error`.
+    #[cfg(feature = "http")]
+    Http(HttpError),
+
+    /// Inherited `quick_xml::Error`.
     #[cfg(feature = "xml")]
     Xml(XmlError),
 }
@@ -66,9 +86,29 @@ impl From<FromUtf8Error> for Error {
     }
 }
 
+impl From<ParseFloatError> for Error {
+    fn from(err: ParseFloatError) -> Self {
+        Error(ErrorKind::ParseFloat(err))
+    }
+}
+
 impl From<ParseIntError> for Error {
     fn from(err: ParseIntError) -> Self {
         Error(ErrorKind::ParseInt(err))
+    }
+}
+
+#[cfg(feature = "csv")]
+impl From<CsvError> for Error {
+    fn from(err: CsvError) -> Self {
+        Error(ErrorKind::Csv(err))
+    }
+}
+
+#[cfg(feature = "http")]
+impl From<HttpError> for Error {
+    fn from(err: HttpError) -> Self {
+        Error(ErrorKind::Http(err))
     }
 }
 
@@ -85,15 +125,9 @@ impl From<ErrorKind> for Error {
     }
 }
 
-impl From<ErrorKind> for ErrorType {
-    fn from(kind: ErrorKind) -> Self {
-        Box::new(Error(kind))
-    }
-}
-
 // ERROR
 
-/// Custom error for UniProt-related tasks.
+/// Custom error for BDB-related tasks.
 ///
 /// Errors may occur during serializing/deserializing data, as well
 /// as over network and file I/O.
@@ -133,7 +167,7 @@ impl StdError for Error {
             ErrorKind::InvalidInput => {
                 "invalid input data, cannot read data"
             },
-            ErrorKind::InvalidFastaType => {
+            ErrorKind::InvalidFastaFormat => {
                 "invalid FASTA type, cannot read data"
             },
             ErrorKind::UnexpectedEof => {
@@ -144,7 +178,14 @@ impl StdError for Error {
             ErrorKind::Io(ref err) => err.description(),
             ErrorKind::Utf8(ref err) => err.description(),
             ErrorKind::FromUtf8(ref err) => err.description(),
+            ErrorKind::ParseFloat(ref err) => err.description(),
             ErrorKind::ParseInt(ref err) => err.description(),
+
+            #[cfg(feature = "csv")]
+            ErrorKind::Csv(ref err) => err.description(),
+
+            #[cfg(feature = "http")]
+            ErrorKind::Http(ref err) => err.description(),
 
             #[cfg(feature = "xml")]
             ErrorKind::Xml(ref err) => match err {
@@ -170,7 +211,14 @@ impl StdError for Error {
             ErrorKind::Io(ref err) => Some(err),
             ErrorKind::Utf8(ref err) => Some(err),
             ErrorKind::FromUtf8(ref err) => Some(err),
+            ErrorKind::ParseFloat(ref err) => Some(err),
             ErrorKind::ParseInt(ref err) => Some(err),
+
+            #[cfg(feature = "csv")]
+            ErrorKind::Csv(ref err) => err.cause(),
+
+            #[cfg(feature = "http")]
+            ErrorKind::Http(ref err) => err.cause(),
 
             #[cfg(feature = "xml")]
             ErrorKind::Xml(ref err) => match err {

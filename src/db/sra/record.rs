@@ -39,7 +39,7 @@ mod tests {
     use super::super::test::*;
 
     #[test]
-    fn debug_record() {
+    fn debug_record_test() {
         let text = format!("{:?}", srr390728_2());
         assert_eq!(text, "Record { seq_id: \"SRR390728.2\", description: \"2\", length: 72, sequence: [65, 65, 71, 84, 65, 71, 71, 84, 67, 84, 67, 71, 84, 67, 84, 71, 84, 71, 84, 84, 84, 84, 67, 84, 65, 67, 71, 65, 71, 67, 84, 84, 71, 84, 71, 84, 84, 67, 67, 65, 71, 67, 84, 71, 65, 67, 67, 67, 65, 67, 84, 67, 67, 67, 84, 71, 71, 71, 84, 71, 71, 71, 71, 71, 71, 65, 67, 84, 71, 71, 71, 84], quality: [59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 52, 59, 59, 59, 59, 51, 59, 51, 57, 51, 46, 49, 43, 52, 38, 38, 53, 38, 38, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 60, 57, 59, 60, 59, 59, 59, 59, 59, 52, 54, 52, 50, 54, 50] }");
 
@@ -48,7 +48,7 @@ mod tests {
     }
 
     #[test]
-    fn equality_record() {
+    fn equality_record_test() {
         let x = srr390728_2();
         let y = srr390728_2();
         let z = srr390728_3();
@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn properties_record() {
+    fn properties_record_test() {
         // test various permutations that can lead to
         // invalid or incomplete identifications
         let g1 = srr390728_2();

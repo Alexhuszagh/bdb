@@ -12,7 +12,7 @@ mod reader {
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
 use std::io::BufRead;
-use super::super::alias::{BufferType, ResultType};
+use super::super::alias::{Buffer, Result};
 use super::super::error::ErrorKind;
 
 /// Macro to seek another element within the tree.
@@ -80,8 +80,8 @@ impl<T: BufRead> XmlState<T> {
     /// the depth will always be asymmetric for start and end nodes.
     /// Start nodes will always be the same as the end node + 1.
     #[inline]
-    pub fn read_event<'a>(&mut self, buffer: &'a mut BufferType)
-        -> ResultType<Event<'a>>
+    pub fn read_event<'a>(&mut self, buffer: &'a mut Buffer)
+        -> Result<Event<'a>>
     {
         match self.reader.read_event(buffer) {
             Ok(Event::Start(e)) => {
@@ -107,8 +107,8 @@ impl<T: BufRead> XmlState<T> {
 
     /// Read until the corresponding end element.
     #[inline]
-    pub fn read_to_end(&mut self, buffer: &mut BufferType, name: &[u8])
-        -> ResultType<BufferType>
+    pub fn read_to_end(&mut self, buffer: &mut Buffer, name: &[u8])
+        -> Result<Buffer>
     {
         match self.reader.read_to_end(name, buffer) {
             Err(e) => return Err(From::from(ErrorKind::Xml(e))),
@@ -122,8 +122,8 @@ impl<T: BufRead> XmlState<T> {
 
     /// Read text between the start and end element.
     #[inline]
-    pub fn read_text(&mut self, buffer: &mut BufferType, name: &[u8])
-        -> ResultType<String>
+    pub fn read_text(&mut self, buffer: &mut Buffer, name: &[u8])
+        -> Result<String>
     {
         let result = match self.reader.read_text(name, buffer) {
             Err(e) => Err(From::from(ErrorKind::Xml(e))),
@@ -152,14 +152,14 @@ impl<T: BufRead> XmlState<T> {
     /// Implied function to process a callback on a start element.
     fn seek_start_callback_impl<State, Callback>(
         &mut self,
-        buffer: &mut BufferType,
+        buffer: &mut Buffer,
         name: &[u8],
         depth: usize,
         state: &mut State,
         callback: Callback
     )
-        -> Option<ResultType<bool>>
-        where Callback: Fn(BytesStart, &mut State) -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
+        where Callback: Fn(BytesStart, &mut State) -> Option<Result<bool>>
     {
         loop {
             match self.read_event(buffer) {
@@ -181,14 +181,14 @@ impl<T: BufRead> XmlState<T> {
     /// Seek start element event and process event with callback.
     pub fn seek_start_callback<State, Callback>(
         &mut self,
-        buffer: &mut BufferType,
+        buffer: &mut Buffer,
         name: &[u8],
         depth: usize,
         state: &mut State,
         callback: Callback
     )
-        -> Option<ResultType<bool>>
-        where Callback: Fn(BytesStart, &mut State) -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
+        where Callback: Fn(BytesStart, &mut State) -> Option<Result<bool>>
     {
         let result = self.seek_start_callback_impl(buffer,name, depth,state, callback);
         buffer.clear();
@@ -200,16 +200,16 @@ impl<T: BufRead> XmlState<T> {
     /// Does not sufficiently clear necessary buffers, and therefore
     /// must be wrapped in another caller.
     #[inline]
-    fn seek_start_impl(&mut self, buffer: &mut BufferType, name: &[u8], depth: usize)
-        -> Option<ResultType<()>>
+    fn seek_start_impl(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+        -> Option<Result<()>>
     {
         xml_seek!(Start, self, buffer, name, depth)
     }
 
     /// Seek start element based off name and depth.
     #[inline]
-    pub fn seek_start(&mut self, buffer: &mut BufferType, name: &[u8], depth: usize)
-        -> Option<ResultType<()>>
+    pub fn seek_start(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+        -> Option<Result<()>>
     {
         let result = self.seek_start_impl(buffer,name, depth);
         buffer.clear();
@@ -221,16 +221,16 @@ impl<T: BufRead> XmlState<T> {
     /// Does not sufficiently clear necessary buffers, and therefore
     /// must be wrapped in another caller.
     #[inline]
-    fn seek_end_impl(&mut self, buffer: &mut BufferType, name: &[u8], depth: usize)
-        -> Option<ResultType<()>>
+    fn seek_end_impl(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+        -> Option<Result<()>>
     {
         xml_seek!(End, self, buffer, name, depth)
     }
 
     /// Seek end element based off name and depth.
     #[inline]
-    pub fn seek_end(&mut self, buffer: &mut BufferType, name: &[u8], depth: usize)
-        -> Option<ResultType<()>>
+    pub fn seek_end(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+        -> Option<Result<()>>
     {
         let result = self.seek_end_impl(buffer,name, depth);
         buffer.clear();
@@ -240,13 +240,13 @@ impl<T: BufRead> XmlState<T> {
     /// Implied function to seek a start element or fail if another is found.
     fn seek_start_or_fallback_impl(
         &mut self,
-        buffer: &mut BufferType,
+        buffer: &mut Buffer,
         name1: &[u8],
         depth1: usize,
         name2: &[u8],
         depth2: usize,
     )
-        -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
     {
         loop {
             match self.read_event(buffer) {
@@ -271,13 +271,13 @@ impl<T: BufRead> XmlState<T> {
     #[inline]
     pub fn seek_start_or_fallback(
         &mut self,
-        buffer: &mut BufferType,
+        buffer: &mut Buffer,
         name1: &[u8],
         depth1: usize,
         name2: &[u8],
         depth2: usize,
     )
-        -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
     {
         let result = self.seek_start_or_fallback_impl(buffer, name1, depth1, name2, depth2);
         buffer.clear();
@@ -290,7 +290,7 @@ pub struct XmlReader<T: BufRead> {
     /// Stored state for the reader.
     state: XmlState<T>,
     /// Buffer tied to XML events.
-    buffer: BufferType,
+    buffer: Buffer,
 }
 
 impl<T: BufRead> XmlReader<T> {
@@ -299,7 +299,7 @@ impl<T: BufRead> XmlReader<T> {
     pub fn new(reader: T) -> Self {
         XmlReader {
             state: XmlState::new(reader),
-            buffer: BufferType::with_capacity(8000),
+            buffer: Buffer::with_capacity(8000),
         }
     }
 
@@ -308,7 +308,7 @@ impl<T: BufRead> XmlReader<T> {
     /// You must clear the buffer after this.
     #[inline(always)]
     #[allow(dead_code)]
-    pub fn read_event(&mut self) -> ResultType<Event> {
+    pub fn read_event(&mut self) -> Result<Event> {
         self.state.read_event(&mut self.buffer)
     }
 
@@ -322,13 +322,13 @@ impl<T: BufRead> XmlReader<T> {
     /// Read until the matching XML end element.
     #[inline(always)]
     #[allow(dead_code)]
-    pub fn read_to_end(&mut self, name: &[u8]) -> ResultType<BufferType> {
+    pub fn read_to_end(&mut self, name: &[u8]) -> Result<Buffer> {
         self.state.read_to_end(&mut self.buffer, name)
     }
 
     /// Read text between the start and end element.
     #[inline(always)]
-    pub fn read_text(&mut self, name: &[u8]) -> ResultType<String> {
+    pub fn read_text(&mut self, name: &[u8]) -> Result<String> {
         self.state.read_text(&mut self.buffer, name)
     }
 
@@ -355,8 +355,8 @@ impl<T: BufRead> XmlReader<T> {
         state: &mut State,
         callback: Callback
     )
-        -> Option<ResultType<bool>>
-        where Callback: Fn(BytesStart, &mut State) -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
+        where Callback: Fn(BytesStart, &mut State) -> Option<Result<bool>>
     {
         self.state.seek_start_callback(&mut self.buffer, name, depth, state, callback)
     }
@@ -370,8 +370,8 @@ impl<T: BufRead> XmlReader<T> {
         state: &mut State,
         callback: Callback
     )
-        -> Option<ResultType<bool>>
-        where Callback: Fn(BytesStart, &mut State) -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
+        where Callback: Fn(BytesStart, &mut State) -> Option<Result<bool>>
     {
         self.seek_start_callback(name, usize::max_value(), state, callback)
     }
@@ -385,8 +385,8 @@ impl<T: BufRead> XmlReader<T> {
         state: &mut State,
         callback: Callback
     )
-        -> Option<ResultType<bool>>
-        where Callback: Fn(BytesStart, &mut State) -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
+        where Callback: Fn(BytesStart, &mut State) -> Option<Result<bool>>
     {
         self.seek_start_callback(b"", depth, state, callback)
     }
@@ -394,41 +394,41 @@ impl<T: BufRead> XmlReader<T> {
     /// Seek start element based off name and depth.
     #[inline(always)]
     #[allow(dead_code)]
-    pub fn seek_start(&mut self, name: &[u8], depth: usize) -> Option<ResultType<()>> {
+    pub fn seek_start(&mut self, name: &[u8], depth: usize) -> Option<Result<()>> {
         self.state.seek_start(&mut self.buffer, name, depth)
     }
 
     /// Seek start element based off name.
     #[inline(always)]
     #[allow(dead_code)]
-    pub fn seek_start_name(&mut self, name: &[u8]) -> Option<ResultType<()>> {
+    pub fn seek_start_name(&mut self, name: &[u8]) -> Option<Result<()>> {
         self.seek_start(name, usize::max_value())
     }
 
     /// Seek start element based off depth.
     #[inline(always)]
     #[allow(dead_code)]
-    pub fn seek_start_depth(&mut self, depth: usize) -> Option<ResultType<()>> {
+    pub fn seek_start_depth(&mut self, depth: usize) -> Option<Result<()>> {
         self.seek_start(b"", depth)
     }
 
     /// Seek end element based off name and depth.
     #[inline(always)]
-    pub fn seek_end(&mut self, name: &[u8], depth: usize) -> Option<ResultType<()>> {
+    pub fn seek_end(&mut self, name: &[u8], depth: usize) -> Option<Result<()>> {
         self.state.seek_end(&mut self.buffer, name, depth)
     }
 
     /// Seek end element based off name.
     #[inline]
     #[allow(dead_code)]
-    pub fn seek_end_name(&mut self, name: &[u8]) -> Option<ResultType<()>> {
+    pub fn seek_end_name(&mut self, name: &[u8]) -> Option<Result<()>> {
         self.seek_end(name, usize::max_value())
     }
 
     /// Seek end element based off depth.
     #[inline]
     #[allow(dead_code)]
-    pub fn seek_end_depth(&mut self, depth: usize) -> Option<ResultType<()>> {
+    pub fn seek_end_depth(&mut self, depth: usize) -> Option<Result<()>> {
         self.seek_end(b"", depth)
     }
 
@@ -447,7 +447,7 @@ impl<T: BufRead> XmlReader<T> {
         name2: &[u8],
         depth2: usize,
     )
-        -> Option<ResultType<bool>>
+        -> Option<Result<bool>>
     {
         self.state.seek_start_or_fallback(&mut self.buffer, name1, depth1, name2, depth2)
     }
@@ -463,7 +463,7 @@ use quick_xml::Writer;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use std::io::Write;
 
-use super::super::alias::ResultType;
+use super::super::alias::Result;
 use super::super::error::ErrorKind;
 
 /// Public API for the XML writer.
@@ -508,7 +508,7 @@ impl<T: Write> XmlWriter<T> {
 
     /// Process a write event.
     #[inline(always)]
-    fn write_event(&mut self, event: Event) -> ResultType<()> {
+    fn write_event(&mut self, event: Event) -> Result<()> {
         match self.writer.write_event(event) {
             Err(e)  => Err(From::from(ErrorKind::Xml(e))),
             _       => Ok(()),
@@ -517,7 +517,7 @@ impl<T: Write> XmlWriter<T> {
 
     /// Write the XML declaration.
     #[inline(always)]
-    pub fn write_declaration(&mut self) -> ResultType<()> {
+    pub fn write_declaration(&mut self) -> Result<()> {
         let decl = BytesDecl::new(b"1.0", Some(b"UTF-8"), None);
         self.write_event(Event::Decl(decl))
     }
@@ -525,7 +525,7 @@ impl<T: Write> XmlWriter<T> {
     /// Write start element.
     #[inline(always)]
     pub fn write_start_element(&mut self, name: &[u8], attributes: &[(&[u8], &[u8])])
-        -> ResultType<()>
+        -> Result<()>
     {
         let mut elem = Self::new_start_element(name);
         for attribute in attributes {
@@ -536,7 +536,7 @@ impl<T: Write> XmlWriter<T> {
 
     /// Write text element (with start and end elements).
     pub fn write_text_element(&mut self, name: &[u8], text: &[u8], attributes: &[(&[u8], &[u8])])
-        -> ResultType<()>
+        -> Result<()>
     {
         self.write_start_element(name, attributes)?;
         self.write_event(Event::Text(Self::new_text_element(text)))?;
@@ -546,7 +546,7 @@ impl<T: Write> XmlWriter<T> {
     /// Write start element.
     #[inline(always)]
     pub fn write_empty_element(&mut self, name: &[u8], attributes: &[(&[u8], &[u8])])
-        -> ResultType<()>
+        -> Result<()>
     {
         let mut elem = Self::new_start_element(name);
         for attribute in attributes {
@@ -558,7 +558,7 @@ impl<T: Write> XmlWriter<T> {
     /// Write start element.
     #[inline(always)]
     pub fn write_end_element(&mut self, name: &[u8])
-        -> ResultType<()>
+        -> Result<()>
     {
         self.write_event(Event::End(Self::new_end_element(name)))
     }

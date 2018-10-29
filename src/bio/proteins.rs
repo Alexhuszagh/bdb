@@ -1,53 +1,18 @@
 //! General purpose protein routines.
+//!
+//! Masses are valid for low-pH LC-MS.
+
+use super::mass::SequenceMass;
 
 /// Valid aminoacid 1-letter codes.
-pub static AMINOACIDS: &'static str = "ABCDEFGHIJKLMNPQRSTVWXYZ";
-
-/// Calculate aminoacid and protein sequence masses.
-///
-/// Different biological application depend on different assumptions for
-/// mass calculations, some assuming average isotope composition and
-/// some assuming the sole presence of monoisotopic species.
-///
-/// Calculating monoisotopic species uses a high-accuracy mass of the
-/// most prevalent (and lowest mass) isotope of a given element.
-/// The average mass calculates the mass of an element by summing the mass
-/// of each isotope multiplied each isotope's abundance.
-pub trait ProteinMass {
-    /// Calculate the mass of water.
-    fn water_mass() -> f64;
-
-    /// Calculate the mass of an aminoacid residue.
-    fn residue_mass(residue: u8) -> f64;
-
-    /// Calculate the mass of an aminoacid with N- and C-termini.
-    #[inline(always)]
-    fn aminoacid_mass(residue: u8) -> f64 {
-        Self::residue_mass(residue) + Self::water_mass()
-    }
-
-    /// Calculate the mass of a protein sequence.
-    #[inline]
-    fn internal_sequence_mass(sequence: &[u8]) -> f64 {
-        sequence.iter().fold(0.0, |sum, x| sum + Self::residue_mass(*x))
-    }
-
-    /// Calculate the mass of a protein sequence with N- or C-termini.
-    #[inline(always)]
-    fn protein_sequence_mass(sequence: &[u8]) -> f64 {
-        Self::internal_sequence_mass(sequence) + Self::water_mass()
-    }
-}
-
-// IMPLEMENTATIONS
-// ---------------
+pub const MONOMERS: &'static str = "ABCDEFGHIJKLMNPQRSTVWXYZ";
 
 /// Calculate protein mass using only high-resolution masses from monoisotopic elements.
 pub struct MonoisotopicMass;
 
-impl ProteinMass for MonoisotopicMass {
+impl SequenceMass for MonoisotopicMass {
     #[inline(always)]
-    fn water_mass() -> f64 {
+    fn termini_mass() -> f64 {
         18.0105646942
     }
 
@@ -108,9 +73,9 @@ impl ProteinMass for MonoisotopicMass {
 /// Calculate protein mass using only low-resolution masses from average isotopic compositions.
 pub struct AverageMass;
 
-impl ProteinMass for AverageMass {
+impl SequenceMass for AverageMass {
     #[inline(always)]
-    fn water_mass() -> f64 {
+    fn termini_mass() -> f64 {
         18.015
     }
 
@@ -176,69 +141,69 @@ mod tests {
 
     // AMINOACID
 
-    fn _one_letter_mass<T: ProteinMass>() {
+    fn one_letter_mass<T: SequenceMass>() {
         // shorthand for `to_ascii_lowercase`
         let lower = | a: u8 | a.to_ascii_lowercase();
 
         // check all uppercase and lowercase items are identical
-        for a in AMINOACIDS.bytes() {
+        for a in MONOMERS.bytes() {
             assert_eq!(T::residue_mass(a), T::residue_mass(lower(a)));
-            assert_eq!(T::aminoacid_mass(a), T::aminoacid_mass(lower(a)));
+            assert_eq!(T::monomer_mass(a), T::monomer_mass(lower(a)));
         }
     }
 
     #[test]
-    fn one_letter_mass() {
+    fn one_letter_mass_test() {
         pub type A = AverageMass;
         pub type M = MonoisotopicMass;
 
         // check approximate monoisotopic masses
         // average to monoisotopic should be within 0.2
-        for a in AMINOACIDS.bytes() {
+        for a in MONOMERS.bytes() {
             assert_approx_eq!(A::residue_mass(a), M::residue_mass(a), 0.2);
         }
 
-        _one_letter_mass::<MonoisotopicMass>();
-        _one_letter_mass::<AverageMass>();
+        one_letter_mass::<MonoisotopicMass>();
+        one_letter_mass::<AverageMass>();
     }
 
     // SEQUENCE
 
     #[test]
-    fn sequence_mass_average() {
+    fn sequence_mass_average_test() {
         // use common sequences to check whether the aminoacid masses
         // are correct values
         pub type T = AverageMass;
 
         let peptide = b"SAMPLER";
         assert_approx_eq!(T::internal_sequence_mass(peptide), 784.9238,    0.001);
-        assert_approx_eq!(T::protein_sequence_mass(peptide),  802.9388,    0.001);
+        assert_approx_eq!(T::total_sequence_mass(peptide),  802.9388,    0.001);
 
         let peptide = b"TGPNLHGLFGR";
         assert_approx_eq!(T::internal_sequence_mass(peptide), 1150.2897,   0.001);
-        assert_approx_eq!(T::protein_sequence_mass(peptide),  1168.3047,   0.001);
+        assert_approx_eq!(T::total_sequence_mass(peptide),  1168.3047,   0.001);
 
         let peptide = b"ACDEFGHIKLMNPQRSTUVWY";
         assert_approx_eq!(T::internal_sequence_mass(peptide), 2527.7364,   0.001);
-        assert_approx_eq!(T::protein_sequence_mass(peptide),  2545.7514,   0.001);
+        assert_approx_eq!(T::total_sequence_mass(peptide),  2545.7514,   0.001);
     }
 
     #[test]
-    fn sequence_mass_monoisotopic() {
+    fn sequence_mass_monoisotopic_test() {
         // use common sequences to check whether the aminoacid masses
         // are correct values
         pub type T = MonoisotopicMass;
 
         let peptide = b"SAMPLER";
         assert_approx_eq!(T::internal_sequence_mass(peptide), 784.39016,    0.001);
-        assert_approx_eq!(T::protein_sequence_mass(peptide),  802.4007,     0.001);
+        assert_approx_eq!(T::total_sequence_mass(peptide),  802.4007,     0.001);
 
         let peptide = b"TGPNLHGLFGR";
         assert_approx_eq!(T::internal_sequence_mass(peptide), 1149.60433,   0.001);
-        assert_approx_eq!(T::protein_sequence_mass(peptide),  1167.61489,   0.001);
+        assert_approx_eq!(T::total_sequence_mass(peptide),  1167.61489,   0.001);
 
         let peptide = b"ACDEFGHIKLMNPQRSTUVWY";
         assert_approx_eq!(T::internal_sequence_mass(peptide), 2527.067977,  0.001);
-        assert_approx_eq!(T::protein_sequence_mass(peptide),  2545.0785414, 0.001);
+        assert_approx_eq!(T::total_sequence_mass(peptide),  2545.0785414, 0.001);
     }
 }

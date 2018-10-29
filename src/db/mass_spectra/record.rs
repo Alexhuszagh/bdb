@@ -72,17 +72,18 @@ impl Record {
 
 #[cfg(test)]
 mod tests {
-//    use super::*;
+    use traits::*;
+    use super::*;
     use super::super::test::*;
 
     #[test]
-    fn debug_record() {
+    fn debug_record_test() {
         let text = format!("{:?}", mgf_empty());
         assert_eq!(text, "Record { num: 33450, ms_level: 0, rt: 8692.0, parent_mz: 775.15625, parent_intensity: 170643.953125, parent_z: 4, file: \"QPvivo_2015_11_10_1targetmethod\", filter: \"\", peaks: [], parent: [], children: [] }");
     }
 
     #[test]
-    fn equality_record() {
+    fn equality_record_test() {
         let x = mgf_33450();
         let y = mgf_33450();
         let z = mgf_empty();
@@ -91,5 +92,54 @@ mod tests {
         assert_ne!(y, z);
     }
 
-    // TODO(ahuszagh)   Add more unittests...
+    #[test]
+    fn properties_record_test() {
+        // test various permutations that can lead to
+        // invalid or incomplete identifications
+        let r1 = mgf_33450();
+        let mut r2 = r1.clone();
+        assert!(r2.is_valid());
+        assert!(!r2.is_complete());
+
+        // check keeping the protein valid but make it incomplete
+        r2.file = String::new();
+        assert!(r2.is_valid());
+        assert!(!r2.is_complete());
+        r2.file = r1.file.clone();
+
+        // make it invalid
+        r2.num = 0;
+        assert!(!r2.is_valid());
+        assert!(!r2.is_complete());
+        r2.num = r1.num;
+
+        r2.rt = 0.0;
+        assert!(!r2.is_valid());
+        assert!(!r2.is_complete());
+        r2.rt = r1.rt;
+    }
+
+    #[cfg(feature = "mgf")]
+    fn mgf_record_test(r: Record, text: &str, kind: MgfKind) {
+        let x = r.to_mgf_string(kind).unwrap();
+        assert_eq!(x, text);
+        let y = Record::from_mgf_string(&x, kind).unwrap();
+        assert_eq!(r, y);
+    }
+
+    #[cfg(feature = "mgf")]
+    #[test]
+    fn fullms_mgf_record_test() {
+        // sample scan
+        mgf_record_test(fullms_mgf_33450(), FULLMS_33450_MGF, MgfKind::FullMs);
+        mgf_record_test(mgf_33450(), MSCONVERT_33450_MGF, MgfKind::MsConvert);
+        mgf_record_test(mgf_33450(), PAVA_33450_MGF, MgfKind::Pava);
+        mgf_record_test(mgf_33450(), PWIZ_33450_MGF, MgfKind::Pwiz);
+
+        // empty scan
+        mgf_record_test(fullms_mgf_empty(), FULLMS_EMPTY_MGF, MgfKind::FullMs);
+        mgf_record_test(mgf_empty(), MSCONVERT_EMPTY_MGF, MgfKind::MsConvert);
+        mgf_record_test(mgf_empty(), PAVA_EMPTY_MGF, MgfKind::Pava);
+        mgf_record_test(mgf_empty(), PWIZ_EMPTY_MGF, MgfKind::Pwiz);
+    }
 }

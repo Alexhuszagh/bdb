@@ -36,9 +36,9 @@ macro_rules! binary_choice {
 ///
 /// # Examples
 ///
-/// ```rust,text
+/// ```
 /// # #[macro_use] extern crate bdb;
-/// # use bdb::util::Ntoa;
+/// # use bdb::traits::Ntoa;
 /// # pub fn main() {
 /// assert_eq!(nonzero_to_string!(0 as i32), "");
 /// assert_eq!(nonzero_to_string!(1 as i32), "1");
@@ -61,9 +61,9 @@ macro_rules! nonzero_to_string {
 ///
 /// # Examples
 ///
-/// ```rust,text
+/// ```
 /// # #[macro_use] extern crate bdb;
-/// # use bdb::util::Ntoa;
+/// # use bdb::traits::Ntoa;
 /// # pub fn main() {
 /// assert_eq!(nonzero_float_to_string!(0.0 as f32), "");
 /// assert_eq!(nonzero_float_to_string!(1.2 as f32), "1.2");

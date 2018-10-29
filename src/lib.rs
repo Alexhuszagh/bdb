@@ -43,3 +43,6 @@ pub mod bio;
 pub mod db;
 pub mod io;
 pub mod traits;
+
+// Re-export utility traits that should be shared.
+pub use util::{Error, ErrorKind, Result};

@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::ResultType;
+use util::Result;
 
 /// Serialize to and from FASTA.
 ///
@@ -29,34 +29,31 @@ pub trait Fasta: Sized {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_fasta<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+    fn to_fasta<T: Write>(&self, writer: &mut T) -> Result<()>;
 
     /// Export model to FASTA string.
-    fn to_fasta_string(&self) -> ResultType<String> {
+    fn to_fasta_string(&self) -> Result<String> {
         let capacity = self.estimate_fasta_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_fasta(&mut writer)?;
-        match String::from_utf8(writer.into_inner()) {
-            Err(e)  => Err(Box::new(e)),
-            Ok(v)   => Ok(v),
-        }
+        Ok(String::from_utf8(writer.into_inner())?)
     }
 
     /// Export model to FASTA output file.
     #[inline]
-    fn to_fasta_file<P: AsRef<Path>>(&self, path: P) -> ResultType<()> {
+    fn to_fasta_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
         self.to_fasta(&mut writer)
     }
 
     /// Import model from FASTA.
-    fn from_fasta<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+    fn from_fasta<T: BufRead>(reader: &mut T) -> Result<Self>;
 
     /// Import model from FASTA string.
     #[inline]
-    fn from_fasta_string(text: &str) -> ResultType<Self> {
+    fn from_fasta_string(text: &str) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
         let mut reader = Cursor::new(text);
@@ -65,7 +62,7 @@ pub trait Fasta: Sized {
 
     /// Import model from FASTA file.
     #[inline]
-    fn from_fasta_file<P: AsRef<Path>>(path: P) -> ResultType<Self> {
+    fn from_fasta_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         Self::from_fasta(&mut reader)
@@ -81,7 +78,7 @@ pub trait FastaCollection: Fasta {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+    fn to_fasta_strict<T: Write>(&self, writer: &mut T) -> Result<()>;
 
     /// Export collection to FASTA.
     ///
@@ -90,17 +87,17 @@ pub trait FastaCollection: Fasta {
     ///
     /// Note that many small writers are made to the writer, so the writer
     /// should be buffered.
-    fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> ResultType<()>;
+    fn to_fasta_lenient<T: Write>(&self, writer: &mut T) -> Result<()>;
 
     /// Import collection from FASTA.
     ///
     /// Returns an error if any of the items within the FASTA document
     /// are invalid.
-    fn from_fasta_strict<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+    fn from_fasta_strict<T: BufRead>(reader: &mut T) -> Result<Self>;
 
     /// Import collection from FASTA.
     ///
     /// Returns only errors due to deserialization errors, otherwise,
     /// imports as many items as possible.
-    fn from_fasta_lenient<T: BufRead>(reader: &mut T) -> ResultType<Self>;
+    fn from_fasta_lenient<T: BufRead>(reader: &mut T) -> Result<Self>;
 }

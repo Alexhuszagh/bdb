@@ -31,14 +31,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn debug_peak() {
+    fn debug_peak_test() {
         let peak = Peak { mz: 257.1, intensity: 457.5, z: 1 };
         let text = format!("{:?}", peak);
         assert_eq!(text, "Peak { mz: 257.1, intensity: 457.5, z: 1 }");
     }
 
     #[test]
-    fn equality_peak() {
+    fn equality_peak_test() {
         let x = Peak { mz: 257.1, intensity: 457.5, z: 1 };
         let y = Peak { mz: 257.1, intensity: 457.5, z: 1 };
         let z = Peak { mz: 257.1, intensity: 457.5, z: 2 };

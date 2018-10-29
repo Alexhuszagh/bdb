@@ -13,7 +13,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn debug_peak_list() {
+    fn debug_list_test() {
         let v = vec![
             Peak { mz: 257.5, intensity: 457.5, z: 1 },
             Peak { mz: 257.6, intensity: 742.2, z: 1 },
@@ -23,7 +23,7 @@ mod tests {
     }
 
     #[test]
-    fn equality_peak_list() {
+    fn equality_list_test() {
         let p1 = Peak { mz: 257.5, intensity: 457.5, z: 1 };
         let p2 = Peak { mz: 257.6, intensity: 742.2, z: 1 };
         let x = vec![p1.clone(), p2.clone()];
