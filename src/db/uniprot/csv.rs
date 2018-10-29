@@ -1,9 +1,9 @@
 //! Private implementations for tab-delimited text routines.
 
 use csv;
-use digit_group::FormatGroup;
 use std::collections::BTreeMap;
 use std::io::prelude::*;
+use std::str as stdstr;
 
 use bio::SequenceMass;
 use bio::proteins::AverageMass;
@@ -16,48 +16,48 @@ use super::record_list::RecordList;
 // SHARED
 
 /// Header `sequence_version`.
-const SEQUENCE_VERSION: &'static str = "Version (sequence)";
+const SEQUENCE_VERSION: &'static [u8] = b"Version (sequence)";
 
 /// Header `protein_evidence`.
-const PROTEIN_EVIDENCE: &'static str = "Protein existence";
+const PROTEIN_EVIDENCE: &'static [u8] = b"Protein existence";
 
 /// Header `mass`.
-const MASS: &'static str = "Mass";
+const MASS: &'static [u8] = b"Mass";
 
 /// Header `length`.
-const LENGTH: &'static str = "Length";
+const LENGTH: &'static [u8] = b"Length";
 
 /// Header `gene`.
-const GENE: &'static str = "Gene names  (primary )";
+const GENE: &'static [u8] = b"Gene names  (primary )";
 
 /// Header `id`.
-const ID: &'static str = "Entry";
+const ID: &'static [u8] = b"Entry";
 
 /// Header `mnemonic`.
-const MNEMONIC: &'static str = "Entry name";
+const MNEMONIC: &'static [u8] = b"Entry name";
 
 /// Header `name`.
-const NAME: &'static str = "Protein names";
+const NAME: &'static [u8] = b"Protein names";
 
 /// Header `organism`.
-const ORGANISM: &'static str = "Organism";
+const ORGANISM: &'static [u8] = b"Organism";
 
 /// Header `proteome`.
-const PROTEOME: &'static str = "Proteomes";
+const PROTEOME: &'static [u8] = b"Proteomes";
 
 /// Header `sequence`.
-const SEQUENCE: &'static str = "Sequence";
+const SEQUENCE: &'static [u8] = b"Sequence";
 
 /// Header `taxonomy`.
-const TAXONOMY: &'static str = "Organism ID";
+const TAXONOMY: &'static [u8] = b"Organism ID";
 
 /// Header `reviewed`.
-const REVIEWED: &'static str = "Status";
+const REVIEWED: &'static [u8] = b"Status";
 
 // TO CSV HELPERS
 
 //// Header columns for UniProt CSV export format.
-const CSV_HEADER: [&'static str; 13] = [
+const CSV_HEADER: [&'static [u8]; 13] = [
     SEQUENCE_VERSION,
     PROTEIN_EVIDENCE,
     MASS,
@@ -78,18 +78,18 @@ fn to_csv<T: Write>(writer: &mut csv::Writer<T>, record: &Record)
     -> Result<()>
 {
     // Export values with the thousands separator.
-    let sv = nonzero_to_commas!(record.sequence_version);
-    let mass = nonzero_to_commas!(record.mass);
-    let length = nonzero_to_commas!(record.length);
-    let reviewed = match record.reviewed {
-        true    => "reviewed",
-        false   => "unreviewed",
+    let sv = nonzero_to_comma_bytes(&record.sequence_version)?;
+    let mass = nonzero_to_comma_bytes(&record.mass)?;
+    let length = nonzero_to_comma_bytes(&record.length)?;
+    let reviewed: &'static [u8] = match record.reviewed {
+        true    => b"reviewed",
+        false   => b"unreviewed",
     };
     let array: [&[u8]; 13] = [
-        sv.as_bytes(),
-        record.protein_evidence.verbose().as_bytes(),
-        mass.as_bytes(),
-        length.as_bytes(),
+        sv.as_slice(),
+        record.protein_evidence.verbose_bytes(),
+        mass.as_slice(),
+        length.as_slice(),
         record.gene.as_bytes(),
         record.id.as_bytes(),
         record.mnemonic.as_bytes(),
@@ -98,7 +98,7 @@ fn to_csv<T: Write>(writer: &mut csv::Writer<T>, record: &Record)
         record.proteome.as_bytes(),
         record.sequence.as_slice(),
         record.taxonomy.as_bytes(),
-        reviewed.as_bytes(),
+        reviewed,
     ];
 
     match writer.write_record(&array) {
@@ -137,7 +137,7 @@ fn new_reader<T: Read>(reader: T, delimiter: u8)
 type RecordFieldIndex = BTreeMap<RecordField, usize>;
 
 /// Return type for the CSV `next()`.
-type CsvIterResult = Option<csv::Result<csv::StringRecord>>;
+type CsvIterResult = Option<csv::Result<csv::ByteRecord>>;
 
 /// Helper function to parse the header from a record iterator.
 fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
@@ -169,6 +169,40 @@ fn parse_header(opt: CsvIterResult, map: &mut RecordFieldIndex)
     Ok(())
 }
 
+/// Specialized macro to load a field from comma-separated text.
+macro_rules! load_from_commas {
+    ($value:ident, $t:ty) => (match nonzero_from_comma_bytes::<$t>($value) {
+        Err(e) => return Some(Err(From::from(e))),
+        Ok(v)  => v,
+    })
+}
+
+/// Specialized macro to handle errors while loading text from UTF-8.
+macro_rules! load_as_utf8 {
+    // We cannot guarantee the validity of the records! Be safe!
+    ($bytes:expr) => (match stdstr::from_utf8($bytes) {
+        Err(e)  => return Some(Err(From::from(e))),
+        Ok(v)   => String::from(v),
+    })
+}
+
+/// Specialized macro to load protein evidence.
+macro_rules! load_evidence {
+    ($bytes:expr) => (match ProteinEvidence::from_verbose_bytes($bytes) {
+        Err(e)  => return Some(Err(e)),
+        Ok(v)   => v,
+    })
+}
+
+/// Specialized macro to load protein reviewed status.
+macro_rules! load_reviewed {
+    ($bytes:expr) => (match $bytes {
+        b"reviewed"     => true,
+        b"unreviewed"   => false,
+        _               => return Some(Err(From::from(ErrorKind::InvalidEnumeration))),
+    })
+}
+
 /// Helper function to return the next `Record` from the CSV iterator.
 fn next(opt: CsvIterResult, map: &RecordFieldIndex)
     -> Option<Result<Record>>
@@ -185,51 +219,21 @@ fn next(opt: CsvIterResult, map: &RecordFieldIndex)
         // Just unwrap().
         let value = row.get(*index).expect("Invalid index, dead code...");
 
-        // match the key and diligently handle errors to percolate up
+        // Match the key and diligently handle errors to percolate up
         match key {
-            RecordField::SequenceVersion => {
-                match nonzero_from_commas!(value, u8) {
-                    Err(e)  => return Some(Err(From::from(e))),
-                    Ok(v)   => record.sequence_version = v,
-                }
-            },
-
-            RecordField::ProteinEvidence => {
-                match ProteinEvidence::from_verbose(value) {
-                    Err(e)  => return Some(Err(e)),
-                    Ok(v)   => record.protein_evidence = v,
-                }
-            }
-
-            RecordField::Mass => {
-                match nonzero_from_commas!(value, u64) {
-                    Err(e)  => return Some(Err(From::from(e))),
-                    Ok(v)   => record.mass = v,
-                }
-            },
-
-            RecordField::Length => {
-                match nonzero_from_commas!(value, u32) {
-                    Err(e)  => return Some(Err(From::from(e))),
-                    Ok(v)   => record.length = v,
-                }
-            },
-            RecordField::Gene     => record.gene = String::from(value),
-            RecordField::Id       => record.id = String::from(value),
-            RecordField::Mnemonic => record.mnemonic = String::from(value),
-            RecordField::Name     => record.name = String::from(value),
-            RecordField::Organism => record.organism = String::from(value),
-            RecordField::Proteome => record.proteome = String::from(value),
-            RecordField::Sequence => record.sequence = value.as_bytes().to_vec(),
-            RecordField::Taxonomy => record.taxonomy = String::from(value),
-
-            RecordField::Reviewed => {
-                match value {
-                    "reviewed"      => record.reviewed = true,
-                    "unreviewed"    => record.reviewed = false,
-                    _               => return Some(Err(From::from(ErrorKind::InvalidEnumeration))),
-                }
-            }
+            RecordField::SequenceVersion => record.sequence_version = load_from_commas!(value, u8),
+            RecordField::ProteinEvidence => record.protein_evidence = load_evidence!(value),
+            RecordField::Mass            => record.mass = load_from_commas!(value, u64),
+            RecordField::Length          => record.length = load_from_commas!(value, u32),
+            RecordField::Gene            => record.gene = load_as_utf8!(value),
+            RecordField::Id              => record.id = load_as_utf8!(value),
+            RecordField::Mnemonic        => record.mnemonic = load_as_utf8!(value),
+            RecordField::Name            => record.name = load_as_utf8!(value),
+            RecordField::Organism        => record.organism = load_as_utf8!(value),
+            RecordField::Proteome        => record.proteome = load_as_utf8!(value),
+            RecordField::Sequence        => record.sequence = value.to_vec(),
+            RecordField::Taxonomy        => record.taxonomy = load_as_utf8!(value),
+            RecordField::Reviewed        => record.reviewed = load_reviewed!(value),
         }
     }
 
@@ -390,7 +394,7 @@ pub fn record_from_csv<T: Read>(reader: &mut T, delimiter: u8)
 /// Iterator to lazily load `Record`s from a document.
 pub struct CsvRecordIter<T: Read> {
     map: RecordFieldIndex,
-    iter: csv::StringRecordsIntoIter<T>,
+    iter: csv::ByteRecordsIntoIter<T>,
     has_map: bool,
 }
 
@@ -400,7 +404,7 @@ impl<T: Read> CsvRecordIter<T> {
     pub fn new(reader: T, delimiter: u8) -> Self {
         CsvRecordIter {
             map: RecordFieldIndex::new(),
-            iter: new_reader(reader, delimiter).into_records(),
+            iter: new_reader(reader, delimiter).into_byte_records(),
             has_map: false,
         }
     }
@@ -543,17 +547,17 @@ mod tests {
         // reference -- default
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_csv(&mut w, v.iter(), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
         value_iterator_to_csv(&mut w, iterator_by_value!(v.iter()), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_csv_strict(&mut w, v.iter(), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
         let r = reference_iterator_to_csv_strict(&mut w, u.iter(), b'\t');
@@ -562,7 +566,7 @@ mod tests {
         // value -- strict
         let mut w = Cursor::new(vec![]);
         value_iterator_to_csv_strict(&mut w, iterator_by_value!(v.iter()), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
         let r = value_iterator_to_csv_strict(&mut w, iterator_by_value!(u.iter()), b'\t');
@@ -571,20 +575,20 @@ mod tests {
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_csv_lenient(&mut w, v.iter(), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_csv_lenient(&mut w, u.iter(), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
         value_iterator_to_csv_lenient(&mut w, iterator_by_value!(v.iter()), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
 
         let mut w = Cursor::new(vec![]);
         value_iterator_to_csv_lenient(&mut w, iterator_by_value!(u.iter()), b'\t').unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(w.into_inner(), GAPDH_BSA_CSV_TAB);
     }
 
     #[test]

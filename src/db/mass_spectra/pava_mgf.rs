@@ -38,11 +38,11 @@ fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
 fn export_title<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let num = record.num.ntoa()?;
-    let rt = format!("{:?}", record.rt);
+    let num = to_bytes(&record.num)?;
+    let rt = to_bytes(&record.rt)?;
     write_alls!(
         writer,
-        b"TITLE=Scan ", num.as_bytes(), b" (rt=", rt.as_bytes(),
+        b"TITLE=Scan ", num.as_slice(), b" (rt=", rt.as_slice(),
         b") [", record.file.as_bytes(), b"]\n"
     )?;
 
@@ -53,11 +53,11 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
 fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let parent_mz = record.parent_mz.ntoa()?;
-    write_alls!(writer, b"PEPMASS=", parent_mz.as_bytes())?;
+    let parent_mz = to_bytes(&record.parent_mz)?;
+    write_alls!(writer, b"PEPMASS=", parent_mz.as_slice())?;
     if record.parent_intensity != 0.0 {
-        let parent_intensity = record.parent_intensity.ntoa()?;
-        write_alls!(writer, b"\t", parent_intensity.as_bytes())?;
+        let parent_intensity = to_bytes(&record.parent_intensity)?;
+        write_alls!(writer, b"\t", parent_intensity.as_slice())?;
     }
     writer.write_all(b"\n")?;
 
@@ -70,12 +70,12 @@ fn export_charge<T: Write>(writer: &mut T, record: &Record)
 {
     writer.write_all(b"CHARGE=")?;
     if record.parent_z > 0 {
-        let parent_z = record.parent_z.ntoa()?;
-        write_alls!(writer, parent_z.as_bytes(), b"+")?;
+        let parent_z = to_bytes(&record.parent_z)?;
+        write_alls!(writer, parent_z.as_slice(), b"+")?;
     } else {
         let z = -record.parent_z;
-        let parent_z = z.ntoa()?;
-        write_alls!(writer, parent_z.as_bytes(), b"-")?;
+        let parent_z = to_bytes(&z)?;
+        write_alls!(writer, parent_z.as_slice(), b"-")?;
     }
     writer.write_all(b"\n")?;
 
@@ -87,8 +87,9 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
     for peak in record.peaks.iter() {
-        let text = format!("{:?}\t{:?}\n", peak.mz, peak.intensity);
-        writer.write_all(text.as_bytes())?;
+        let mz = to_bytes(&peak.mz)?;
+        let intensity = to_bytes(&peak.intensity)?;
+        write_alls!(writer, mz.as_slice(), b"\t", intensity.as_slice(), b"\n")?;
     }
 
     Ok(())
@@ -222,10 +223,10 @@ fn parse_title_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
     record.file = capture_as_string(&captures, Title::FILE_INDEX);
 
     let num = capture_as_str(&captures, Title::NUM_INDEX);
-    record.num = num.parse::<u32>()?;
+    record.num = from_string(num)?;
 
     let rt = capture_as_str(&captures, Title::RT_INDEX);
-    record.rt = rt.parse::<f64>()?;
+    record.rt = from_string(rt)?;
 
     Ok(())
 }
@@ -242,10 +243,10 @@ fn parse_pepmass_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
     let captures = none_to_error!(PepMass::extract().captures(&line), InvalidInput);
 
     let mz = capture_as_str(&captures, PepMass::PARENT_MZ_INDEX);
-    record.parent_mz = mz.parse::<f64>()?;
+    record.parent_mz = from_string(mz)?;
 
     let intensity = optional_capture_as_str(&captures, PepMass::PARENT_INTENSITY_INDEX);
-    record.parent_intensity = nonzero_float_from_string!(intensity, f64)?;
+    record.parent_intensity = nonzero_from_string(intensity)?;
 
     Ok(())
 }
@@ -260,7 +261,7 @@ fn parse_charge_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
     // Verify and parse the charge line
     let line = none_to_error!(lines.next(), InvalidInput)?;
     let captures = none_to_error!(Charge::extract().captures(&line), InvalidInput);
-    let z = capture_as_str(&captures, Charge::PARENT_Z_INDEX).parse::<i8>()?;
+    let z: i8 = from_string(capture_as_str(&captures, Charge::PARENT_Z_INDEX))?;
     let sign = capture_as_str(&captures, Charge::PARENT_Z_SIGN_INDEX);
     match sign {
         "-" => record.parent_z = -z,
@@ -290,16 +291,16 @@ fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
             if items.len() == 2 {
                 // mz, intensity
                 record.peaks.push(Peak {
-                    mz: items.get_unchecked(0).parse::<f64>()?,
-                    intensity: items.get_unchecked(1).parse::<f64>()?,
+                    mz: from_string(items.get_unchecked(0))?,
+                    intensity: from_string(items.get_unchecked(1))?,
                     z: 0
                 });
             } else if items.len() == 3 {
                 // mz, z, intensity
                 record.peaks.push(Peak {
-                    mz: items.get_unchecked(0).parse::<f64>()?,
-                    intensity: items.get_unchecked(2).parse::<f64>()?,
-                    z: items.get_unchecked(1).parse::<i8>()?
+                    mz: from_string(items.get_unchecked(0))?,
+                    intensity: from_string(items.get_unchecked(2))?,
+                    z: from_string(items.get_unchecked(1))?
                 });
             } else {
                 return Err(From::from(ErrorKind::InvalidInput));
@@ -334,5 +335,5 @@ pub(crate) fn record_from_pava_mgf<T: BufRead>(reader: &mut T)
 pub(crate) fn iterator_from_pava_mgf<T: BufRead>(reader: T)
     -> MgfRecordIter<T>
 {
-    MgfRecordIter::new(reader, "BEGIN IONS", MgfKind::Pava)
+    MgfRecordIter::new(reader, b"BEGIN IONS", MgfKind::Pava)
 }

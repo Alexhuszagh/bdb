@@ -1,7 +1,6 @@
 //! Helper utilities for MGF loading and saving.
 
 use std::io::prelude::*;
-use std::str as stdstr;
 
 use traits::*;
 use util::*;
@@ -20,43 +19,43 @@ use super::record_list::RecordList;
 /// from the document.
 pub struct MgfIter<T: BufRead> {
     reader: T,
-    start: &'static str,
-    buf: Buffer,
-    line: String,
+    start: &'static [u8],
+    buf: Bytes,
+    line: Bytes,
 }
 
 impl<T: BufRead> MgfIter<T> {
     /// Create new MgfIter from a buffered reader.
     #[inline]
-    pub fn new(reader: T, start: &'static str) -> Self {
+    pub fn new(reader: T, start: &'static [u8]) -> Self {
         MgfIter {
             reader: reader,
             start: start,
             buf: Vec::with_capacity(8000),
-            line: String::with_capacity(8000)
+            line: Bytes::with_capacity(8000)
         }
     }
 }
 
 impl<T: BufRead> Iterator for MgfIter<T> {
-    type Item = Result<String>;
+    type Item = Result<Bytes>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        text_next!(&mut self.reader, &mut self.buf, &mut self.line, unsafe {
-            if self.line == "\n" || self.line == "\r\n" || self.line.starts_with("MASS=") {
+        bytes_next!(&mut self.reader, &mut self.buf, &mut self.line, unsafe {
+            if self.line == b"\n" || self.line == b"\r\n" || self.line.starts_with(b"MASS=") {
                 // Ignore whitespace and lines with "Mass".
-                self.line.as_mut_vec().set_len(0);
+                self.line.set_len(0);
                 continue;
             } else if self.buf.len() > 0 && self.line.starts_with(self.start) {
                 // Create result from existing buffer,
                 // clear the existing buffer, and add
                 // the current line to a new buffer.
-                let result = buffer_to_string!(self.buf);
-                self.buf.append(self.line.as_mut_vec());
+                let result = clone_bytes!(self.buf);
+                self.buf.append(&mut self.line);
                 return result;
             } else {
                 // Move the line to the buffer.
-                self.buf.append(self.line.as_mut_vec());
+                self.buf.append(&mut self.line);
             }
         })
     }
@@ -219,7 +218,7 @@ pub struct MgfRecordIter<T: BufRead> {
 impl<T: BufRead> MgfRecordIter<T> {
     /// Create new MgfRecordIter from a buffered reader.
     #[inline]
-    pub fn new(reader: T, start: &'static str, kind: MgfKind) -> Self {
+    pub fn new(reader: T, start: &'static [u8], kind: MgfKind) -> Self {
         MgfRecordIter {
             iter: MgfIter::new(reader, start),
             kind: kind
@@ -231,13 +230,13 @@ impl<T: BufRead> Iterator for MgfRecordIter<T> {
     type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let text = match self.iter.next()? {
+        let bytes = match self.iter.next()? {
             Err(e)   => return Some(Err(e)),
-            Ok(text) => text,
+            Ok(bytes) => bytes,
 
         };
 
-        Some(Record::from_mgf_string(&text, self.kind))
+        Some(Record::from_mgf_bytes(&bytes, self.kind))
     }
 }
 
@@ -358,28 +357,28 @@ mod tests {
     #[test]
     fn mgf_iter_test() {
         // Check iterator over data.
-        let s = "BEGIN IONS\nT=A\nEND IONS\nBEGIN IONS\nT=B\nEND IONS\n";
-        let i = MgfIter::new(Cursor::new(s), "BEGIN IONS");
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["BEGIN IONS\nT=A\nEND IONS\n", "BEGIN IONS\nT=B\nEND IONS\n"]);
+        let s = b"BEGIN IONS\nT=A\nEND IONS\nBEGIN IONS\nT=B\nEND IONS\n".to_vec();
+        let i = MgfIter::new(Cursor::new(s), b"BEGIN IONS");
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), &[b"BEGIN IONS\nT=A\nEND IONS\n".to_vec(), b"BEGIN IONS\nT=B\nEND IONS\n".to_vec()]);
 
         // Check iterator over empty string.
-        let s = "";
-        let i = MgfIter::new(Cursor::new(s), "BEGIN IONS");
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), Vec::<String>::new());
+        let s = b"".to_vec();
+        let i = MgfIter::new(Cursor::new(s), b"BEGIN IONS");
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), Vec::<Bytes>::new());
 
         // Check iterator over different delimiter.
-        let s = "Scan#: 2182\n\n\nScan#: 2191\n\n\n";
-        let i = MgfIter::new(Cursor::new(s), "Scan#: ");
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["Scan#: 2182\n", "Scan#: 2191\n"]);
+        let s = b"Scan#: 2182\n\n\nScan#: 2191\n\n\n".to_vec();
+        let i = MgfIter::new(Cursor::new(s), b"Scan#: ");
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), &[b"Scan#: 2182\n".to_vec(), b"Scan#: 2191\n".to_vec()]);
 
         // Check iterator with mass.
-        let s = "MASS=Mono\nBEGIN IONS\nT=A\nEND IONS\nBEGIN IONS\nT=B\nEND IONS\n";
-        let i = MgfIter::new(Cursor::new(s), "BEGIN IONS");
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["BEGIN IONS\nT=A\nEND IONS\n", "BEGIN IONS\nT=B\nEND IONS\n"]);
+        let s = b"MASS=Mono\nBEGIN IONS\nT=A\nEND IONS\nBEGIN IONS\nT=B\nEND IONS\n".to_vec();
+        let i = MgfIter::new(Cursor::new(s), b"BEGIN IONS");
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), &[b"BEGIN IONS\nT=A\nEND IONS\n".to_vec(), b"BEGIN IONS\nT=B\nEND IONS\n".to_vec()]);
     }
 
     #[test]
@@ -407,24 +406,24 @@ mod tests {
         assert_eq!(estimate_list_size(&v, kind), 2087);
     }
 
-    fn iterator_to_mgf_test(kind: MgfKind, expected: &str) {
+    fn iterator_to_mgf_test(kind: MgfKind, expected: &[u8]) {
         let v = vec![mgf_33450()];
         let u = vec![mgf_33450(), mgf_empty()];
 
         // reference -- default
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf(&mut w, v.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         // value -- default
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf(&mut w, iterator_by_value!(v.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf_strict(&mut w, v.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         let mut w = Cursor::new(vec![]);
         let r = reference_iterator_to_mgf_strict(&mut w, u.iter(), kind);
@@ -433,7 +432,7 @@ mod tests {
         // value -- strict
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf_strict(&mut w, iterator_by_value!(v.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         let mut w = Cursor::new(vec![]);
         let r = value_iterator_to_mgf_strict(&mut w, iterator_by_value!(u.iter()), kind);
@@ -442,52 +441,52 @@ mod tests {
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf_lenient(&mut w, v.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_mgf_lenient(&mut w, u.iter(), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf_lenient(&mut w, iterator_by_value!(v.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
 
         let mut w = Cursor::new(vec![]);
         value_iterator_to_mgf_lenient(&mut w, iterator_by_value!(u.iter()), kind).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
+        assert_eq!(w.into_inner(), expected.to_vec());
     }
 
-    fn iterator_from_mgf_test_valid(kind: MgfKind, input: &str, expected: RecordList) {
+    fn iterator_from_mgf_test_valid(kind: MgfKind, input: &[u8], expected: RecordList) {
         // record iterator -- default
-        let iter = iterator_from_mgf(Cursor::new(input), kind);
+        let iter = iterator_from_mgf(Cursor::new(input.to_vec()), kind);
         let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- strict
-        let iter = iterator_from_mgf_strict(Cursor::new(input), kind);
+        let iter = iterator_from_mgf_strict(Cursor::new(input.to_vec()), kind);
         let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- lenient
-        let iter = iterator_from_mgf_lenient(Cursor::new(input), kind);
+        let iter = iterator_from_mgf_lenient(Cursor::new(input.to_vec()), kind);
         let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
     }
 
-    fn iterator_from_mgf_test_invalid(kind: MgfKind, input: &str, expected: RecordList) {
+    fn iterator_from_mgf_test_invalid(kind: MgfKind, input: &[u8], expected: RecordList) {
         // record iterator -- default
-        let iter = iterator_from_mgf(Cursor::new(input), kind);
+        let iter = iterator_from_mgf(Cursor::new(input.to_vec()), kind);
         let v: Result<RecordList> = iter.collect();
         assert_eq!(expected, v.unwrap());
 
         // record iterator -- strict
-        let iter = iterator_from_mgf_strict(Cursor::new(input), kind);
+        let iter = iterator_from_mgf_strict(Cursor::new(input.to_vec()), kind);
         let v: Result<RecordList> = iter.collect();
         assert!(v.is_err());
 
         // record iterator -- lenient
-        let iter = iterator_from_mgf_lenient(Cursor::new(input), kind);
+        let iter = iterator_from_mgf_lenient(Cursor::new(input.to_vec()), kind);
         let v: Result<RecordList> = iter.collect();
         assert_eq!(v.unwrap().len(), 0);
     }

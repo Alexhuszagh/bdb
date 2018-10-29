@@ -7,7 +7,6 @@
 
 use quick_xml::events::BytesStart;
 use std::io::prelude::*;
-use std::str as stdstr;
 
 use traits::*;
 use util::*;
@@ -73,26 +72,24 @@ macro_rules! parse_attribute {
     });
 }
 
-/// Macro to parse UTF8 from an attribute.
+/// Macro to process a buffer to UTF8.
 macro_rules! from_utf8 {
-    ($attribute:ident) => ({
-        match stdstr::from_utf8(&*$attribute.value) {
-            Err(e)  => return Some(Err(From::from(ErrorKind::Utf8(e)))),
-            Ok(v)   => v,
-        }
-    });
+    ($buf:expr) => (match String::from_utf8($buf) {
+        Err(e) => return Some(Err(From::from(ErrorKind::FromUtf8(e)))),
+        Ok(v)  => v,
+    })
 }
 
-/// Macro to parse an integer from a `str`.
+/// Macro to parse an integer from a `&[u8]`.
 macro_rules! parse_integer {
     ($s:expr) => ({
-        match $s.parse() {
+        match from_bytes($s) {
             Err(e)  => return Some(Err(From::from(e))),
             Ok(v)   => v,
         }
     });
     ($s:expr, $t:ty) => ({
-        match $s.parse::<$t>() {
+        match from_bytes::<$t>($s) {
             Err(e)  => return Some(Err(From::from(e))),
             Ok(v)   => v,
         }
@@ -156,7 +153,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
         match self.reader.read_text(b"accession") {
             Err(e)  => return Some(Err(e)),
-            Ok(v)   => record.id = v,
+            Ok(v)   => record.id = from_utf8!(v),
         }
 
         Some(Ok(()))
@@ -169,7 +166,7 @@ impl<T: BufRead> XmlRecordIter<T> {
 
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
-            Ok(v)   => record.mnemonic = v,
+            Ok(v)   => record.mnemonic = from_utf8!(v),
         }
 
         Some(Ok(()))
@@ -186,7 +183,7 @@ impl<T: BufRead> XmlRecordIter<T> {
         try_opterr!(self.reader.seek_start(b"fullName", 4));
         match self.reader.read_text(b"fullName") {
             Err(e)  => return Some(Err(e)),
-            Ok(v)   => record.name = v,
+            Ok(v)   => record.name = from_utf8!(v),
         }
 
         self.reader.seek_end(b"recommendedName", 3)
@@ -201,7 +198,7 @@ impl<T: BufRead> XmlRecordIter<T> {
         try_opterr!(self.reader.seek_start(b"fullName", 4));
         match self.reader.read_text(b"fullName") {
             Err(e)  => return Some(Err(e)),
-            Ok(v)   => record.name = v,
+            Ok(v)   => record.name = from_utf8!(v),
         }
 
         self.reader.seek_end(b"submittedName", 3)
@@ -221,7 +218,7 @@ impl<T: BufRead> XmlRecordIter<T> {
     fn read_gene_name(&mut self, record: &mut Record) -> Option<Result<()>> {
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
-            Ok(v)   => record.gene = v,
+            Ok(v)   => record.gene = from_utf8!(v),
         }
 
         Some(Ok(()))
@@ -278,10 +275,7 @@ impl<T: BufRead> XmlRecordIter<T> {
                     return Some(Ok(false));
                 } else if attribute.key == b"id" {
                     // Parse the taxonomic identifier.
-                    record.taxonomy = match String::from_utf8(attribute.value.to_vec()) {
-                        Err(e) => return Some(Err(From::from(ErrorKind::FromUtf8(e)))),
-                        Ok(v)  => v,
-                    };
+                    record.taxonomy = from_utf8!(attribute.value.to_vec());
                     return Some(Ok(true));
                 }
             }
@@ -300,7 +294,7 @@ impl<T: BufRead> XmlRecordIter<T> {
     fn read_organism_value(&mut self, record: &mut Record) -> Option<Result<()>> {
         match self.reader.read_text(b"name") {
             Err(e)  => return Some(Err(e)),
-            Ok(v)   => record.organism = v,
+            Ok(v)   => record.organism = from_utf8!(v),
         }
 
         Some(Ok(()))
@@ -385,10 +379,7 @@ impl<T: BufRead> XmlRecordIter<T> {
                     return Some(Ok(false));
                 } else if attribute.key == b"id" {
                      // Parse the taxonomic identifier.
-                    record.proteome = match String::from_utf8(attribute.value.to_vec()) {
-                        Err(e) => return Some(Err(From::from(ErrorKind::FromUtf8(e)))),
-                        Ok(v)  => v,
-                    };
+                    record.proteome = from_utf8!(attribute.value.to_vec());
                     return Some(Ok(true));
                 }
             }
@@ -419,8 +410,8 @@ impl<T: BufRead> XmlRecordIter<T> {
                 let attribute = parse_attribute!(result);
                 if attribute.key == b"type" {
                     // Parse the taxonomic identifier.
-                    let pe = from_utf8!(attribute);
-                    record.protein_evidence = match ProteinEvidence::from_xml_verbose(pe) {
+                    let pe: &[u8] = &*attribute.value;
+                    record.protein_evidence = match ProteinEvidence::from_xml_verbose_bytes(pe) {
                         Err(e) => return Some(Err(e)),
                         Ok(v)  => v,
                     };
@@ -448,11 +439,11 @@ impl<T: BufRead> XmlRecordIter<T> {
                 let attribute = parse_attribute!(result);
 
                 if attribute.key == b"length" {
-                    record.length = parse_integer!(from_utf8!(attribute));
+                    record.length = parse_integer!(&*attribute.value);
                 } else if attribute.key == b"mass" {
-                    record.mass = parse_integer!(from_utf8!(attribute));
+                    record.mass = parse_integer!(&*attribute.value);
                 } else if attribute.key == b"version" {
-                    record.sequence_version = parse_integer!(from_utf8!(attribute));
+                    record.sequence_version = parse_integer!(&*attribute.value);
                 }
             }
             Some(Ok(true))
@@ -466,7 +457,7 @@ impl<T: BufRead> XmlRecordIter<T> {
                     Err(e)  => Err(e),
                     Ok(v)   => {
                         let mut sequence = Vec::with_capacity(v.len());
-                        v.split("\n").for_each(|s| sequence.append(&mut s.as_bytes().to_vec()));
+                        v.split(|c| *c == b'\n').for_each(|s| sequence.extend(s));
                         record.sequence = sequence;
                         Ok(())
                     },
@@ -724,14 +715,14 @@ impl<T: Write> XmlUniProtWriter<T> {
     #[inline]
     fn write_sequence(&mut self, record: &Record) -> Result<()>
     {
-        let length = record.length.ntoa()?;
-        let mass = record.mass.ntoa()?;
-        let version = record.sequence_version.ntoa()?;
+        let length = to_bytes(&record.length)?;
+        let mass = to_bytes(&record.mass)?;
+        let version = to_bytes(&record.sequence_version)?;
 
         self.writer.write_text_element(b"sequence", record.sequence.as_slice(), &[
-            (b"length", length.as_bytes()),
-            (b"mass", mass.as_bytes()),
-            (b"version", version.as_bytes())
+            (b"length", length.as_slice()),
+            (b"mass", mass.as_slice()),
+            (b"version", version.as_slice())
         ])
     }
 
@@ -960,17 +951,17 @@ mod tests {
         // reference -- default
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_xml(&mut w, v.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
         value_iterator_to_xml(&mut w, iterator_by_value!(v.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_xml_strict(&mut w, v.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
         let r = reference_iterator_to_xml_strict(&mut w, u.iter());
@@ -979,7 +970,7 @@ mod tests {
         // value -- strict
         let mut w = Cursor::new(vec![]);
         value_iterator_to_xml_strict(&mut w, iterator_by_value!(v.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
         let r = value_iterator_to_xml_strict(&mut w, iterator_by_value!(u.iter()));
@@ -988,20 +979,20 @@ mod tests {
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_xml_lenient(&mut w, v.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_xml_lenient(&mut w, u.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
         value_iterator_to_xml_lenient(&mut w, iterator_by_value!(v.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
 
         let mut w = Cursor::new(vec![]);
         value_iterator_to_xml_lenient(&mut w, iterator_by_value!(u.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_XML);
+        assert_eq!(w.into_inner(), GAPDH_BSA_XML);
     }
 
     #[test]

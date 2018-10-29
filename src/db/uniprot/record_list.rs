@@ -15,7 +15,7 @@ mod tests {
     use std::path::PathBuf;
     use test::testdata_dir;
     use traits::*;
-    use util::Buffer;
+    use util::Bytes;
     use super::*;
     use super::super::test::*;
 
@@ -68,19 +68,19 @@ mod tests {
         let v: RecordList = vec![gapdh(), bsa()];
 
         // to_fasta (valid, 2 items)
-        let x = v.to_fasta_string().unwrap();
+        let x = v.to_fasta_bytes().unwrap();
         assert_eq!(x, GAPDH_BSA_FASTA);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_fasta_strict(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(buf, GAPDH_BSA_FASTA);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_fasta_lenient(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(buf, GAPDH_BSA_FASTA);
 
         // from_fasta (valid, 2 items)
-        let y = RecordList::from_fasta_string(&x).unwrap();
+        let y = RecordList::from_fasta_bytes(&x).unwrap();
         assert_eq!(y, RecordList::from_fasta_strict(&mut Cursor::new(&x)).unwrap());
         assert_eq!(y, RecordList::from_fasta_lenient(&mut Cursor::new(&x)).unwrap());
 
@@ -89,51 +89,51 @@ mod tests {
 
         // to_fasta (empty)
         let v: RecordList = vec![];
-        let x = v.to_fasta_string().unwrap();
-        assert_eq!(x, "");
+        let x = v.to_fasta_bytes().unwrap();
+        assert_eq!(x, b"".to_vec());
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_fasta_strict(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), "");
+        assert_eq!(buf, b"".to_vec());
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_fasta_lenient(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), "");
+        assert_eq!(buf, b"".to_vec());
 
         // from_fasta (empty)
-        let y = RecordList::from_fasta_string(&x).unwrap();
+        let y = RecordList::from_fasta_bytes(&x).unwrap();
         assert_eq!(y, RecordList::from_fasta_strict(&mut Cursor::new(&x)).unwrap());
         assert_eq!(y, RecordList::from_fasta_lenient(&mut Cursor::new(&x)).unwrap());
         assert_eq!(y.len(), 0);
 
         // to_fasta (1 empty)
         let v: RecordList = vec![Record::new()];
-        let x = v.to_fasta_string().unwrap();
+        let x = v.to_fasta_bytes().unwrap();
         assert_eq!(x, EMPTY_FASTA);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         assert!(v.to_fasta_strict(&mut Cursor::new(&mut buf)).is_err());
         assert!(v.to_fasta_lenient(&mut Cursor::new(&mut buf)).is_ok());
-        assert_eq!(String::from_utf8(buf).unwrap(), "");
+        assert_eq!(buf, b"".to_vec());
 
         // from_fasta (1 empty)
-        let y = RecordList::from_fasta_string(&x).unwrap();
+        let y = RecordList::from_fasta_bytes(&x).unwrap();
         assert!(RecordList::from_fasta_strict(&mut Cursor::new(&x)).is_err());
         assert!(RecordList::from_fasta_lenient(&mut Cursor::new(&x)).is_ok());
         assert_eq!(v, y);
 
         // to_fasta (1 valid, 1 empty)
         let v: RecordList = vec![gapdh(), Record::new()];
-        let x = v.to_fasta_string().unwrap();
+        let x = v.to_fasta_bytes().unwrap();
         assert_eq!(x, GAPDH_EMPTY_FASTA);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         assert!(v.to_fasta_strict(&mut Cursor::new(&mut buf)).is_err());
         v.to_fasta_lenient(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_FASTA);
+        assert_eq!(buf, GAPDH_FASTA);
 
         // from_fasta (1 valid, 1 empty)
-        let y = RecordList::from_fasta_string(&x).unwrap();
+        let y = RecordList::from_fasta_bytes(&x).unwrap();
         assert!(RecordList::from_fasta_strict(&mut Cursor::new(&x)).is_err());
         let z = RecordList::from_fasta_lenient(&mut Cursor::new(&x)).unwrap();
         incomplete_eq(&v[0], &y[0]);
@@ -148,19 +148,19 @@ mod tests {
         let v: RecordList = vec![gapdh(), bsa()];
 
         // to_csv (valid, 2 items)
-        let x = v.to_csv_string(b'\t').unwrap();
+        let x = v.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, GAPDH_BSA_CSV_TAB);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(buf, GAPDH_BSA_CSV_TAB);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_BSA_CSV_TAB);
+        assert_eq!(buf, GAPDH_BSA_CSV_TAB);
 
         // from_csv (valid, 2 items)
-        let y = RecordList::from_csv_string(&x, b'\t').unwrap();
+        let y = RecordList::from_csv_bytes(&x, b'\t').unwrap();
         assert_eq!(y, RecordList::from_csv_strict(&mut Cursor::new(&x), b'\t').unwrap());
         assert_eq!(y, RecordList::from_csv_lenient(&mut Cursor::new(&x), b'\t').unwrap());
 
@@ -169,52 +169,52 @@ mod tests {
 
         // to_csv (empty)
         let v: RecordList = vec![];
-        let x = v.to_csv_string(b'\t').unwrap();
+        let x = v.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, HEADER_CSV_TAB);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), HEADER_CSV_TAB);
+        assert_eq!(buf, HEADER_CSV_TAB);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), HEADER_CSV_TAB);
+        assert_eq!(buf, HEADER_CSV_TAB);
 
         // from_csv (empty)
-        let y = RecordList::from_csv_string(&x, b'\t').unwrap();
+        let y = RecordList::from_csv_bytes(&x, b'\t').unwrap();
         assert_eq!(y, RecordList::from_csv_strict(&mut Cursor::new(&x), b'\t').unwrap());
         assert_eq!(y, RecordList::from_csv_lenient(&mut Cursor::new(&x), b'\t').unwrap());
         assert_eq!(y.len(), 0);
 
         // to_csv (1 empty)
         let v: RecordList = vec![Record::new()];
-        let x = v.to_csv_string(b'\t').unwrap();
+        let x = v.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, EMPTY_CSV_TAB);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         assert!(v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').is_err());
         buf.clear();
         assert!(v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').is_ok());
-        assert_eq!(String::from_utf8(buf).unwrap(), HEADER_CSV_TAB);
+        assert_eq!(buf, HEADER_CSV_TAB);
 
         // from_csv (1 empty)
-        let y = RecordList::from_csv_string(&x, b'\t').unwrap();
+        let y = RecordList::from_csv_bytes(&x, b'\t').unwrap();
         assert!(RecordList::from_csv_strict(&mut Cursor::new(&x), b'\t').is_err());
         assert!(RecordList::from_csv_lenient(&mut Cursor::new(&x), b'\t').is_ok());
         assert_eq!(v, y);
 
         // to_csv (1 valid, 1 empty)
         let v: RecordList = vec![gapdh(), Record::new()];
-        let x = v.to_csv_string(b'\t').unwrap();
+        let x = v.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, GAPDH_EMPTY_CSV_TAB);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         assert!(v.to_csv_strict(&mut Cursor::new(&mut buf), b'\t').is_err());
         v.to_csv_lenient(&mut Cursor::new(&mut buf), b'\t').unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), GAPDH_CSV_TAB);
+        assert_eq!(buf, GAPDH_CSV_TAB);
 
         // from_csv (1 valid, 1 empty)
-        let y = RecordList::from_csv_string(&x, b'\t').unwrap();
+        let y = RecordList::from_csv_bytes(&x, b'\t').unwrap();
         assert!(RecordList::from_csv_strict(&mut Cursor::new(&x), b'\t').is_err());
         let z = RecordList::from_csv_lenient(&mut Cursor::new(&x), b'\t').unwrap();
         assert_eq!(&v[0], &y[0]);
@@ -229,18 +229,18 @@ mod tests {
         let v: RecordList = vec![gapdh(), bsa()];
 
         // to_xml (valid, 2 items)
-        let x = v.to_xml_string().unwrap();
+        let x = v.to_xml_bytes().unwrap();
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_xml_strict(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), x);
+        assert_eq!(buf, x);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_xml_lenient(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), x);
+        assert_eq!(buf, x);
 
         // from_xml (valid, 2 items)
-        let y = RecordList::from_xml_string(&x).unwrap();
+        let y = RecordList::from_xml_bytes(&x).unwrap();
         assert_eq!(y, RecordList::from_xml_strict(&mut Cursor::new(&x)).unwrap());
         assert_eq!(y, RecordList::from_xml_lenient(&mut Cursor::new(&x)).unwrap());
 
@@ -249,49 +249,49 @@ mod tests {
 
         // to_xml (empty)
         let v: RecordList = vec![];
-        let x = v.to_xml_string().unwrap();
+        let x = v.to_xml_bytes().unwrap();
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_xml_strict(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), x);
+        assert_eq!(buf, x);
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         v.to_xml_lenient(&mut Cursor::new(&mut buf)).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), x);
+        assert_eq!(buf, x);
 
         // from_xml (empty)
-        let y = RecordList::from_xml_string(&x).unwrap();
+        let y = RecordList::from_xml_bytes(&x).unwrap();
         assert_eq!(y, RecordList::from_xml_strict(&mut Cursor::new(&x)).unwrap());
         assert_eq!(y, RecordList::from_xml_lenient(&mut Cursor::new(&x)).unwrap());
         assert_eq!(y.len(), 0);
 
         // to_xml (1 empty)
         let v: RecordList = vec![Record::new()];
-        let x = v.to_xml_string().unwrap();
+        let x = v.to_xml_bytes().unwrap();
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         assert!(v.to_xml_strict(&mut Cursor::new(&mut buf)).is_err());
         buf.clear();
         assert!(v.to_xml_lenient(&mut Cursor::new(&mut buf)).is_ok());
-        assert_ne!(String::from_utf8(buf).unwrap(), x);
+        assert_ne!(buf, x);
 
         // from_xml (1 empty)
-        let y = RecordList::from_xml_string(&x).unwrap();
+        let y = RecordList::from_xml_bytes(&x).unwrap();
         assert!(RecordList::from_xml_strict(&mut Cursor::new(&x)).is_err());
         assert!(RecordList::from_xml_lenient(&mut Cursor::new(&x)).is_ok());
         assert_eq!(v, y);
 
         // to_xml (1 valid, 1 empty)
         let v: RecordList = vec![gapdh(), Record::new()];
-        let x = v.to_xml_string().unwrap();
+        let x = v.to_xml_bytes().unwrap();
 
-        let mut buf = Buffer::new();
+        let mut buf = Bytes::new();
         assert!(v.to_xml_strict(&mut Cursor::new(&mut buf)).is_err());
         v.to_xml_lenient(&mut Cursor::new(&mut buf)).unwrap();
-        assert_ne!(String::from_utf8(buf).unwrap(), x);
+        assert_ne!(buf, x);
 
         // from_xml (1 valid, 1 empty)
-        let y = RecordList::from_xml_string(&x).unwrap();
+        let y = RecordList::from_xml_bytes(&x).unwrap();
         assert!(RecordList::from_xml_strict(&mut Cursor::new(&x)).is_err());
         let z = RecordList::from_xml_lenient(&mut Cursor::new(&x)).unwrap();
         assert_eq!(&v[0], &y[0]);

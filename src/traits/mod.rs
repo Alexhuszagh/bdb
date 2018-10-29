@@ -1,27 +1,28 @@
 //! Shared traits.
 
-mod complete;
-mod fmt;
-mod valid;
+pub(crate) mod complete;
+pub(crate) mod fmt;
+pub(crate) mod num;
+pub(crate) mod parse;
+pub(crate) mod valid;
 
 #[cfg(feature = "csv")]
-mod csv;
+pub(crate) mod csv;
 
 #[cfg(feature = "fasta")]
-mod fasta;
+pub(crate) mod fasta;
 
 #[cfg(feature = "fastq")]
-mod fastq;
+pub(crate) mod fastq;
 
 #[cfg(feature = "mgf")]
-mod mgf;
+pub(crate) mod mgf;
 
 #[cfg(feature = "xml")]
-mod xml;
+pub(crate) mod xml;
 
 // Record validation traits
 pub use self::complete::{Complete};
-pub use self::fmt::{Ntoa};
 pub use self::valid::{Valid};
 
 // Serialization Traits
@@ -39,3 +40,8 @@ pub use self::mgf::{Mgf, MgfCollection, MgfKind};
 
 #[cfg(feature = "xml")]
 pub use self::xml::{Xml, XmlCollection};
+
+// Export for internal use only.
+pub(crate) use self::fmt::Serializable;
+pub(crate) use self::num::*;
+pub(crate) use self::parse::Deserializable;

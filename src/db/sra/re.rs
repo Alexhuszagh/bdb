@@ -9,7 +9,7 @@ use regex::Regex;
 use regex::bytes::Regex as BytesRegex;
 
 // Re-export regular-expression traits.
-pub use util::{ExtractionRegex, ValidationRegex};
+pub(crate) use util::{ExtractionRegex, ValidationRegex};
 
 // NUCLEOTIDE
 

@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::Result;
+use util::{Bytes, Result};
 
 /// Identifier for the MGF file format type.
 ///
@@ -60,13 +60,19 @@ pub trait Mgf: Sized {
     /// should be buffered.
     fn to_mgf<T: Write>(&self, writer: &mut T, kind: MgfKind) -> Result<()>;
 
-    /// Export model to MGF string.
-    fn to_mgf_string(&self, kind: MgfKind) -> Result<String> {
+    /// Export model to MGF bytes.
+    fn to_mgf_bytes(&self, kind: MgfKind) -> Result<Bytes> {
         let capacity = self.estimate_mgf_size(kind);
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_mgf(&mut writer, kind)?;
-        Ok(String::from_utf8(writer.into_inner())?)
+        Ok(writer.into_inner())
+    }
+
+    /// Export model to MGF string.
+    #[inline]
+    fn to_mgf_string(&self, kind: MgfKind) -> Result<String> {
+        Ok(String::from_utf8(self.to_mgf_bytes(kind)?)?)
     }
 
     /// Export model to MGF output file.
@@ -80,13 +86,19 @@ pub trait Mgf: Sized {
     /// Import model from MGF.
     fn from_mgf<T: BufRead>(reader: &mut T, kind: MgfKind) -> Result<Self>;
 
-    /// Import model from MGF string.
+    /// Import model from MGF bytes.
     #[inline]
-    fn from_mgf_string(text: &str, kind: MgfKind) -> Result<Self> {
+    fn from_mgf_bytes(bytes: &[u8], kind: MgfKind) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
-        let mut reader = Cursor::new(text);
+        let mut reader = Cursor::new(bytes);
         Self::from_mgf(&mut reader, kind)
+    }
+
+    /// Import model from MGF string.
+    #[inline]
+    fn from_mgf_string(string: &str, kind: MgfKind) -> Result<Self> {
+        Self::from_mgf_bytes(string.as_bytes(), kind)
     }
 
     /// Import model from MGF file.

@@ -16,8 +16,8 @@ use super::record_list::RecordList;
 /// from the document.
 pub struct FastqIter<T: BufRead> {
     reader: T,
-    buf: Buffer,
-    line: String,
+    buf: Bytes,
+    line: Bytes,
 }
 
 impl<T: BufRead> FastqIter<T> {
@@ -27,16 +27,16 @@ impl<T: BufRead> FastqIter<T> {
         FastqIter {
             reader: reader,
             buf: Vec::with_capacity(8000),
-            line: String::with_capacity(8000)
+            line: Bytes::with_capacity(8000)
         }
     }
 }
 
 impl<T: BufRead> Iterator for FastqIter<T> {
-    type Item = Result<String>;
+    type Item = Result<Bytes>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        text_next_skip_whitespace("@", &mut self.reader, &mut self.buf, &mut self.line)
+        bytes_next_skip_whitespace(b"@", &mut self.reader, &mut self.buf, &mut self.line)
     }
 }
 
@@ -246,13 +246,13 @@ impl<T: BufRead> Iterator for FastqRecordIter<T> {
     type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let text = match self.iter.next()? {
+        let bytes = match self.iter.next()? {
             Err(e)   => return Some(Err(e)),
-            Ok(text) => text,
+            Ok(bytes) => bytes,
 
         };
 
-        Some(Record::from_fastq_string(&text))
+        Some(Record::from_fastq_bytes(&bytes))
     }
 }
 
@@ -357,17 +357,16 @@ mod tests {
     #[test]
     fn fastq_iter_test() {
         // Check iterator over data.
-
-        let s = "@tag desc\nCATTAG\n+tag desc\n;;;;;;\n@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;";
+        let s = b"@tag desc\nCATTAG\n+tag desc\n;;;;;;\n@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;".to_vec();
         let i = FastqIter::new(Cursor::new(s));
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &["@tag desc\nCATTAG\n+tag desc\n;;;;;;\n", "@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;"]);
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), &[b"@tag desc\nCATTAG\n+tag desc\n;;;;;;\n".to_vec(), b"@tag1 desc1\nTAGCAT\n+tag1 desc1\n;;;;;;".to_vec()]);
 
         // Check iterator over empty string.
-        let s = "";
+        let s = b"".to_vec();
         let i = FastqIter::new(Cursor::new(s));
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), Vec::<String>::new());
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), Vec::<Bytes>::new());
     }
 
     // TODO(ahuszagh)

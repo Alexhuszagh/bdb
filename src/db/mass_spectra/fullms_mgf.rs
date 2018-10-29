@@ -1,6 +1,5 @@
 //! Utilities to load and save Pava FullMS MGF files.
 
-use std::cmp::Ordering;
 use std::io::prelude::*;
 use std::io::Lines;
 
@@ -37,8 +36,8 @@ fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
 fn export_scan<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let num = record.num.ntoa()?;
-    write_alls!(writer, b"Scan#: ", num.as_bytes(), b"\n")?;
+    let num = to_bytes(&record.num)?;
+    write_alls!(writer, b"Scan#: ", num.as_slice(), b"\n")?;
 
     Ok(())
 }
@@ -47,8 +46,8 @@ fn export_scan<T: Write>(writer: &mut T, record: &Record)
 fn export_rt<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let rt = record.rt.ntoa()?;
-    write_alls!(writer, b"Ret.Time: ", rt.as_bytes(), b"\n")?;
+    let rt = to_bytes(&record.rt)?;
+    write_alls!(writer, b"Ret.Time: ", rt.as_slice(), b"\n")?;
 
     Ok(())
 }
@@ -57,27 +56,22 @@ fn export_rt<T: Write>(writer: &mut T, record: &Record)
 fn export_basepeak<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    // Custom total-ordering comparison for floats.
-    #[inline(always)]
-    fn cmp(x: f64, y: f64) -> Ordering {
-        if x.is_nan() || x < y { Ordering::Less } else { Ordering::Greater }
-    }
-
     // Export the basepeak m/z and intensity, which is the m/z
     // and intensity for the **most intense** peak in the peaklist.
-    if record.peaks.is_empty() {
-        write_alls!(writer, b"BasePeakMass: 0.0\nBasePeakIntensity: 0.0\n")?;
-    } else {
-        let iter = record.peaks.iter();
-        let max = iter.max_by(|x, y| cmp(x.intensity, y.intensity)).unwrap();
-        let mz = max.mz.ntoa()?;
-        let intensity = max.intensity.ntoa()?;
-        write_alls!(
-            writer,
-            b"BasePeakMass: ", mz.as_bytes(),
-            b"\nBasePeakIntensity: ", intensity.as_bytes(),
-            b"\n"
-        )?;
+    match record.base_peak() {
+        None    => {
+            write_alls!(writer, b"BasePeakMass: 0.0\nBasePeakIntensity: 0.0\n")?;
+        },
+        Some(v) => {
+            let mz = to_bytes(&v.mz)?;
+            let intensity = to_bytes(&v.intensity)?;
+            write_alls!(
+                writer,
+                b"BasePeakMass: ", mz.as_slice(),
+                b"\nBasePeakIntensity: ", intensity.as_slice(),
+                b"\n"
+            )?;
+        }
     }
 
     Ok(())
@@ -88,9 +82,9 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
     for peak in record.peaks.iter() {
-        let mz = peak.mz.ntoa()?;
-        let intensity = peak.intensity.ntoa()?;
-        write_alls!(writer, mz.as_bytes(), b"\t", intensity.as_bytes(), b"\n")?;
+        let mz = to_bytes(&peak.mz)?;
+        let intensity = to_bytes(&peak.intensity)?;
+        write_alls!(writer, mz.as_slice(), b"\t", intensity.as_slice(), b"\n")?;
     }
 
     Ok(())
@@ -212,7 +206,7 @@ fn parse_scan_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
     let captures = none_to_error!(Scan::extract().captures(&line), InvalidInput);
 
     let num = capture_as_str(&captures, Scan::NUM_INDEX);
-    record.num = num.parse::<u32>()?;
+    record.num = from_string(num)?;
 
     Ok(())
 }
@@ -229,7 +223,7 @@ fn parse_rt_line<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
     let captures = none_to_error!(Rt::extract().captures(&line), InvalidInput);
 
     let rt = capture_as_str(&captures, Rt::RT_INDEX);
-    record.rt = rt.parse::<f64>()?;
+    record.rt = from_string(rt)?;
 
     Ok(())
 }
@@ -300,8 +294,8 @@ fn parse_spectra<T: BufRead>(lines: &mut Lines<T>, record: &mut Record)
         bool_to_error!(items.next().is_none(), InvalidInput);
 
         record.peaks.push(Peak {
-            mz: mz.parse::<f64>()?,
-            intensity: intensity.parse::<f64>()?,
+            mz: from_string(mz)?,
+            intensity: from_string(intensity)?,
             z: 0,
         });
     }
@@ -335,5 +329,5 @@ pub(crate) fn record_from_fullms_mgf<T: BufRead>(reader: &mut T)
 pub(crate) fn iterator_from_fullms_mgf<T: BufRead>(reader: T)
     -> MgfRecordIter<T>
 {
-    MgfRecordIter::new(reader, "Scan#:", MgfKind::FullMs)
+    MgfRecordIter::new(reader, b"Scan#:", MgfKind::FullMs)
 }

@@ -372,23 +372,23 @@ mod tests {
     fn fasta_record_test() {
         // gapdh
         let p = gapdh();
-        let x = p.to_fasta_string().unwrap();
+        let x = p.to_fasta_bytes().unwrap();
         assert_eq!(x, GAPDH_FASTA);
-        let y = Record::from_fasta_string(&x).unwrap();
+        let y = Record::from_fasta_bytes(&x).unwrap();
         incomplete_eq(&p, &y);
 
         // bsa
         let p = bsa();
-        let x = p.to_fasta_string().unwrap();
+        let x = p.to_fasta_bytes().unwrap();
         assert_eq!(x, BSA_FASTA);
-        let y = Record::from_fasta_string(&x).unwrap();
+        let y = Record::from_fasta_bytes(&x).unwrap();
         incomplete_eq(&p, &y);
 
         // empty
         let p = Record::new();
-        let x = p.to_fasta_string().unwrap();
+        let x = p.to_fasta_bytes().unwrap();
         assert_eq!(x, EMPTY_FASTA);
-        let y = Record::from_fasta_string(&x).unwrap();
+        let y = Record::from_fasta_bytes(&x).unwrap();
         assert_eq!(p, y);
     }
 
@@ -397,29 +397,29 @@ mod tests {
     fn csv_record_test() {
         // gapdh
         let p = gapdh();
-        let x = p.to_csv_string(b'\t').unwrap();
+        let x = p.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, GAPDH_CSV_TAB);
-        let x = p.to_csv_string(b',').unwrap();
+        let x = p.to_csv_bytes(b',').unwrap();
         assert_eq!(x, GAPDH_CSV_COMMA);
-        let y = Record::from_csv_string(&x, b',').unwrap();
+        let y = Record::from_csv_bytes(&x, b',').unwrap();
         assert_eq!(p, y);
 
         // bsa
         let p = bsa();
-        let x = p.to_csv_string(b'\t').unwrap();
+        let x = p.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, BSA_CSV_TAB);
-        let x = p.to_csv_string(b',').unwrap();
+        let x = p.to_csv_bytes(b',').unwrap();
         assert_eq!(x, BSA_CSV_COMMA);
-        let y = Record::from_csv_string(&x, b',').unwrap();
+        let y = Record::from_csv_bytes(&x, b',').unwrap();
         assert_eq!(p, y);
 
         // empty
         let p = Record::new();
-        let x = p.to_csv_string(b'\t').unwrap();
+        let x = p.to_csv_bytes(b'\t').unwrap();
         assert_eq!(x, EMPTY_CSV_TAB);
-        let x = p.to_csv_string(b',').unwrap();
+        let x = p.to_csv_bytes(b',').unwrap();
         assert_eq!(x, EMPTY_CSV_COMMA);
-        let y = Record::from_csv_string(&x, b',').unwrap();
+        let y = Record::from_csv_bytes(&x, b',').unwrap();
         assert_eq!(p, y);
     }
 
@@ -428,20 +428,20 @@ mod tests {
     fn xml_record_test() {
         // gapdh
         let p = gapdh();
-        let x = p.to_xml_string().unwrap();
-        let y = Record::from_xml_string(&x).unwrap();
+        let x = p.to_xml_bytes().unwrap();
+        let y = Record::from_xml_bytes(&x).unwrap();
         assert_eq!(p, y);
 
         // bsa
         let p = bsa();
-        let x = p.to_xml_string().unwrap();
-        let y = Record::from_xml_string(&x).unwrap();
+        let x = p.to_xml_bytes().unwrap();
+        let y = Record::from_xml_bytes(&x).unwrap();
         assert_eq!(p, y);
 
         // empty
         let p = Record::new();
-        let x = p.to_xml_string().unwrap();
-        let y = Record::from_xml_string(&x).unwrap();
+        let x = p.to_xml_bytes().unwrap();
+        let y = Record::from_xml_bytes(&x).unwrap();
         assert_eq!(p, y);
     }
 }

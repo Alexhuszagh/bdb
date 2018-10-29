@@ -1,8 +1,10 @@
 //! Model for UniProt protein evidence.
 
-use traits::Ntoa;
-use util::{ErrorKind, Result};
 use std::mem;
+use std::str as stdstr;
+
+use traits::{Deserializable, Serializable, Zero};
+use util::{Bytes, ErrorKind, Result};
 
 /// Identifier for the evidence type for protein existence.
 ///
@@ -38,19 +40,19 @@ pub enum ProteinEvidence {
 
 impl ProteinEvidence {
     /// Verbose constant messages.
-    const PROTEIN_LEVEL_VERBOSE: &'static str = "Evidence at protein level";
-    const TRANSCRIPT_LEVEL_VERBOSE: &'static str = "Evidence at transcript level";
-    const INFERRED_LEVEL_VERBOSE: &'static str = "Inferred from homology";
-    const PREDICTED_LEVEL_VERBOSE: &'static str = "Predicted";
-    const UNKNOWN_LEVEL_VERBOSE: &'static str = "";
+    const PROTEIN_LEVEL_VERBOSE: &'static [u8] = b"Evidence at protein level";
+    const TRANSCRIPT_LEVEL_VERBOSE: &'static [u8] = b"Evidence at transcript level";
+    const INFERRED_LEVEL_VERBOSE: &'static [u8] = b"Inferred from homology";
+    const PREDICTED_LEVEL_VERBOSE: &'static [u8] = b"Predicted";
+    const UNKNOWN_LEVEL_VERBOSE: &'static [u8] = b"";
 
     /// Minimum and maximum bounds on the enumeration.
-    const MIN: u8 = 1;
+    const MIN: u8 = 0;
     const MAX: u8 = 5;
 
-    /// Convert enumerated value for ProteinEvidence to verbose text.
+    /// Convert enumerated value for ProteinEvidence to verbose bytes.
     #[inline]
-    pub fn verbose(&self) -> &'static str {
+    pub fn verbose_bytes(&self) -> &'static [u8] {
         match self {
             ProteinEvidence::ProteinLevel       => Self::PROTEIN_LEVEL_VERBOSE,
             ProteinEvidence::TranscriptLevel    => Self::TRANSCRIPT_LEVEL_VERBOSE,
@@ -60,10 +62,16 @@ impl ProteinEvidence {
         }
     }
 
-    /// Create enumerated value from verbose text.
+    /// Convert enumerated value for ProteinEvidence to verbose bytes.
+    #[inline(always)]
+    pub fn verbose(&self) -> &'static str {
+        return unsafe { stdstr::from_utf8_unchecked(self.verbose_bytes()) }
+    }
+
+    /// Create enumerated value from verbose bytes.
     #[inline]
-    pub fn from_verbose(text: &str) -> Result<Self> {
-        match text {
+    pub fn from_verbose_bytes(bytes: &[u8]) -> Result<Self> {
+        match bytes {
             Self::PROTEIN_LEVEL_VERBOSE      => Ok(ProteinEvidence::ProteinLevel),
             Self::TRANSCRIPT_LEVEL_VERBOSE   => Ok(ProteinEvidence::TranscriptLevel),
             Self::INFERRED_LEVEL_VERBOSE     => Ok(ProteinEvidence::Inferred),
@@ -71,6 +79,12 @@ impl ProteinEvidence {
             Self::UNKNOWN_LEVEL_VERBOSE      => Ok(ProteinEvidence::Unknown),
             _                                => Err(From::from(ErrorKind::InvalidEnumeration)),
         }
+    }
+
+    /// Create enumerated value from verbose text.
+    #[inline(always)]
+    pub fn from_verbose(text: &str) -> Result<Self> {
+        return Self::from_verbose_bytes(text.as_bytes())
     }
 
     /// Create raw integer from enumerated value.
@@ -88,32 +102,20 @@ impl ProteinEvidence {
             Err(From::from(ErrorKind::InvalidEnumeration))
         }
     }
-
-    /// Create string from an enumerated value.
-    #[inline(always)]
-    pub fn to_string(&self) -> String {
-        self.to_int().to_string()
-    }
-
-    /// Create enumerated value from str.
-    #[inline(always)]
-    pub fn from_str(s: &str) -> Result<Self> {
-        ProteinEvidence::from_int(s.parse::<u8>()?)
-    }
 }
 
 #[cfg(feature = "xml")]
 impl ProteinEvidence {
     /// XML Verbose constant messages.
-    const PROTEIN_LEVEL_XML_VERBOSE: &'static str = "evidence at protein level";
-    const TRANSCRIPT_LEVEL_XML_VERBOSE: &'static str = "evidence at transcript level";
-    const INFERRED_LEVEL_XML_VERBOSE: &'static str = "inferred from homology";
-    const PREDICTED_LEVEL_XML_VERBOSE: &'static str = "predicted";
-    const UNKNOWN_LEVEL_XML_VERBOSE: &'static str = "";
+    const PROTEIN_LEVEL_XML_VERBOSE: &'static [u8] = b"evidence at protein level";
+    const TRANSCRIPT_LEVEL_XML_VERBOSE: &'static [u8] = b"evidence at transcript level";
+    const INFERRED_LEVEL_XML_VERBOSE: &'static [u8] = b"inferred from homology";
+    const PREDICTED_LEVEL_XML_VERBOSE: &'static [u8] = b"predicted";
+    const UNKNOWN_LEVEL_XML_VERBOSE: &'static [u8] = b"";
 
-    /// Convert enumerated value for ProteinEvidence to XML verbose text.
+    /// Convert enumerated value for ProteinEvidence to XML verbose bytes.
     #[inline]
-    pub fn xml_verbose(&self) -> &'static str {
+    pub fn xml_verbose_bytes(&self) -> &'static [u8] {
         match self {
             ProteinEvidence::ProteinLevel       => Self::PROTEIN_LEVEL_XML_VERBOSE,
             ProteinEvidence::TranscriptLevel    => Self::TRANSCRIPT_LEVEL_XML_VERBOSE,
@@ -123,10 +125,16 @@ impl ProteinEvidence {
         }
     }
 
-    /// Create enumerated value from XML verbose text.
+    /// Convert enumerated value for ProteinEvidence to XML verbose.
+    #[inline(always)]
+    pub fn xml_verbose(&self) -> &'static str {
+        return unsafe { stdstr::from_utf8_unchecked(self.xml_verbose_bytes()) }
+    }
+
+    /// Create enumerated value from XML verbose bytes.
     #[inline]
-    pub fn from_xml_verbose(text: &str) -> Result<Self> {
-        match text {
+    pub fn from_xml_verbose_bytes(bytes: &[u8]) -> Result<Self> {
+        match bytes {
             Self::PROTEIN_LEVEL_XML_VERBOSE      => Ok(ProteinEvidence::ProteinLevel),
             Self::TRANSCRIPT_LEVEL_XML_VERBOSE   => Ok(ProteinEvidence::TranscriptLevel),
             Self::INFERRED_LEVEL_XML_VERBOSE     => Ok(ProteinEvidence::Inferred),
@@ -135,17 +143,32 @@ impl ProteinEvidence {
             _                                    => Err(From::from(ErrorKind::InvalidEnumeration)),
         }
     }
+
+    /// Create enumerated value from XML verbose.
+    #[inline]
+    pub fn from_xml_verbose(text: &str) -> Result<Self> {
+        return Self::from_xml_verbose_bytes(text.as_bytes())
+    }
 }
 
-impl Ntoa for ProteinEvidence {
+impl Zero for ProteinEvidence {
     #[inline(always)]
-    fn ntoa(&self) -> Result<String> {
-        self.to_int().ntoa()
+    fn zero() -> Self {
+        ProteinEvidence::Unknown
     }
+}
 
+impl Serializable for ProteinEvidence {
     #[inline(always)]
-    fn ntoa_with_capacity(&self, capacity: usize) -> Result<String> {
-        self.to_int().ntoa_with_capacity(capacity)
+    fn export_bytes(&self) -> Result<Bytes> {
+        self.to_int().export_bytes()
+    }
+}
+
+impl Deserializable for ProteinEvidence {
+    #[inline(always)]
+    fn import_bytes(bytes: &[u8]) -> Result<Self> {
+        ProteinEvidence::from_int(u8::import_bytes(bytes)?)
     }
 }
 
@@ -155,6 +178,7 @@ impl Ntoa for ProteinEvidence {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use util::{from_string, to_string};
 
     // PROTEIN EVIDENCE
     // Note: Do not test Unknown, it is an implementation detail.
@@ -218,12 +242,12 @@ mod tests {
     }
 
     fn serialize_protein_evidence(evidence: ProteinEvidence, expected: &str) {
-        let text = evidence.to_string();
+        let text = to_string(&evidence).unwrap();
         assert_eq!(text, expected);
-        let result = ProteinEvidence::from_str(&text).unwrap();
+        let result = from_string::<ProteinEvidence>(&text).unwrap();
         assert_eq!(result, evidence);
 
-        let text = evidence.ntoa().unwrap();
+        let text = to_string(&evidence).unwrap();
         assert_eq!(text, expected);
     }
 

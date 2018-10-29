@@ -8,7 +8,6 @@ extern crate cfg_if;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate digit_group;
 extern crate dtoa;
 extern crate itoa;
 extern crate ref_slice;

@@ -18,11 +18,12 @@ pub use self::private::UniProtXml as Xml;
 mod private {
 
 use std::convert::AsRef;
+use std::io::{BufRead, Write};
 use std::path::Path;
 
 use db::uniprot::RecordList;
 use traits::*;
-use util::Result;
+use util::{Bytes, Result};
 
 /// Reader/writer for UniProt FASTA records.
 #[cfg(feature = "fasta")]
@@ -30,6 +31,18 @@ pub struct UniProtFasta;
 
 #[cfg(feature = "fasta")]
 impl UniProtFasta {
+    /// Save UniProt records to stream.
+    #[inline(always)]
+    pub fn to_stream<T: Write>(list: &RecordList, writer: &mut T) -> Result<()> {
+        list.to_fasta(writer)
+    }
+
+    /// Save UniProt records to bytes.
+    #[inline(always)]
+    pub fn to_bytes(list: &RecordList) -> Result<Bytes> {
+        list.to_fasta_bytes()
+    }
+
     /// Save UniProt records to string.
     #[inline(always)]
     pub fn to_string(list: &RecordList) -> Result<String> {
@@ -42,10 +55,22 @@ impl UniProtFasta {
         list.to_fasta_file(path)
     }
 
+    /// Load UniProt records from stream.
+    #[inline(always)]
+    pub fn from_stream<T: BufRead>(reader: &mut T) -> Result<RecordList> {
+        RecordList::from_fasta(reader)
+    }
+
+    /// Load UniProt records from bytes.
+    #[inline(always)]
+    pub fn from_bytes(bytes: &[u8]) -> Result<RecordList> {
+        RecordList::from_fasta_bytes(bytes)
+    }
+
     /// Load UniProt records from string.
     #[inline(always)]
-    pub fn from_string(text: &str) -> Result<RecordList> {
-        RecordList::from_fasta_string(text)
+    pub fn from_string(string: &str) -> Result<RecordList> {
+        RecordList::from_fasta_string(string)
     }
 
     /// Load UniProt records from file.
@@ -61,6 +86,18 @@ pub struct UniProtCsv;
 
 #[cfg(feature = "csv")]
 impl UniProtCsv {
+    /// Save UniProt records to stream.
+    #[inline(always)]
+    pub fn to_stream<T: Write>(list: &RecordList, writer: &mut T) -> Result<()> {
+        list.to_csv(writer, b'\t')
+    }
+
+    /// Save UniProt records to bytes.
+    #[inline(always)]
+    pub fn to_bytes(list: &RecordList) -> Result<Bytes> {
+        list.to_csv_bytes(b'\t')
+    }
+
     /// Save UniProt records to string.
     #[inline(always)]
     pub fn to_string(list: &RecordList) -> Result<String> {
@@ -73,10 +110,22 @@ impl UniProtCsv {
         list.to_csv_file(path, b'\t')
     }
 
+    /// Load UniProt records from stream.
+    #[inline(always)]
+    pub fn from_stream<T: BufRead>(reader: &mut T) -> Result<RecordList> {
+        RecordList::from_csv(reader, b'\t')
+    }
+
+    /// Load UniProt records from bytes.
+    #[inline(always)]
+    pub fn from_bytes(bytes: &[u8]) -> Result<RecordList> {
+        RecordList::from_csv_bytes(bytes, b'\t')
+    }
+
     /// Load UniProt records from string.
     #[inline(always)]
-    pub fn from_string(text: &str) -> Result<RecordList> {
-        RecordList::from_csv_string(text, b'\t')
+    pub fn from_string(string: &str) -> Result<RecordList> {
+        RecordList::from_csv_string(string, b'\t')
     }
 
     /// Load UniProt records from file.
@@ -92,6 +141,18 @@ pub struct UniProtXml;
 
 #[cfg(feature = "xml")]
 impl UniProtXml {
+    /// Save UniProt records to stream.
+    #[inline(always)]
+    pub fn to_stream<T: Write>(list: &RecordList, writer: &mut T) -> Result<()> {
+        list.to_xml(writer)
+    }
+
+    /// Save UniProt records to bytes.
+    #[inline(always)]
+    pub fn to_bytes(list: &RecordList) -> Result<Bytes> {
+        list.to_xml_bytes()
+    }
+
     /// Save UniProt records to string.
     #[inline(always)]
     pub fn to_string(list: &RecordList) -> Result<String> {
@@ -104,10 +165,22 @@ impl UniProtXml {
         list.to_xml_file(path)
     }
 
+    /// Load UniProt records from stream.
+    #[inline(always)]
+    pub fn from_stream<T: BufRead>(reader: &mut T) -> Result<RecordList> {
+        RecordList::from_xml(reader)
+    }
+
+    /// Load UniProt records from bytes.
+    #[inline(always)]
+    pub fn from_bytes(bytes: &[u8]) -> Result<RecordList> {
+        RecordList::from_xml_bytes(bytes)
+    }
+
     /// Load UniProt records from string.
     #[inline(always)]
-    pub fn from_string(text: &str) -> Result<RecordList> {
-        RecordList::from_xml_string(text)
+    pub fn from_string(string: &str) -> Result<RecordList> {
+        RecordList::from_xml_string(string)
     }
 
     /// Load UniProt records from file.
@@ -117,7 +190,7 @@ impl UniProtXml {
     }
 }
 
-}   /* private */
+}   // private
 
 #[cfg(test)]
 mod tests {

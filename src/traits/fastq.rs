@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::Result;
+use util::{Bytes, Result};
 
 /// Serialize to and from FASTQ.
 ///
@@ -28,13 +28,19 @@ pub trait Fastq: Sized {
     /// should be buffered.
     fn to_fastq<T: Write>(&self, writer: &mut T) -> Result<()>;
 
-    /// Export model to FASTQ string.
-    fn to_fastq_string(&self) -> Result<String> {
+    /// Export model to FASTQ bytes.
+    fn to_fastq_bytes(&self) -> Result<Bytes> {
         let capacity = self.estimate_fastq_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_fastq(&mut writer)?;
-        Ok(String::from_utf8(writer.into_inner())?)
+        Ok(writer.into_inner())
+    }
+
+    /// Export model to FASTQ string.
+    #[inline]
+    fn to_fastq_string(&self) -> Result<String> {
+        Ok(String::from_utf8(self.to_fastq_bytes()?)?)
     }
 
     /// Export model to FASTQ output file.
@@ -48,13 +54,19 @@ pub trait Fastq: Sized {
     /// Import model from FASTQ.
     fn from_fastq<T: BufRead>(reader: &mut T) -> Result<Self>;
 
-    /// Import model from FASTQ string.
+    /// Import model from FASTQ bytes.
     #[inline]
-    fn from_fastq_string(text: &str) -> Result<Self> {
+    fn from_fastq_bytes(bytes: &[u8]) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
-        let mut reader = Cursor::new(text);
+        let mut reader = Cursor::new(bytes);
         Self::from_fastq(&mut reader)
+    }
+
+    /// Import model from FASTQ string.
+    #[inline]
+    fn from_fastq_string(string: &str) -> Result<Self> {
+        Self::from_fastq_bytes(string.as_bytes())
     }
 
     /// Import model from FASTQ file.

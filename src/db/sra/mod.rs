@@ -8,17 +8,17 @@ pub mod low_level;
 #[cfg(all(feature = "csv", feature = "http"))]
 pub mod client;
 
-mod complete;
-mod re;
-mod record;
-mod record_list;
-mod valid;
+pub(crate) mod complete;
+pub(crate) mod re;
+pub(crate) mod record;
+pub(crate) mod record_list;
+pub(crate) mod valid;
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 #[cfg(feature = "fastq")]
-mod fastq;
+pub(crate) mod fastq;
 
 // Re-export the models into the parent module.
 pub use self::record::Record;

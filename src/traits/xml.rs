@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::Result;
+use util::{Bytes, Result};
 
 /// Serialize to and from XML.
 pub trait Xml: Sized {
@@ -19,13 +19,19 @@ pub trait Xml: Sized {
     /// should be buffered.
     fn to_xml<T: Write>(&self, writer: &mut T) -> Result<()>;
 
-    // Export model to XML string.
-    fn to_xml_string(&self) -> Result<String> {
+    // Export model to XML bytes.
+    fn to_xml_bytes(&self) -> Result<Bytes> {
         let capacity = self.estimate_xml_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_xml(&mut writer)?;
-        Ok(String::from_utf8(writer.into_inner())?)
+        Ok(writer.into_inner())
+    }
+
+    /// Export model to XML string.
+    #[inline]
+    fn to_xml_string(&self) -> Result<String> {
+        Ok(String::from_utf8(self.to_xml_bytes()?)?)
     }
 
     /// Export model to XML output file.
@@ -39,13 +45,19 @@ pub trait Xml: Sized {
     /// Import model from XML.
     fn from_xml<T: BufRead>(reader: &mut T) -> Result<Self>;
 
-    /// Import model from XML string.
+    /// Import model from XML bytes.
     #[inline]
-    fn from_xml_string(text: &str) -> Result<Self> {
+    fn from_xml_bytes(bytes: &[u8]) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
-        let mut reader = Cursor::new(text);
+        let mut reader = Cursor::new(bytes);
         Self::from_xml(&mut reader)
+    }
+
+    /// Import model from XML string.
+    #[inline]
+    fn from_xml_string(string: &str) -> Result<Self> {
+        Self::from_xml_bytes(string.as_bytes())
     }
 
     /// Import model from XML file.

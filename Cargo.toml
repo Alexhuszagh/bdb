@@ -43,7 +43,6 @@ uniprot = []
 
 [dependencies]
 cfg-if = "0.1"
-digit_group = "0.1"
 dtoa = "0.4"
 itoa = "0.4"
 lazy_static = "1"

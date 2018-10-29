@@ -1,8 +1,9 @@
 //! Model for Uniprot protein section type.
 
-use traits::Ntoa;
-use util::{ErrorKind, Result};
 use std::mem;
+
+use traits::{Deserializable, Serializable, Zero};
+use util::{Bytes, ErrorKind, Result};
 
 /// Identifier for the section type of a UniProt record.
 ///
@@ -47,29 +48,26 @@ impl Section {
             Err(From::from(ErrorKind::InvalidEnumeration))
         }
     }
+}
 
-    /// Create string from an enumerated value.
+impl Zero for Section {
     #[inline(always)]
-    pub fn to_string(&self) -> String {
-        self.to_int().to_string()
-    }
-
-    /// Create enumerated value from str.
-    #[inline(always)]
-    pub fn from_str(s: &str) -> Result<Self> {
-        Section::from_int(s.parse::<u8>()?)
+    fn zero() -> Self {
+        Section::TrEMBL
     }
 }
 
-impl Ntoa for Section {
+impl Serializable for Section {
     #[inline(always)]
-    fn ntoa(&self) -> Result<String> {
-        self.to_int().ntoa()
+    fn export_bytes(&self) -> Result<Bytes> {
+        self.to_int().export_bytes()
     }
+}
 
+impl Deserializable for Section {
     #[inline(always)]
-    fn ntoa_with_capacity(&self, capacity: usize) -> Result<String> {
-        self.to_int().ntoa_with_capacity(capacity)
+    fn import_bytes(bytes: &[u8]) -> Result<Self> {
+        Section::from_int(u8::import_bytes(bytes)?)
     }
 }
 
@@ -79,6 +77,7 @@ impl Ntoa for Section {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use util::{from_string, to_string};
 
     // SECTION
     // Note: Do not test Unknown, it is an implementation detail.
@@ -95,12 +94,12 @@ mod tests {
     }
 
     fn serialize_section(section: Section, expected: &str) {
-        let text = section.to_string();
+        let text = to_string(&section).unwrap();
         assert_eq!(text, expected);
-        let result = Section::from_str(&text).unwrap();
+        let result = from_string::<Section>(&text).unwrap();
         assert_eq!(result, section);
 
-        let text = section.ntoa().unwrap();
+        let text = to_string(&section).unwrap();
         assert_eq!(text, expected);
     }
 

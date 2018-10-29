@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
 
-use util::Result;
+use util::{Bytes, Result};
 
 /// Serialize to and from CSV.
 ///
@@ -20,13 +20,19 @@ pub trait Csv: Sized {
     /// Export model to CSV (with headers).
     fn to_csv<T: Write>(&self, writer: &mut T, delimiter: u8) -> Result<()>;
 
-    /// Export model to CSV string.
-    fn to_csv_string(&self, delimiter: u8) -> Result<String> {
+    /// Export model to CSV bytes.
+    fn to_csv_bytes(&self, delimiter: u8) -> Result<Bytes> {
         let capacity = self.estimate_csv_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_csv(&mut writer, delimiter)?;
-        Ok(String::from_utf8(writer.into_inner())?)
+        Ok(writer.into_inner())
+    }
+
+    /// Export model to CSV string.
+    #[inline]
+    fn to_csv_string(&self, delimiter: u8) -> Result<String> {
+        Ok(String::from_utf8(self.to_csv_bytes(delimiter)?)?)
     }
 
     /// Export model to CSV output file.
@@ -42,13 +48,19 @@ pub trait Csv: Sized {
     /// 1 record, since the headers are shared over all records.
     fn from_csv<T: Read>(reader: &mut T, delimiter: u8) -> Result<Self>;
 
-    /// Import model from CSV string.
+    /// Import model from CSV bytes.
     #[inline]
-    fn from_csv_string(text: &str, delimiter: u8) -> Result<Self> {
+    fn from_csv_bytes(bytes: &[u8], delimiter: u8) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
-        let mut reader = Cursor::new(text);
+        let mut reader = Cursor::new(bytes);
         Self::from_csv(&mut reader, delimiter)
+    }
+
+    /// Import model from CSV string.
+    #[inline]
+    fn from_csv_string(string: &str, delimiter: u8) -> Result<Self> {
+        Self::from_csv_bytes(string.as_bytes(), delimiter)
     }
 
     /// Import model from CSV file.

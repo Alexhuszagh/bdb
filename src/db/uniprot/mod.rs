@@ -8,25 +8,25 @@ pub mod low_level;
 #[cfg(all(feature = "csv", feature = "http"))]
 pub mod client;
 
-mod complete;
-mod evidence;
-mod re;
-mod record;
-mod record_list;
-mod section;
-mod valid;
+pub(crate) mod complete;
+pub(crate) mod evidence;
+pub(crate) mod re;
+pub(crate) mod record;
+pub(crate) mod record_list;
+pub(crate) mod section;
+pub(crate) mod valid;
 
 #[cfg(feature = "csv")]
-mod csv;
+pub(crate) mod csv;
 
 #[cfg(feature = "fasta")]
-mod fasta;
+pub(crate) mod fasta;
 
 #[cfg(feature = "xml")]
-mod xml;
+pub(crate) mod xml;
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 // Re-export the models into the parent module.
 pub use self::evidence::ProteinEvidence;

@@ -8,7 +8,7 @@
 use regex::Regex;
 
 // Re-export regular-expression traits.
-pub use util::{ExtractionRegex, ValidationRegex};
+pub(crate) use util::{ExtractionRegex, ValidationRegex};
 
 // FULL MS
 

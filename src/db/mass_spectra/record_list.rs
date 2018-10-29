@@ -46,10 +46,10 @@ mod tests {
     }
 
     #[cfg(feature = "mgf")]
-    fn mgf_list_test(l: RecordList, text: &str, kind: MgfKind) {
-        let x = l.to_mgf_string(kind).unwrap();
+    fn mgf_list_test(l: RecordList, text: &[u8], kind: MgfKind) {
+        let x = l.to_mgf_bytes(kind).unwrap();
         assert_eq!(x, text);
-        let y = RecordList::from_mgf_string(&x, kind).unwrap();
+        let y = RecordList::from_mgf_bytes(&x, kind).unwrap();
         assert_eq!(l, y);
     }
 

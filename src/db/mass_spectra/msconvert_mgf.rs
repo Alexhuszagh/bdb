@@ -40,14 +40,14 @@ fn to_mgf<'a, T: Write>(writer: &mut T, record: &'a Record)
 fn export_title<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let num = record.num.ntoa()?;
+    let num = to_bytes(&record.num)?;
     write_alls!(
         writer,
         b"TITLE=", record.file.as_bytes(), b".",
-        num.as_bytes(), b".", num.as_bytes(),
+        num.as_slice(), b".", num.as_slice(),
         b".0 File:\"", record.file.as_bytes(),
         b"\", NativeID:\"controllerType=0 controllerNumber=1 scan=",
-        num.as_bytes(), b"\"\n"
+        num.as_slice(), b"\"\n"
     )?;
 
     Ok(())
@@ -57,8 +57,8 @@ fn export_title<T: Write>(writer: &mut T, record: &Record)
 fn export_rt<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let rt = record.rt.ntoa()?;
-    write_alls!(writer, b"RTINSECONDS=", rt.as_bytes(), b"\n")?;
+    let rt = to_bytes(&record.rt)?;
+    write_alls!(writer, b"RTINSECONDS=", rt.as_slice(), b"\n")?;
 
     Ok(())
 }
@@ -67,11 +67,11 @@ fn export_rt<T: Write>(writer: &mut T, record: &Record)
 fn export_pepmass<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
-    let parent_mz = record.parent_mz.ntoa()?;
-    write_alls!(writer, b"PEPMASS=", parent_mz.as_bytes())?;
+    let parent_mz = to_bytes(&record.parent_mz)?;
+    write_alls!(writer, b"PEPMASS=", parent_mz.as_slice())?;
     if record.parent_intensity != 0.0 {
-        let parent_intensity = record.parent_intensity.ntoa()?;
-        write_alls!(writer, b" ", parent_intensity.as_bytes())?;
+        let parent_intensity = to_bytes(&record.parent_intensity)?;
+        write_alls!(writer, b" ", parent_intensity.as_slice())?;
     }
     writer.write_all(b"\n")?;
 
@@ -85,12 +85,12 @@ fn export_charge<T: Write>(writer: &mut T, record: &Record)
     if record.parent_z != 1 {
         writer.write_all(b"CHARGE=")?;
         if record.parent_z > 0 {
-            let parent_z = record.parent_z.ntoa()?;
-            write_alls!(writer, parent_z.as_bytes(), b"+")?;
+            let parent_z = to_bytes(&record.parent_z)?;
+            write_alls!(writer, parent_z.as_slice(), b"+")?;
         } else {
             let z = -record.parent_z;
-            let parent_z = z.ntoa()?;
-            write_alls!(writer, parent_z.as_bytes(), b"-")?;
+            let parent_z = to_bytes(&z)?;
+            write_alls!(writer, parent_z.as_slice(), b"-")?;
         }
         writer.write_all(b"\n")?;
     }
@@ -103,9 +103,9 @@ fn export_spectra<T: Write>(writer: &mut T, record: &Record)
     -> Result<()>
 {
     for peak in record.peaks.iter() {
-        let mz = peak.mz.ntoa()?;
-        let intensity = peak.intensity.ntoa()?;
-        write_alls!(writer, mz.as_bytes(), b" ", intensity.as_bytes(), b"\n")?;
+        let mz = to_bytes(&peak.mz)?;
+        let intensity = to_bytes(&peak.intensity)?;
+        write_alls!(writer, mz.as_slice(), b" ", intensity.as_slice(), b"\n")?;
     }
 
     Ok(())
@@ -242,7 +242,7 @@ fn parse_title_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Recor
     record.file = capture_as_string(&captures, Title::FILE_INDEX);
 
     let num = capture_as_str(&captures, Title::NUM_INDEX);
-    record.num = num.parse::<u32>()?;
+    record.num = from_string(num)?;
 
     Ok(())
 }
@@ -259,7 +259,7 @@ fn parse_rt_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
     let captures = none_to_error!(Rt::extract().captures(&line), InvalidInput);
 
     let rt = capture_as_str(&captures, Rt::RT_INDEX);
-    record.rt = rt.parse::<f64>()?;
+    record.rt = from_string(rt)?;
 
     Ok(())
 }
@@ -276,10 +276,10 @@ fn parse_pepmass_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Rec
     let captures = none_to_error!(PepMass::extract().captures(&line), InvalidInput);
 
     let mz = capture_as_str(&captures, PepMass::PARENT_MZ_INDEX);
-    record.parent_mz = mz.parse::<f64>()?;
+    record.parent_mz = from_string(mz)?;
 
     let intensity = optional_capture_as_str(&captures, PepMass::PARENT_INTENSITY_INDEX);
-    record.parent_intensity = nonzero_float_from_string!(intensity, f64)?;
+    record.parent_intensity = nonzero_from_string(intensity)?;
 
     Ok(())
 }
@@ -316,7 +316,7 @@ fn parse_charge_line<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Reco
         // Verify and parse the charge line
         let line = lines.next().unwrap()?;
         let captures = none_to_error!(Charge::extract().captures(&line), InvalidInput);
-        let z = capture_as_str(&captures, Charge::PARENT_Z_INDEX).parse::<i8>()?;
+        let z: i8 = from_string(capture_as_str(&captures, Charge::PARENT_Z_INDEX))?;
         let sign = capture_as_str(&captures, Charge::PARENT_Z_SIGN_INDEX);
         match sign {
             "-" => record.parent_z = -z,
@@ -350,8 +350,8 @@ fn parse_spectra<T: BufRead>(lines: &mut PeakableLines<T>, record: &mut Record)
         bool_to_error!(items.next().is_none(), InvalidInput);
 
         record.peaks.push(Peak {
-            mz: mz.parse::<f64>()?,
-            intensity: intensity.parse::<f64>()?,
+            mz: from_string(mz)?,
+            intensity: from_string(intensity)?,
             z: 0,
         });
     }
@@ -384,5 +384,5 @@ pub(crate) fn record_from_msconvert_mgf<T: BufRead>(reader: &mut T)
 pub(crate) fn iterator_from_msconvert_mgf<T: BufRead>(reader: T)
     -> MgfRecordIter<T>
 {
-    MgfRecordIter::new(reader, "BEGIN IONS", MgfKind::MsConvert)
+    MgfRecordIter::new(reader, b"BEGIN IONS", MgfKind::MsConvert)
 }

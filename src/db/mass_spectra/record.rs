@@ -1,5 +1,8 @@
 //! Model for mass spectra definitions.
 
+use std::cmp::Ordering;
+
+use super::peak::Peak;
 use super::peak_list::PeakList;
 
 /// Model for a single record from a spectral scan.
@@ -65,6 +68,18 @@ impl Record {
             children: vec![],
         }
     }
+
+    /// Get the base peak (most intense child peak) for the spectrum.
+    #[inline]
+    pub fn base_peak(&self) -> Option<&Peak> {
+        // Custom total-ordering comparison for floats.
+        #[inline(always)]
+        fn cmp(x: f64, y: f64) -> Ordering {
+            if x.is_nan() || x < y { Ordering::Less } else { Ordering::Greater }
+        }
+
+        self.peaks.iter().max_by(|x, y| cmp(x.intensity, y.intensity))
+    }
 }
 
 // TESTS
@@ -119,11 +134,19 @@ mod tests {
         r2.rt = r1.rt;
     }
 
+    #[test]
+    fn base_peak_record_test() {
+        let r = mgf_33450();
+        let peak = r.base_peak().unwrap();
+        assert_approx_eq!(peak.mz, 288.2038337);
+        assert_approx_eq!(peak.intensity, 1740.2529296875);
+    }
+
     #[cfg(feature = "mgf")]
-    fn mgf_record_test(r: Record, text: &str, kind: MgfKind) {
-        let x = r.to_mgf_string(kind).unwrap();
+    fn mgf_record_test(r: Record, text: &[u8], kind: MgfKind) {
+        let x = r.to_mgf_bytes(kind).unwrap();
         assert_eq!(x, text);
-        let y = Record::from_mgf_string(&x, kind).unwrap();
+        let y = Record::from_mgf_bytes(&x, kind).unwrap();
         assert_eq!(r, y);
     }
 

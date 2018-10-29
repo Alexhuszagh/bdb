@@ -6,7 +6,6 @@ use bio::SequenceMass;
 use bio::proteins::AverageMass;
 use traits::*;
 use util::*;
-use super::evidence::ProteinEvidence;
 use super::re::*;
 use super::record::Record;
 use super::record_list::RecordList;
@@ -19,8 +18,8 @@ use super::record_list::RecordList;
 /// from the document.
 pub struct FastaIter<T: BufRead> {
     reader: T,
-    buf: Buffer,
-    line: String,
+    buf: Bytes,
+    line: Bytes,
 }
 
 impl<T: BufRead> FastaIter<T> {
@@ -30,16 +29,16 @@ impl<T: BufRead> FastaIter<T> {
         FastaIter {
             reader: reader,
             buf: Vec::with_capacity(8000),
-            line: String::with_capacity(8000)
+            line: Vec::with_capacity(8000)
         }
     }
 }
 
 impl<T: BufRead> Iterator for FastaIter<T> {
-    type Item = Result<String>;
+    type Item = Result<Bytes>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        text_next_skip_whitespace(">", &mut self.reader, &mut self.buf, &mut self.line)
+        bytes_next_skip_whitespace(b">", &mut self.reader, &mut self.buf, &mut self.line)
     }
 }
 
@@ -95,8 +94,8 @@ pub fn write_swissprot_header<T: Write>(record: &Record, writer: &mut T)
 
     write_alls!(
         writer,
-        b" PE=",     record.protein_evidence.ntoa()?.as_bytes(),
-        b" SV=",     record.sequence_version.ntoa()?.as_bytes()
+        b" PE=", to_bytes(&record.protein_evidence)?.as_slice(),
+        b" SV=", to_bytes(&record.sequence_version)?.as_slice()
     )?;
     Ok(())
 }
@@ -128,8 +127,8 @@ pub fn write_trembl_header<T: Write>(record: &Record, writer: &mut T)
 
     write_alls!(
         writer,
-        b" PE=",     record.protein_evidence.ntoa()?.as_bytes(),
-        b" SV=",     record.sequence_version.ntoa()?.as_bytes()
+        b" PE=", to_bytes(&record.protein_evidence)?.as_slice(),
+        b" SV=", to_bytes(&record.sequence_version)?.as_slice()
     )?;
     Ok(())
 }
@@ -273,8 +272,8 @@ fn record_header_from_swissprot(header: &str) -> Result<Record> {
     Ok(Record {
         // Can use unwrap because they were matched in the regex
         // as "\d+" capture groups, they must be deserializeable to int.
-        sequence_version: sv.parse().unwrap(),
-        protein_evidence: ProteinEvidence::from_str(pe)?,
+        sequence_version: from_string(sv).unwrap(),
+        protein_evidence: from_string(pe)?,
         mass: 0,
         length: 0,
         gene: optional_capture_as_string(&captures, R::GENE_INDEX),
@@ -304,8 +303,8 @@ fn record_header_from_trembl(header: &str) -> Result<Record> {
     Ok(Record {
         // Can use unwrap because they were matched in the regex
         // as "\d+" capture groups, they must be deserializeable to int.
-        sequence_version: sv.parse().unwrap(),
-        protein_evidence: ProteinEvidence::from_str(pe)?,
+        sequence_version: from_string(sv).unwrap(),
+        protein_evidence: from_string(pe)?,
         mass: 0,
         length: 0,
         gene: optional_capture_as_string(&captures, R::GENE_INDEX),
@@ -379,13 +378,12 @@ impl<T: BufRead> Iterator for FastaRecordIter<T> {
     type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let text = match self.iter.next()? {
+        let bytes = match self.iter.next()? {
             Err(e)   => return Some(Err(e)),
-            Ok(text) => text,
-
+            Ok(bytes) => bytes,
         };
 
-        Some(Record::from_fasta_string(&text))
+        Some(Record::from_fasta_bytes(bytes.as_slice()))
     }
 }
 
@@ -494,16 +492,16 @@ mod tests {
     #[test]
     fn fasta_iter_test() {
         // Check iterator over data.
-        let s = ">tr\nXX\n>sp\nXX\nXX\n>tr\n";
+        let s = b">tr\nXX\n>sp\nXX\nXX\n>tr\n".to_vec();
         let i = FastaIter::new(Cursor::new(s));
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), &[">tr\nXX\n", ">sp\nXX\nXX\n", ">tr\n"]);
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), &[b">tr\nXX\n".to_vec(), b">sp\nXX\nXX\n".to_vec(), b">tr\n".to_vec()]);
 
         // Check iterator over empty string.
-        let s = "";
+        let s = b"".to_vec();
         let i = FastaIter::new(Cursor::new(s));
-        let r: Result<Vec<String>> = i.collect();
-        assert_eq!(r.unwrap(), Vec::<String>::new());
+        let r: Result<Vec<Bytes>> = i.collect();
+        assert_eq!(r.unwrap(), Vec::<Bytes>::new());
     }
 
     #[test]
@@ -524,17 +522,17 @@ mod tests {
         // reference -- default
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_fasta(&mut w, v.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         // value -- default
         let mut w = Cursor::new(vec![]);
         value_iterator_to_fasta(&mut w, iterator_by_value!(v.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         // reference -- strict
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_fasta_strict(&mut w, v.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
         let r = reference_iterator_to_fasta_strict(&mut w, u.iter());
@@ -543,7 +541,7 @@ mod tests {
         // value -- strict
         let mut w = Cursor::new(vec![]);
         value_iterator_to_fasta_strict(&mut w, iterator_by_value!(v.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
         let r = value_iterator_to_fasta_strict(&mut w, iterator_by_value!(u.iter()));
@@ -552,20 +550,20 @@ mod tests {
         // reference -- lenient
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_fasta_lenient(&mut w, v.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
         reference_iterator_to_fasta_lenient(&mut w, u.iter()).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         // value -- lenient
         let mut w = Cursor::new(vec![]);
         value_iterator_to_fasta_lenient(&mut w, iterator_by_value!(v.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
 
         let mut w = Cursor::new(vec![]);
         value_iterator_to_fasta_lenient(&mut w, iterator_by_value!(u.iter())).unwrap();
-        assert_eq!(String::from_utf8(w.into_inner()).unwrap(), GAPDH_BSA_FASTA);
+        assert_eq!(w.into_inner(), GAPDH_BSA_FASTA);
     }
 
     #[test]

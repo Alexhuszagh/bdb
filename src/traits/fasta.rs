@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::Path;
 
-use util::Result;
+use util::{Bytes, Result};
 
 /// Serialize to and from FASTA.
 ///
@@ -31,13 +31,19 @@ pub trait Fasta: Sized {
     /// should be buffered.
     fn to_fasta<T: Write>(&self, writer: &mut T) -> Result<()>;
 
-    /// Export model to FASTA string.
-    fn to_fasta_string(&self) -> Result<String> {
+    /// Export model to FASTA bytes.
+    fn to_fasta_bytes(&self) -> Result<Bytes> {
         let capacity = self.estimate_fasta_size();
         let mut writer = Cursor::new(Vec::with_capacity(capacity));
 
         self.to_fasta(&mut writer)?;
-        Ok(String::from_utf8(writer.into_inner())?)
+        Ok(writer.into_inner())
+    }
+
+    /// Export model to FASTA string.
+    #[inline]
+    fn to_fasta_string(&self) -> Result<String> {
+        Ok(String::from_utf8(self.to_fasta_bytes()?)?)
     }
 
     /// Export model to FASTA output file.
@@ -51,13 +57,19 @@ pub trait Fasta: Sized {
     /// Import model from FASTA.
     fn from_fasta<T: BufRead>(reader: &mut T) -> Result<Self>;
 
-    /// Import model from FASTA string.
+    /// Import model from FASTA bytes.
     #[inline]
-    fn from_fasta_string(text: &str) -> Result<Self> {
+    fn from_fasta_bytes(bytes: &[u8]) -> Result<Self> {
         // Rust uses the contents of the immutable &str as the buffer
         // Cursor is then immutable.
-        let mut reader = Cursor::new(text);
+        let mut reader = Cursor::new(bytes);
         Self::from_fasta(&mut reader)
+    }
+
+    /// Import model from FASTA string.
+    #[inline]
+    fn from_fasta_string(string: &str) -> Result<Self> {
+        Self::from_fasta_bytes(string.as_bytes())
     }
 
     /// Import model from FASTA file.

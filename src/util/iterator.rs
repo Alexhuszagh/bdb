@@ -1,10 +1,9 @@
 //! Shared iterator templates and utilities.
 
 use std::io::prelude::*;
-use std::str as stdstr;
 
 use traits::Valid;
-use super::alias::{Buffer, Result};
+use super::alias::{Bytes, Result};
 use super::error::ErrorKind;
 
 // READER
@@ -318,18 +317,15 @@ pub fn value_iterator_export_lenient<
 
 // NEXT
 
-/// Export the buffer to a string (or none if the buffer is empty.)
+/// Clone the resulting buffer (or none if the buffer is empty.)
 /// Must be called inside an `unsafe` block.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! buffer_to_string {
+macro_rules! clone_bytes {
     ($buf:expr) => ({
         let result = match $buf.len() {
             0   => None,
-            _   => Some(match stdstr::from_utf8(&$buf) {
-                Err(e)  => Err(From::from(e)),
-                Ok(v)   => Ok(String::from(v)),
-            }),
+            _   => Some(Ok($buf.clone())),
         };
         $buf.set_len(0);
         result
@@ -339,14 +335,14 @@ macro_rules! buffer_to_string {
 /// Macro to fetch the next item from a reader.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! text_next {
+macro_rules! bytes_next {
     ($reader:expr, $buf:expr, $line:expr, $block:expr) => ({
         loop {
-            match $reader.read_line($line) {
+            match $reader.read_until(b'\n', $line) {
                 Err(e)      => return Some(Err(From::from(e))),
                 Ok(size)    => match size {
                     // Reached EOF
-                    0   => return unsafe { buffer_to_string!($buf) },
+                    0   => return unsafe { clone_bytes!($buf) },
                     // Read bytes, process them.
                     _   => $block,
                 }
@@ -355,30 +351,30 @@ macro_rules! text_next {
     })
 }
 
-/// Produce the next element from a text-based iterator (skipping whitespace).
-pub fn text_next_skip_whitespace<T: BufRead>(
-    start: &str,
+/// Produce the next element from a bytes-based iterator (skipping whitespace).
+pub fn bytes_next_skip_whitespace<T: BufRead>(
+    start: &[u8],
     reader: &mut T,
-    buf: &mut Buffer,
-    line: &mut String
+    buf: &mut Bytes,
+    line: &mut Bytes
 )
-    -> Option<Result<String>>
+    -> Option<Result<Bytes>>
 {
-    text_next!(reader, buf, line, unsafe {
-        if line == "\n" || line == "\r\n" {
+    bytes_next!(reader, buf, line, unsafe {
+        if line == b"\n" || line == b"\r\n" {
             // Ignore whitespace.
-            line.as_mut_vec().set_len(0);
+            line.set_len(0);
             continue;
         } else if buf.len() > 0 && line.starts_with(start) {
             // Create result from existing buffer,
             // clear the existing buffer, and add
             // the current line to a new buffer.
-            let result = buffer_to_string!(buf);
-            buf.append(line.as_mut_vec());
+            let result = clone_bytes!(buf);
+            buf.append(line);
             return result;
         } else {
             // Move the line to the buffer.
-            buf.append(line.as_mut_vec());
+            buf.append(line);
         }
     })
 }

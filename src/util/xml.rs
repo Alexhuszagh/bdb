@@ -9,10 +9,10 @@ pub use self::writer::{XmlWriter};
 
 mod reader {
 
-use quick_xml::Reader;
+use quick_xml::{Error as XmlError, Reader, Result as XmlResult};
 use quick_xml::events::{BytesStart, Event};
 use std::io::BufRead;
-use super::super::alias::{Buffer, Result};
+use super::super::alias::{Bytes, Result};
 use super::super::error::ErrorKind;
 
 /// Macro to seek another element within the tree.
@@ -80,7 +80,7 @@ impl<T: BufRead> XmlState<T> {
     /// the depth will always be asymmetric for start and end nodes.
     /// Start nodes will always be the same as the end node + 1.
     #[inline]
-    pub fn read_event<'a>(&mut self, buffer: &'a mut Buffer)
+    pub fn read_event<'a>(&mut self, buffer: &'a mut Bytes)
         -> Result<Event<'a>>
     {
         match self.reader.read_event(buffer) {
@@ -107,8 +107,8 @@ impl<T: BufRead> XmlState<T> {
 
     /// Read until the corresponding end element.
     #[inline]
-    pub fn read_to_end(&mut self, buffer: &mut Buffer, name: &[u8])
-        -> Result<Buffer>
+    pub fn read_to_end(&mut self, buffer: &mut Bytes, name: &[u8])
+        -> Result<Bytes>
     {
         match self.reader.read_to_end(name, buffer) {
             Err(e) => return Err(From::from(ErrorKind::Xml(e))),
@@ -122,10 +122,24 @@ impl<T: BufRead> XmlState<T> {
 
     /// Read text between the start and end element.
     #[inline]
-    pub fn read_text(&mut self, buffer: &mut Buffer, name: &[u8])
-        -> Result<String>
+    pub fn read_text(&mut self, buffer: &mut Bytes, name: &[u8])
+        -> Result<Bytes>
     {
-        let result = match self.reader.read_text(name, buffer) {
+        fn read_text_impl<T: BufRead>(reader: &mut Reader<T>, buf: &mut Bytes, end: &[u8])
+            -> XmlResult<Bytes>
+        {
+            let s = match reader.read_event(buf) {
+                Ok(Event::Text(e)) => Ok(e.unescaped()?.to_vec()),
+                Ok(Event::End(ref e)) if e.name() == end => return Ok(vec![]),
+                Ok(Event::Eof) => return Err(XmlError::UnexpectedEof("text".to_string())),
+                Err(e) => return Err(e),
+                _       => return Err(XmlError::TextNotFound),
+            };
+            reader.read_to_end(end, buf)?;
+            s
+        }
+
+        let result = match read_text_impl(&mut self.reader, buffer, name) {
             Err(e) => Err(From::from(ErrorKind::Xml(e))),
             Ok(v)  => {
                 self.is_start = false;
@@ -152,7 +166,7 @@ impl<T: BufRead> XmlState<T> {
     /// Implied function to process a callback on a start element.
     fn seek_start_callback_impl<State, Callback>(
         &mut self,
-        buffer: &mut Buffer,
+        buffer: &mut Bytes,
         name: &[u8],
         depth: usize,
         state: &mut State,
@@ -181,7 +195,7 @@ impl<T: BufRead> XmlState<T> {
     /// Seek start element event and process event with callback.
     pub fn seek_start_callback<State, Callback>(
         &mut self,
-        buffer: &mut Buffer,
+        buffer: &mut Bytes,
         name: &[u8],
         depth: usize,
         state: &mut State,
@@ -200,7 +214,7 @@ impl<T: BufRead> XmlState<T> {
     /// Does not sufficiently clear necessary buffers, and therefore
     /// must be wrapped in another caller.
     #[inline]
-    fn seek_start_impl(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+    fn seek_start_impl(&mut self, buffer: &mut Bytes, name: &[u8], depth: usize)
         -> Option<Result<()>>
     {
         xml_seek!(Start, self, buffer, name, depth)
@@ -208,7 +222,7 @@ impl<T: BufRead> XmlState<T> {
 
     /// Seek start element based off name and depth.
     #[inline]
-    pub fn seek_start(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+    pub fn seek_start(&mut self, buffer: &mut Bytes, name: &[u8], depth: usize)
         -> Option<Result<()>>
     {
         let result = self.seek_start_impl(buffer,name, depth);
@@ -221,7 +235,7 @@ impl<T: BufRead> XmlState<T> {
     /// Does not sufficiently clear necessary buffers, and therefore
     /// must be wrapped in another caller.
     #[inline]
-    fn seek_end_impl(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+    fn seek_end_impl(&mut self, buffer: &mut Bytes, name: &[u8], depth: usize)
         -> Option<Result<()>>
     {
         xml_seek!(End, self, buffer, name, depth)
@@ -229,7 +243,7 @@ impl<T: BufRead> XmlState<T> {
 
     /// Seek end element based off name and depth.
     #[inline]
-    pub fn seek_end(&mut self, buffer: &mut Buffer, name: &[u8], depth: usize)
+    pub fn seek_end(&mut self, buffer: &mut Bytes, name: &[u8], depth: usize)
         -> Option<Result<()>>
     {
         let result = self.seek_end_impl(buffer,name, depth);
@@ -240,7 +254,7 @@ impl<T: BufRead> XmlState<T> {
     /// Implied function to seek a start element or fail if another is found.
     fn seek_start_or_fallback_impl(
         &mut self,
-        buffer: &mut Buffer,
+        buffer: &mut Bytes,
         name1: &[u8],
         depth1: usize,
         name2: &[u8],
@@ -271,7 +285,7 @@ impl<T: BufRead> XmlState<T> {
     #[inline]
     pub fn seek_start_or_fallback(
         &mut self,
-        buffer: &mut Buffer,
+        buffer: &mut Bytes,
         name1: &[u8],
         depth1: usize,
         name2: &[u8],
@@ -289,8 +303,8 @@ impl<T: BufRead> XmlState<T> {
 pub struct XmlReader<T: BufRead> {
     /// Stored state for the reader.
     state: XmlState<T>,
-    /// Buffer tied to XML events.
-    buffer: Buffer,
+    /// Bytes tied to XML events.
+    buffer: Bytes,
 }
 
 impl<T: BufRead> XmlReader<T> {
@@ -299,7 +313,7 @@ impl<T: BufRead> XmlReader<T> {
     pub fn new(reader: T) -> Self {
         XmlReader {
             state: XmlState::new(reader),
-            buffer: Buffer::with_capacity(8000),
+            buffer: Bytes::with_capacity(8000),
         }
     }
 
@@ -322,13 +336,13 @@ impl<T: BufRead> XmlReader<T> {
     /// Read until the matching XML end element.
     #[inline(always)]
     #[allow(dead_code)]
-    pub fn read_to_end(&mut self, name: &[u8]) -> Result<Buffer> {
+    pub fn read_to_end(&mut self, name: &[u8]) -> Result<Bytes> {
         self.state.read_to_end(&mut self.buffer, name)
     }
 
     /// Read text between the start and end element.
     #[inline(always)]
-    pub fn read_text(&mut self, name: &[u8]) -> Result<String> {
+    pub fn read_text(&mut self, name: &[u8]) -> Result<Bytes> {
         self.state.read_text(&mut self.buffer, name)
     }
 
@@ -571,14 +585,15 @@ mod tests {
     use quick_xml::events::Event;
     use std::io::Cursor;
     use super::*;
+    use util::Bytes;
 
     #[test]
     fn xml_declaration_test() {
         let mut w = XmlWriter::new(Cursor::new(vec![]));
         w.write_declaration().unwrap();
 
-        let text = String::from_utf8(w.into_inner().into_inner()).unwrap();
-        assert_eq!(text, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        let text = w.into_inner().into_inner();
+        assert_eq!(text, b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>".to_vec());
     }
 
     #[test]
@@ -591,30 +606,29 @@ mod tests {
         w.write_empty_element(b"t3", &[(b"k3", b"v3")]).unwrap();
         w.write_end_element(b"t1").unwrap();
 
-        let text = String::from_utf8(w.into_inner().into_inner()).unwrap();
-        assert_eq!(text, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"/></t1>");
+        let text = w.into_inner().into_inner();
+        assert_eq!(text, b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"/></t1>".to_vec());
     }
 
     #[test]
     fn xml_read_test() {
-        let text = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"></t3></t1>";
+        let text = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><t1 k1=\"v1\"><t2 k2=\"v2\">Text</t2><t3 k3=\"v3\"></t3></t1>".to_vec();
         let mut r = XmlReader::new(Cursor::new(text));
 
-        let mut tags: Vec<String> = vec![];
+        let mut tags: Vec<Bytes> = vec![];
 
         loop {
             match r.read_event() {
                 Err(_)              => break,
                 Ok(Event::Eof)      => break,
                 Ok(Event::Start(e)) => {
-                    let string = String::from_utf8(e.name().to_vec()).unwrap();
-                    tags.push(string);
+                    tags.push(e.name().to_vec());
                 },
                 _ => continue,
             }
             r.reset_buffer();
         }
 
-        assert_eq!(tags, &["t1", "t2", "t3"]);
+        assert_eq!(tags, &[b"t1".to_vec(), b"t2".to_vec(), b"t3".to_vec()]);
     }
 }
