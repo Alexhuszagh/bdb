@@ -22,3 +22,4 @@
 //    abi-dump: Converts data to csfasta/csqual format. Note that data submitted in base-space can be represented in color-space, but please be aware of the advantages / disadvantages of converting between different encodings.
 //    illumina-dump: Converts data to Illumina native and qseq formats.
 //    vdb-dump: Exports the vdb-formatted data of the .sra file.
+

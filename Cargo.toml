@@ -43,9 +43,8 @@ uniprot = []
 
 [dependencies]
 cfg-if = "0.1"
-dtoa = "0.4"
-itoa = "0.4"
 lazy_static = "1"
+lexical = "1"
 numpress = "1"
 ref_slice = "1"
 regex = "1"

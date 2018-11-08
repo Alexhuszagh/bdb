@@ -1,6 +1,7 @@
-use std::str as stdstr;
+use lexical;
 
 use util::alias::Result;
+use util::error::ErrorKind;
 use super::num::Zero;
 
 // DESERIALIZABLE
@@ -19,9 +20,10 @@ macro_rules! deserializable_impl {
         impl Deserializable for $t {
             #[inline]
             fn import_bytes(bytes: &[u8]) -> Result<$t> {
-                // TODO(ahuszagh)   Make more efficient, using custom routines.
-                // Remove parse and from_utf8
-                Ok(stdstr::from_utf8(bytes)?.parse::<$t>()?)
+                match lexical::try_parse(bytes) {
+                    Ok(v)  => Ok(v),
+                    Err(_) => Err(From::from(ErrorKind::InvalidInput))
+                }
             }
         }
     )*)

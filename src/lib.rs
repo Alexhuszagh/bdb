@@ -8,8 +8,7 @@ extern crate cfg_if;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate dtoa;
-extern crate itoa;
+extern crate lexical;
 extern crate ref_slice;
 extern crate regex;
 
